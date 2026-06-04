@@ -1,0 +1,55 @@
+name: Unzip Sanitized Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: "Path to ZIP in repo"
+        required: true
+        default: "backups/incoming/hoosier_online_backup.zip"
+      output_dir:
+        description: "Where to unzip it"
+        required: true
+        default: "backups/2026-06-04/unzipped-site"
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Verify ZIP exists
+        run: |
+          test -f "${{ github.event.inputs.zip_path }}" || {
+            echo "ZIP not found: ${{ github.event.inputs.zip_path }}"
+            exit 1
+          }
+
+      - name: Block unsafe files
+        run: |
+          unzip -l "${{ github.event.inputs.zip_path }}" > zip-list.txt
+
+          if grep -Ei '(^|/)(database\.php|\.env|admin-secrets\.php|database\.local\.php|.*\.sql|.*\.log|.*\.zip)$' zip-list.txt; then
+            echo "Blocked: ZIP contains sensitive or unsafe files."
+            echo "Remove credentials, SQL dumps, logs, nested ZIPs, and secrets before unzipping into this public repo."
+            exit 1
+          fi
+
+      - name: Unzip backup
+        run: |
+          rm -rf "${{ github.event.inputs.output_dir }}"
+          mkdir -p "${{ github.event.inputs.output_dir }}"
+          unzip -q "${{ github.event.inputs.zip_path }}" -d "${{ github.event.inputs.output_dir }}"
+
+      - name: Commit unzipped backup
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add "${{ github.event.inputs.output_dir }}"
+          git commit -m "Unzip sanitized Hoosier Online backup" || echo "No changes to commit"
+          git push
