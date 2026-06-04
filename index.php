@@ -1,34 +1,53 @@
 <?php
 // Hoosier Online public homepage.
-// Self-contained marketing page using shared design tokens from /assets/css/site.css.
-// Copy is grounded in content/home.php, product.php, and the salesphilosophy "plain pitch".
-// No fabricated testimonials or stats: the business is pre-launch.
+// Trust-first, porch-warm. Most visitors arrive from a custom preview link and are
+// already weighing a purchase — so this page builds trust, not a sales funnel.
+// Self-contained, uses shared design tokens from /assets/css/site.css.
+// Copy is grounded in product.php (real pricing, ownership, and performance terms).
+// Nothing here promises leads, lock-in-free ownership, or anything the policies don't.
 
 $email = 'hello@hoosieronline.com';
-$mailto = 'mailto:' . $email . '?subject=' . rawurlencode('Hoosier Online Front Door');
+$mailto = 'mailto:' . $email . '?subject=' . rawurlencode('Hello from a preview');
 
-// The 7 customer-facing benefits mirror the system's me_categories model.
-$frontDoor = [
-    ['k' => 'Find you',          't' => 'Show up when a local customer searches, and give them one clean place to land.'],
-    ['k' => 'Trust you',         't' => 'Look active, real, and worth hiring — not abandoned or amateur.'],
-    ['k' => 'See what you do',    't' => 'Your services, work, and photos laid out so people get it in seconds.'],
-    ['k' => 'Reach you',         't' => 'One obvious way to call, message, or send a request. No guessing.'],
-    ['k' => 'Book you',          't' => 'A simple path to request a quote, an estimate, or a time that works.'],
-    ['k' => 'Pay you',           't' => 'Take a deposit or payment when it makes sense, without the awkward back-and-forth.'],
-    ['k' => 'Clean up the mess', 't' => 'Fix the dead links, stale posts, and scattered profiles dragging you down.'],
+function ho_e(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+// Who we are — warm, true facts.
+$chips = [
+    'Indiana-based. For real.',
+    'A person answers.',
+    'No sales floor, no runaround.',
+    'We made your preview by hand.',
 ];
 
-$problems = [
-    'Customers ask a vague question, then quietly disappear.',
-    'Calls, texts, and Facebook messages get scattered everywhere.',
-    'An old website looks dead — or makes people work too hard.',
-    'Good operators lose jobs because the next step isn’t obvious.',
+// Straight talk — every promise traces to a real policy in product.php.
+$promises = [
+    ['h' => 'If you don’t really need us, we’ll say so.',
+     't' => 'We’d rather lose the sale than talk you into something you’ll regret. A clean front door isn’t right for everyone, and we’ll tell you if you’re one of them.'],
+    ['h' => 'Your stuff stays yours.',
+     't' => 'Your photos, your words, your logo, your customer info — always yours. Your domain too, if it’s in your name. The page itself runs on our system; if you ever want to move on, we’ll talk it through like neighbors, not lawyers.'],
+    ['h' => 'The price is the price.',
+     't' => 'No surprise invoices, no “oh, that part’s extra.” You’ll know the number before you ever say yes.'],
+    ['h' => 'We can’t make your phone ring — and we won’t pretend we can.',
+     't' => 'No fake “leads guaranteed,” no magic growth engine. What we can do is make sure that when somebody looks you up, you look like the real, capable operator you already are.'],
+    ['h' => 'You’ll see it before you pay.',
+     't' => 'You already did — that preview wasn’t a fluke. Showing you the thing first is just how we work.'],
+];
+
+// What lives behind the door — the 7 benefits, said warmly.
+$door = [
+    ['Find you',        'Show up when a neighbor goes looking, and land them somewhere tidy.'],
+    ['Trust you',       'Look active and real — not abandoned or slapped together.'],
+    ['See your work',   'Your services and photos laid out so folks get it in a glance.'],
+    ['Reach you',       'One obvious way to call or send a request. No scavenger hunt.'],
+    ['Book you',        'A simple path to ask for a quote, an estimate, or a time.'],
+    ['Pay you',         'Take a deposit or payment when it makes sense, no awkwardness.'],
+    ['Tidy the mess',   'Clean up the dead links and stale posts dragging you down.'],
 ];
 
 $steps = [
-    ['n' => '1', 'h' => 'We clarify your offer', 't' => 'What jobs you want, where you work, and what a customer needs to know first.'],
-    ['n' => '2', 'h' => 'We build your front door', 't' => 'A clean page with the right questions, trust points, and a clear call to action.'],
-    ['n' => '3', 'h' => 'You share one link', 't' => 'Put it on Facebook, your Google profile, business cards, and text replies.'],
+    ['1', 'We have a real conversation', 'About your trade, your town, and the jobs you actually want more of.'],
+    ['2', 'We build your front door',    'You’ve seen the preview — we make it real and get the details right.'],
+    ['3', 'You share one link',          'Put it wherever folks already find you. That’s the whole chore list.'],
 ];
 ?>
 <!doctype html>
@@ -36,216 +55,136 @@ $steps = [
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Hoosier Online — A clean online front door for local Indiana businesses</title>
-  <meta name="description" content="Hoosier Online builds a simple, trustworthy online front door for local Indiana service businesses — so customers can find you, trust you, contact you, book you, and pay you. Flat pricing, no agency runaround.">
+  <title>Hoosier Online — Pull up a chair</title>
+  <meta name="description" content="The folks behind your preview. Hoosier Online is a small Indiana outfit that builds a clean, honest online front door for local businesses. No hard sell, no surprise invoices, no fake lead promises.">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/assets/css/site.css?v=012-mobile-fix">
   <style>
-    /* ---- Page scaffold ---- */
     .ho-home { --maxw: 1140px; }
     .ho-wrap { width: min(var(--maxw), calc(100% - 40px)); margin-inline: auto; }
-    .ho-section { padding: clamp(56px, 9vw, 116px) 0; }
-    .ho-eyebrow {
-      margin: 0 0 14px; color: var(--ho-primary);
-      font-weight: 900; font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
-    }
-    .ho-h2 {
-      margin: 0; font-family: var(--ho-font-display); text-transform: uppercase;
-      font-size: clamp(34px, 5.2vw, 60px); line-height: .92; letter-spacing: .02em;
-    }
-    .ho-lede { max-width: 58ch; margin: 18px 0 0; color: var(--ho-muted); font-size: clamp(17px, 1.5vw, 20px); }
+    .ho-section { padding: clamp(52px, 8vw, 104px) 0; }
+    .ho-eyebrow { margin: 0 0 14px; color: var(--ho-primary); font-weight: 900; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; }
+    .ho-h2 { margin: 0; font-family: var(--ho-font-display); text-transform: uppercase; font-size: clamp(32px, 4.8vw, 56px); line-height: .94; letter-spacing: .02em; }
+    .ho-lede { max-width: 56ch; margin: 18px 0 0; color: var(--ho-muted); font-size: clamp(17px, 1.5vw, 20px); }
 
-    /* ---- Header ---- */
-    .ho-head {
-      position: sticky; top: 0; z-index: 40;
-      backdrop-filter: saturate(140%) blur(10px);
-      background: rgba(247,243,232,.78);
-      border-bottom: 1px solid rgba(216,199,178,.6);
+    /* warm canvas, more cream + gold than the rest of the site default */
+    body.ho-home {
+      background:
+        radial-gradient(circle at 12% -4%, rgba(242,176,30,.22), transparent 34rem),
+        radial-gradient(circle at 92% 4%, rgba(46,91,52,.10), transparent 26rem),
+        var(--ho-bg);
     }
+
+    /* Header */
+    .ho-head { position: sticky; top: 0; z-index: 40; backdrop-filter: saturate(140%) blur(10px); background: rgba(247,243,232,.8); border-bottom: 1px solid rgba(216,199,178,.6); }
     .ho-head-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
-    .ho-brand { display: inline-flex; align-items: center; }
     .ho-brand img { height: 34px; width: auto; display: block; }
     .ho-nav { display: flex; align-items: center; gap: 8px; }
-    .ho-nav a {
-      color: var(--ho-text); text-decoration: none; font-weight: 750; font-size: 15px;
-      padding: 8px 12px; border-radius: 999px;
-    }
+    .ho-nav a { color: var(--ho-text); text-decoration: none; font-weight: 750; font-size: 15px; padding: 8px 12px; border-radius: 999px; }
     .ho-nav a:hover { background: rgba(255,255,255,.7); color: var(--ho-text); }
-    .ho-nav .ho-nav-cta {
-      background: var(--ho-primary); color: #fff; font-weight: 850;
-      border: 1px solid var(--ho-primary);
-    }
-    .ho-nav .ho-nav-cta:hover { background: var(--ho-primary-deep); color: #fff; }
+    .ho-nav .ho-nav-cta { background: var(--ho-secondary); color: #fff; font-weight: 850; border: 1px solid var(--ho-secondary); }
+    .ho-nav .ho-nav-cta:hover { filter: brightness(1.08); color: #fff; }
     .ho-nav-links { display: contents; }
 
-    /* ---- Buttons ---- */
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-      min-height: 52px; padding: 0 24px; border-radius: 999px;
-      font: inherit; font-weight: 850; font-size: 16px; letter-spacing: .01em;
-      text-decoration: none; cursor: pointer; border: 1px solid transparent;
-      transition: transform 160ms var(--ho-ease), box-shadow 160ms var(--ho-ease), background 160ms var(--ho-ease);
-    }
-    .btn-primary { background: var(--ho-primary); color: #fff; border-color: var(--ho-primary); box-shadow: 0 12px 30px rgba(177,18,23,.22); }
-    .btn-primary:hover { background: var(--ho-primary-deep); color: #fff; transform: translateY(-2px); box-shadow: 0 16px 38px rgba(177,18,23,.28); }
-    .btn-ghost { background: rgba(255,255,255,.72); color: var(--ho-text); border-color: var(--ho-border); }
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 52px; padding: 0 24px; border-radius: 999px; font: inherit; font-weight: 850; font-size: 16px; text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: transform 160ms var(--ho-ease), box-shadow 160ms var(--ho-ease), background 160ms var(--ho-ease), filter 160ms var(--ho-ease); }
+    .btn-primary { background: var(--ho-secondary); color: #fff; border-color: var(--ho-secondary); box-shadow: 0 12px 30px rgba(46,91,52,.22); }
+    .btn-primary:hover { filter: brightness(1.08); color: #fff; transform: translateY(-2px); box-shadow: 0 16px 38px rgba(46,91,52,.28); }
+    .btn-ghost { background: rgba(255,255,255,.74); color: var(--ho-text); border-color: var(--ho-border); }
     .btn-ghost:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(24,22,19,.10); color: var(--ho-text); }
+    .btn-accent { background: var(--ho-accent); color: var(--ho-text); border-color: var(--ho-accent); box-shadow: 0 14px 34px rgba(0,0,0,.16); }
+    .btn-accent:hover { transform: translateY(-2px); filter: brightness(1.04); color: var(--ho-text); }
     .btn .arrow { transition: transform 160ms var(--ho-ease); }
     .btn:hover .arrow { transform: translateX(3px); }
 
-    /* ---- Hero ---- */
-    .ho-hero { position: relative; overflow: hidden; }
-    .ho-hero-grid {
-      display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
-      gap: clamp(28px, 5vw, 64px); align-items: center;
-    }
-    .ho-hero h1 {
-      margin: 0; font-family: var(--ho-font-display); text-transform: uppercase;
-      font-size: clamp(48px, 8vw, 96px); line-height: .86; letter-spacing: .02em;
-    }
+    /* Hero */
+    .ho-hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(28px, 5vw, 60px); align-items: center; }
+    .ho-hero h1 { margin: 0; font-family: var(--ho-font-display); text-transform: uppercase; font-size: clamp(52px, 8.4vw, 104px); line-height: .86; letter-spacing: .02em; }
     .ho-hero h1 em { color: var(--ho-primary); font-style: normal; }
-    .ho-hero-lede { max-width: 52ch; margin: 22px 0 0; color: var(--ho-muted); font-size: clamp(18px, 1.7vw, 21px); }
+    .ho-hero-lede { max-width: 50ch; margin: 22px 0 0; color: var(--ho-muted); font-size: clamp(18px, 1.6vw, 21px); }
     .ho-hero-cta { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 12px; }
-    .ho-hero-note { margin: 20px 0 0; display: inline-flex; align-items: center; gap: 9px; color: var(--ho-secondary); font-weight: 750; font-size: 15px; }
-    .ho-hero-note .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--ho-secondary); box-shadow: 0 0 0 4px rgba(46,91,52,.16); }
 
-    /* Hero visual: a stylized "front door" card */
-    .ho-door {
-      position: relative; border-radius: 28px; padding: 24px;
-      background:
-        radial-gradient(circle at 50% 0%, rgba(242,176,30,.20), transparent 60%),
-        linear-gradient(160deg, rgba(255,255,255,.96), rgba(255,253,245,.86));
-      border: 1px solid var(--ho-border); box-shadow: 0 30px 80px rgba(24,22,19,.14);
-    }
-    .ho-door-top { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-    .ho-door-top span { width: 11px; height: 11px; border-radius: 999px; background: var(--ho-border); }
-    .ho-door-top span.r { background: var(--ho-primary); }
-    .ho-door-top span.g { background: var(--ho-accent); }
-    .ho-door-top span.b { background: var(--ho-secondary); }
-    .ho-door-url { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--ho-muted); letter-spacing: .02em; }
-    .ho-door-screen { border-radius: 18px; border: 1px solid var(--ho-border); background: #fff; overflow: hidden; }
-    .ho-door-banner {
-      padding: 22px 20px; color: #fff;
-      background: linear-gradient(135deg, var(--ho-primary), var(--ho-primary-deep));
-    }
-    .ho-door-banner b { display: block; font-family: var(--ho-font-display); font-size: 30px; line-height: .95; letter-spacing: .03em; text-transform: uppercase; }
-    .ho-door-banner span { font-size: 14px; opacity: .92; }
-    .ho-door-rows { padding: 16px 18px 20px; display: grid; gap: 10px; }
-    .ho-door-row { display: flex; align-items: center; gap: 12px; }
-    .ho-door-row i {
-      flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-      background: rgba(46,91,52,.12); color: var(--ho-secondary); font-style: normal; font-weight: 900; font-size: 15px;
-    }
-    .ho-door-row p { margin: 0; font-size: 14px; font-weight: 650; }
-    .ho-door-btn {
-      margin: 4px 18px 18px; text-align: center; padding: 13px; border-radius: 12px;
-      background: var(--ho-accent); color: var(--ho-text); font-weight: 900; font-size: 15px;
-      letter-spacing: .02em;
-    }
+    /* Hero note card — warm, handwritten-feeling welcome */
+    .ho-note { position: relative; border-radius: 24px; padding: clamp(26px, 3vw, 36px); background: linear-gradient(160deg, #fffdf5, #fff7e6); border: 1px solid var(--ho-border); box-shadow: 0 26px 70px rgba(24,22,19,.13); }
+    .ho-note::before { content: ""; position: absolute; top: 18px; left: 22px; right: 22px; height: 3px; border-radius: 999px; background: linear-gradient(90deg, var(--ho-accent), var(--ho-primary), var(--ho-secondary)); }
+    .ho-note .light { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--ho-secondary); font-weight: 800; font-size: 14px; }
+    .ho-note .bulb { width: 11px; height: 11px; border-radius: 999px; background: var(--ho-accent); box-shadow: 0 0 0 5px rgba(242,176,30,.22), 0 0 16px rgba(242,176,30,.7); }
+    .ho-note p { margin: 0 0 13px; font-size: 17px; line-height: 1.55; }
+    .ho-note p:last-of-type { margin-bottom: 0; }
+    .ho-note .sig { margin-top: 18px; font-family: var(--ho-font-display); font-size: 26px; letter-spacing: .02em; color: var(--ho-text); }
 
-    /* ---- Problem ---- */
-    .ho-problem { background: linear-gradient(180deg, transparent, rgba(255,253,245,.6)); }
-    .ho-problem-grid { margin-top: clamp(28px, 4vw, 44px); display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
-    .ho-problem-item {
-      padding: 22px 22px 22px 56px; position: relative; border-radius: 18px;
-      background: rgba(255,255,255,.7); border: 1px solid var(--ho-border); font-size: 17px; font-weight: 600;
-    }
-    .ho-problem-item::before {
-      content: "✕"; position: absolute; left: 20px; top: 21px;
-      color: var(--ho-primary); font-weight: 900; font-size: 18px;
-    }
+    /* Who we are */
+    .ho-who { background: linear-gradient(180deg, transparent, rgba(255,253,245,.7)); }
+    .ho-chips { margin-top: clamp(26px, 3.5vw, 40px); display: flex; flex-wrap: wrap; gap: 12px; }
+    .ho-chip { display: inline-flex; align-items: center; gap: 9px; padding: 12px 18px; border-radius: 999px; background: var(--ho-surface); border: 1px solid var(--ho-border); font-weight: 750; box-shadow: 0 8px 22px rgba(24,22,19,.05); }
+    .ho-chip::before { content: ""; width: 9px; height: 9px; border-radius: 999px; background: var(--ho-secondary); }
 
-    /* ---- Front door (what you get) ---- */
-    .ho-doorgrid { margin-top: clamp(30px, 4vw, 48px); display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
-    .ho-feat {
-      padding: 26px 22px; border-radius: 22px; background: var(--ho-surface);
-      border: 1px solid var(--ho-border); box-shadow: 0 14px 44px rgba(24,22,19,.06);
-      transition: transform 180ms var(--ho-ease), box-shadow 180ms var(--ho-ease);
-    }
-    .ho-feat:hover { transform: translateY(-4px); box-shadow: 0 22px 56px rgba(24,22,19,.12); }
-    .ho-feat-tag {
-      display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 14px; margin-bottom: 14px;
-      border-radius: 999px; background: rgba(242,176,30,.18); color: var(--ho-primary-deep);
-      font-family: var(--ho-font-display); font-size: 22px; letter-spacing: .03em; text-transform: uppercase;
-    }
-    .ho-feat p { margin: 0; color: var(--ho-muted); font-size: 16px; }
-    .ho-feat.span2 { grid-column: span 1; }
+    /* Straight talk / promises */
+    .ho-promises { margin-top: clamp(30px, 4vw, 46px); display: grid; gap: 14px; }
+    .ho-promise { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 18px; align-items: start; padding: 24px; border-radius: 20px; background: var(--ho-surface); border: 1px solid var(--ho-border); box-shadow: 0 12px 40px rgba(24,22,19,.05); }
+    .ho-promise .mark { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: rgba(46,91,52,.12); color: var(--ho-secondary); font-weight: 900; font-size: 22px; }
+    .ho-promise h3 { margin: 0 0 6px; font-size: 20px; letter-spacing: -.01em; }
+    .ho-promise p { margin: 0; color: var(--ho-muted); font-size: 16px; }
 
-    /* ---- Pricing ---- */
+    /* What this is — the door */
+    .ho-doorgrid { margin-top: clamp(28px, 4vw, 44px); display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+    .ho-feat { padding: 22px; border-radius: 18px; background: rgba(255,255,255,.72); border: 1px solid var(--ho-border); }
+    .ho-feat span { display: block; margin-bottom: 8px; font-family: var(--ho-font-display); font-size: 24px; letter-spacing: .03em; text-transform: uppercase; color: var(--ho-primary-deep); }
+    .ho-feat p { margin: 0; color: var(--ho-muted); font-size: 15px; }
+
+    /* Pricing — calm, honest */
     .ho-price { background: linear-gradient(180deg, rgba(255,253,245,.7), transparent); }
-    .ho-price-grid { margin-top: clamp(30px, 4vw, 48px); display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; align-items: start; }
-    .ho-plan {
-      position: relative; border-radius: 26px; padding: 30px;
-      background: var(--ho-surface); border: 1px solid var(--ho-border);
-      box-shadow: 0 18px 60px rgba(24,22,19,.08);
-    }
-    .ho-plan.featured { border-color: var(--ho-primary); box-shadow: 0 24px 70px rgba(177,18,23,.16); }
-    .ho-plan-flag {
-      position: absolute; top: -13px; right: 26px; padding: 6px 14px; border-radius: 999px;
-      background: var(--ho-primary); color: #fff; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
-    }
-    .ho-plan h3 { margin: 0; font-family: var(--ho-font-display); font-size: 32px; text-transform: uppercase; letter-spacing: .03em; }
-    .ho-plan .price { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 4px; }
-    .ho-plan .price b { font-family: var(--ho-font-display); font-size: 56px; line-height: 1; color: var(--ho-text); }
+    .ho-price-grid { margin-top: clamp(28px, 4vw, 44px); display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; align-items: start; }
+    .ho-plan { position: relative; border-radius: 24px; padding: 30px; background: var(--ho-surface); border: 1px solid var(--ho-border); box-shadow: 0 16px 54px rgba(24,22,19,.07); }
+    .ho-plan-tag { display: inline-block; margin-bottom: 12px; padding: 5px 13px; border-radius: 999px; background: rgba(46,91,52,.12); color: var(--ho-secondary); font-size: 12px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+    .ho-plan h3 { margin: 0; font-family: var(--ho-font-display); font-size: 30px; text-transform: uppercase; letter-spacing: .03em; }
+    .ho-plan .price { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 4px; }
+    .ho-plan .price b { font-family: var(--ho-font-display); font-size: 52px; line-height: 1; }
     .ho-plan .price span { color: var(--ho-muted); font-weight: 700; }
-    .ho-plan .renew { margin: 0 0 18px; color: var(--ho-muted); font-size: 14px; }
+    .ho-plan .renew { margin: 0 0 16px; color: var(--ho-muted); font-size: 14px; }
     .ho-plan .best { margin: 0 0 18px; font-weight: 650; }
-    .ho-plan ul { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 11px; }
-    .ho-plan li { position: relative; padding-left: 28px; font-size: 15px; }
-    .ho-plan li::before {
-      content: "✓"; position: absolute; left: 0; top: 0; color: var(--ho-secondary); font-weight: 900;
-    }
+    .ho-plan ul { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 10px; }
+    .ho-plan li { position: relative; padding-left: 27px; font-size: 15px; }
+    .ho-plan li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--ho-secondary); font-weight: 900; }
     .ho-plan .btn { width: 100%; }
     .ho-price-foot { margin-top: 20px; text-align: center; color: var(--ho-muted); font-weight: 650; }
 
-    /* ---- Process ---- */
-    .ho-steps { margin-top: clamp(30px, 4vw, 48px); display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; counter-reset: step; }
-    .ho-step { padding: 26px 24px; border-radius: 22px; background: rgba(255,255,255,.74); border: 1px solid var(--ho-border); }
-    .ho-step .num {
-      display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; margin-bottom: 16px;
-      background: var(--ho-secondary); color: #fff; font-family: var(--ho-font-display); font-size: 26px;
-    }
-    .ho-step h3 { margin: 0 0 8px; font-family: var(--ho-font-display); font-size: 26px; text-transform: uppercase; letter-spacing: .02em; }
+    /* Process */
+    .ho-steps { margin-top: clamp(28px, 4vw, 44px); display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+    .ho-step { padding: 26px 24px; border-radius: 20px; background: rgba(255,255,255,.74); border: 1px solid var(--ho-border); }
+    .ho-step .num { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; margin-bottom: 16px; background: var(--ho-secondary); color: #fff; font-family: var(--ho-font-display); font-size: 24px; }
+    .ho-step h3 { margin: 0 0 8px; font-size: 21px; }
     .ho-step p { margin: 0; color: var(--ho-muted); font-size: 16px; }
 
-    /* ---- Final CTA ---- */
-    .ho-cta { padding-bottom: clamp(64px, 9vw, 120px); }
-    .ho-cta-card {
-      position: relative; overflow: hidden; border-radius: 32px; padding: clamp(36px, 6vw, 72px);
-      text-align: center; color: #fff;
-      background:
-        radial-gradient(circle at 18% 12%, rgba(242,176,30,.34), transparent 42%),
-        radial-gradient(circle at 88% 88%, rgba(46,91,52,.40), transparent 46%),
-        linear-gradient(140deg, var(--ho-primary), var(--ho-primary-deep));
-      box-shadow: 0 30px 90px rgba(177,18,23,.26);
-    }
-    .ho-cta-card h2 { margin: 0; font-family: var(--ho-font-display); text-transform: uppercase; font-size: clamp(36px, 6vw, 68px); line-height: .9; letter-spacing: .02em; }
-    .ho-cta-card p { max-width: 50ch; margin: 16px auto 28px; font-size: clamp(17px, 1.6vw, 20px); opacity: .94; }
-    .ho-cta-card .btn-accent { background: var(--ho-accent); color: var(--ho-text); border-color: var(--ho-accent); box-shadow: 0 14px 34px rgba(0,0,0,.18); }
-    .ho-cta-card .btn-accent:hover { transform: translateY(-2px); filter: brightness(1.04); color: var(--ho-text); }
+    /* Porch-light CTA */
+    .ho-cta { padding-bottom: clamp(60px, 9vw, 116px); }
+    .ho-cta-card { position: relative; overflow: hidden; border-radius: 30px; padding: clamp(38px, 6vw, 76px); text-align: center;
+      background: radial-gradient(circle at 50% -10%, rgba(242,176,30,.5), transparent 52%), linear-gradient(160deg, #2f5e36, #234a29); color: #fff;
+      box-shadow: 0 30px 90px rgba(35,74,41,.34); }
+    .ho-cta-card .porch { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; font-weight: 800; color: #ffe9b8; }
+    .ho-cta-card .porch .bulb { width: 12px; height: 12px; border-radius: 999px; background: var(--ho-accent); box-shadow: 0 0 0 6px rgba(242,176,30,.25), 0 0 22px rgba(242,176,30,.85); }
+    .ho-cta-card h2 { margin: 0; font-family: var(--ho-font-display); text-transform: uppercase; font-size: clamp(34px, 5.6vw, 62px); line-height: .92; letter-spacing: .02em; }
+    .ho-cta-card p { max-width: 52ch; margin: 16px auto 28px; font-size: clamp(17px, 1.6vw, 20px); opacity: .95; }
 
-    /* ---- Footer ---- */
+    /* Footer */
     .ho-foot { border-top: 1px solid var(--ho-border); }
     .ho-foot-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 28px 0; color: var(--ho-muted); font-size: 14px; }
     .ho-foot a { color: var(--ho-muted); text-decoration: none; font-weight: 700; }
     .ho-foot a:hover { color: var(--ho-primary); }
     .ho-foot .staff { color: rgba(78,78,78,.4); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
 
-    /* ---- Responsive ---- */
     @media (max-width: 920px) {
       .ho-hero-grid { grid-template-columns: 1fr; }
-      .ho-door { order: -1; }
+      .ho-note { order: -1; }
       .ho-doorgrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
       .ho-steps { grid-template-columns: 1fr; }
     }
     @media (max-width: 680px) {
       .ho-nav-links { display: none; }
-      .ho-problem-grid { grid-template-columns: 1fr; }
       .ho-doorgrid { grid-template-columns: 1fr; }
       .ho-price-grid { grid-template-columns: 1fr; }
-      .ho-plan-flag { right: 50%; transform: translateX(50%); }
-      .btn { width: 100%; }
-      .ho-hero-cta .btn { width: 100%; }
+      .ho-promise { grid-template-columns: 1fr; gap: 12px; }
+      .btn, .ho-hero-cta .btn { width: 100%; }
     }
   </style>
 </head>
@@ -258,11 +197,11 @@ $steps = [
       </a>
       <nav class="ho-nav" aria-label="Primary">
         <span class="ho-nav-links">
-          <a href="#included">What you get</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#how">How it works</a>
+          <a href="#who">Who we are</a>
+          <a href="#straight">Straight talk</a>
+          <a href="#price">The number</a>
         </span>
-        <a class="ho-nav-cta" href="#start">Get started</a>
+        <a class="ho-nav-cta" href="#porch">Say hello</a>
       </nav>
     </div>
   </header>
@@ -272,139 +211,173 @@ $steps = [
     <section class="ho-hero ho-section">
       <div class="ho-wrap ho-hero-grid">
         <div>
-          <p class="ho-eyebrow">Built in Indiana for the people who do the work</p>
-          <h1>You do the work.<br>We’ll handle the <em>front door.</em></h1>
+          <p class="ho-eyebrow">You probably came in from your preview</p>
+          <h1>Pull up<br>a <em>chair.</em></h1>
           <p class="ho-hero-lede">
-            Hoosier Online builds a clean, trustworthy online home for local service businesses —
-            so customers can find you, trust you, see what you do, reach you, book you, and pay you.
-            No bloated website. No agency runaround.
+            You’ve already seen what we’d build for you. So we’ll skip the hard sell — this is
+            just the part where you size us up and decide whether we’re the kind of folks you’d
+            want to work with. Take your time. There’s no countdown timer, and nobody from “sales”
+            is going to call you.
           </p>
           <div class="ho-hero-cta">
-            <a class="btn btn-primary" href="#start">Start your front door <span class="arrow">→</span></a>
-            <a class="btn btn-ghost" href="#included">See what’s included</a>
+            <a class="btn btn-primary" href="#porch">Say hello <span class="arrow">→</span></a>
+            <a class="btn btn-ghost" href="#who">Get to know us first</a>
           </div>
-          <p class="ho-hero-note"><span class="dot"></span> Now taking a small first round of Indiana businesses.</p>
         </div>
 
-        <!-- Stylized "front door" preview -->
-        <div class="ho-door" aria-hidden="true">
-          <div class="ho-door-top">
-            <span class="r"></span><span class="g"></span><span class="b"></span>
-            <span class="ho-door-url">yourbusiness.hoosieronline.com</span>
-          </div>
-          <div class="ho-door-screen">
-            <div class="ho-door-banner">
-              <b>Your Business</b>
-              <span>Serving your town &amp; the surrounding area</span>
-            </div>
-            <div class="ho-door-rows">
-              <div class="ho-door-row"><i>★</i><p>What you do — clear and easy to read</p></div>
-              <div class="ho-door-row"><i>✓</i><p>Photos that prove the work is real</p></div>
-              <div class="ho-door-row"><i>☎</i><p>One obvious way to get in touch</p></div>
-            </div>
-            <div class="ho-door-btn">Request a Quote →</div>
-          </div>
-        </div>
+        <!-- Warm welcome note -->
+        <aside class="ho-note" aria-label="A note from Hoosier Online">
+          <span class="light"><span class="bulb"></span> The porch light’s on</span>
+          <p>Hey there —</p>
+          <p>
+            You found the homepage. Most folks land here from the preview we put together for
+            their business, just to see who’s behind it.
+          </p>
+          <p>
+            No robot wrote that preview, and no robot wrote this. Look around as long as you like.
+            When you’re ready, we’ll be right here.
+          </p>
+          <p class="sig">— The Hoosier Online folks</p>
+        </aside>
       </div>
     </section>
 
-    <!-- PROBLEM -->
-    <section class="ho-problem ho-section">
+    <!-- WHO WE ARE -->
+    <section class="ho-who ho-section" id="who">
       <div class="ho-wrap">
-        <p class="ho-eyebrow">The problem</p>
-        <h2 class="ho-h2">You don’t need more noise.<br>You need fewer missed jobs.</h2>
-        <div class="ho-problem-grid">
-          <?php foreach ($problems as $p): ?>
-            <div class="ho-problem-item"><?= htmlspecialchars($p, ENT_QUOTES, 'UTF-8') ?></div>
+        <p class="ho-eyebrow">Who you’re actually dealing with</p>
+        <h2 class="ho-h2">We’re from here.<br>That’s sort of the whole point.</h2>
+        <p class="ho-lede">
+          Hoosier Online is a small Indiana outfit — not a big agency with a sales floor in some
+          other state. We started this because we got tired of watching good local businesses
+          either get ignored online or get talked into a six-week website project they never
+          needed. So we built something simpler, and we’ve kept it that way on purpose.
+        </p>
+        <div class="ho-chips">
+          <?php foreach ($chips as $c): ?>
+            <span class="ho-chip"><?= ho_e($c) ?></span>
           <?php endforeach; ?>
         </div>
       </div>
     </section>
 
-    <!-- WHAT YOU GET -->
-    <section class="ho-section" id="included">
+    <!-- STRAIGHT TALK -->
+    <section class="ho-section" id="straight">
       <div class="ho-wrap">
-        <p class="ho-eyebrow">What you get</p>
-        <h2 class="ho-h2">One front door that does the whole job.</h2>
-        <p class="ho-lede">Everything a local customer needs to go from “maybe” to a booked job — in one clean place you control.</p>
-        <div class="ho-doorgrid">
-          <?php foreach ($frontDoor as $f): ?>
-            <article class="ho-feat">
-              <span class="ho-feat-tag"><?= htmlspecialchars($f['k'], ENT_QUOTES, 'UTF-8') ?></span>
-              <p><?= htmlspecialchars($f['t'], ENT_QUOTES, 'UTF-8') ?></p>
+        <p class="ho-eyebrow">Straight talk</p>
+        <h2 class="ho-h2">A few things we’ll always tell you straight.</h2>
+        <p class="ho-lede">No fine print, no asterisks doing the heavy lifting. Here’s how we do business.</p>
+        <div class="ho-promises">
+          <?php foreach ($promises as $p): ?>
+            <article class="ho-promise">
+              <div class="mark">✓</div>
+              <div>
+                <h3><?= ho_e($p['h']) ?></h3>
+                <p><?= ho_e($p['t']) ?></p>
+              </div>
             </article>
           <?php endforeach; ?>
         </div>
       </div>
     </section>
 
-    <!-- PRICING -->
-    <section class="ho-price ho-section" id="pricing">
+    <!-- WHAT THIS IS -->
+    <section class="ho-section" id="what">
       <div class="ho-wrap">
-        <p class="ho-eyebrow">Straight pricing</p>
-        <h2 class="ho-h2">One flat price. No surprise invoices.</h2>
-        <p class="ho-lede">You’ll know the cost before you say yes. Pick the level of help you want — that’s it.</p>
+        <p class="ho-eyebrow">In case you’re wondering what we even do</p>
+        <h2 class="ho-h2">It’s one tidy front door for your business.</h2>
+        <p class="ho-lede">
+          Nothing fancy. A clean spot online where folks can find you, trust you, see your work,
+          get ahold of you, and book you — without you ever having to become “the website person.”
+          That’s the whole idea. Here’s what lives behind that door:
+        </p>
+        <div class="ho-doorgrid">
+          <?php foreach ($door as $d): ?>
+            <article class="ho-feat">
+              <span><?= ho_e($d[0]) ?></span>
+              <p><?= ho_e($d[1]) ?></p>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </section>
+
+    <!-- THE NUMBER -->
+    <section class="ho-price ho-section" id="price">
+      <div class="ho-wrap">
+        <p class="ho-eyebrow">The honest number</p>
+        <h2 class="ho-h2">Here’s the price. No homework, no haggling.</h2>
+        <p class="ho-lede">
+          You’ll know what it costs before you ever say yes. Most folks start with Standard — you
+          can always step up later, and we’ll still be here.
+        </p>
 
         <div class="ho-price-grid">
           <article class="ho-plan">
+            <span class="ho-plan-tag">Most folks start here</span>
             <h3>Standard Front Door</h3>
             <div class="price"><b>$499</b><span>one-time setup</span></div>
             <p class="renew">Includes 1 year of service. Renews at $250/year or $25/month after year one.</p>
-            <p class="best">Best for a clean online front door without heavy ongoing changes.</p>
+            <p class="best">A clean online front door without a lot of ongoing fuss.</p>
             <ul>
               <li>Hosted business page built for your trade</li>
-              <li>Services, work, and photo gallery</li>
+              <li>Services, work, and a photo gallery</li>
               <li>Contact &amp; quote-request form, click-to-call</li>
               <li>Google / Facebook / social links tied together</li>
               <li>Booking or request path, payment link when needed</li>
+              <li>Cleanup of the obvious old, broken stuff</li>
             </ul>
-            <a class="btn btn-ghost" href="#start">Start with Standard</a>
+            <a class="btn btn-primary" href="#porch">This sounds about right <span class="arrow">→</span></a>
           </article>
 
-          <article class="ho-plan featured">
-            <span class="ho-plan-flag">Most hands-off</span>
+          <article class="ho-plan">
+            <span class="ho-plan-tag">If you’d rather not think about it</span>
             <h3>Managed Front Door</h3>
             <div class="price"><b>$999</b><span>setup + 3 months managed</span></div>
             <p class="renew">Renews at $250/quarter or $750/year after the first 3 months.</p>
-            <p class="best">Best if you’d rather we keep it current and handle the changes for you.</p>
+            <p class="best">For folks who’d rather we keep it current and handle the changes.</p>
             <ul>
               <li>Everything in Standard</li>
               <li>We make your updates and edits</li>
               <li>We keep info, hours, and offers current</li>
-              <li>Ongoing cleanup of the online mess</li>
-              <li>A real person who knows your setup</li>
+              <li>Ongoing cleanup as things drift</li>
+              <li>Seasonal offer changes and priority fixes</li>
             </ul>
-            <a class="btn btn-primary" href="#start">Start with Managed <span class="arrow">→</span></a>
+            <a class="btn btn-ghost" href="#porch">Tell me more about this one</a>
           </article>
         </div>
-        <p class="ho-price-foot">Not sure which fits? Tell us your trade and we’ll point you to the simpler one.</p>
+        <p class="ho-price-foot">Genuinely unsure which fits? Tell us your trade and we’ll point you to the simpler one.</p>
       </div>
     </section>
 
-    <!-- HOW IT WORKS -->
+    <!-- WHAT HAPPENS NEXT -->
     <section class="ho-section" id="how">
       <div class="ho-wrap">
-        <p class="ho-eyebrow">How it works</p>
-        <h2 class="ho-h2">Three steps. We do the heavy part.</h2>
+        <p class="ho-eyebrow">If you decide we’re your people</p>
+        <h2 class="ho-h2">It’s easy, and we carry the heavy stuff.</h2>
         <div class="ho-steps">
           <?php foreach ($steps as $s): ?>
             <article class="ho-step">
-              <div class="num"><?= htmlspecialchars($s['n'], ENT_QUOTES, 'UTF-8') ?></div>
-              <h3><?= htmlspecialchars($s['h'], ENT_QUOTES, 'UTF-8') ?></h3>
-              <p><?= htmlspecialchars($s['t'], ENT_QUOTES, 'UTF-8') ?></p>
+              <div class="num"><?= ho_e($s[0]) ?></div>
+              <h3><?= ho_e($s[1]) ?></h3>
+              <p><?= ho_e($s[2]) ?></p>
             </article>
           <?php endforeach; ?>
         </div>
       </div>
     </section>
 
-    <!-- FINAL CTA -->
-    <section class="ho-cta" id="start">
+    <!-- PORCH-LIGHT CTA -->
+    <section class="ho-cta" id="porch">
       <div class="ho-wrap">
         <div class="ho-cta-card">
-          <h2>Start with one clean front door.</h2>
-          <p>Tell us what service you sell and where you sell it. We’ll map the simplest path to booked jobs — and show you the page before you commit.</p>
-          <a class="btn btn-accent" href="<?= htmlspecialchars($mailto, ENT_QUOTES, 'UTF-8') ?>">Email Hoosier Online <span class="arrow">→</span></a>
+          <span class="porch"><span class="bulb"></span> We’ll leave the porch light on</span>
+          <h2>No rush. Come find us when you’re ready.</h2>
+          <p>
+            Reply to your preview, or just send us a note. A real person — probably the same one
+            who built your preview — will get back to you. That’s a promise, not a ticket number.
+          </p>
+          <a class="btn btn-accent" href="<?= ho_e($mailto) ?>">Send us a note <span class="arrow">→</span></a>
         </div>
       </div>
     </section>
@@ -414,7 +387,7 @@ $steps = [
     <div class="ho-wrap ho-foot-inner">
       <span>&copy; <?= date('Y') ?> Hoosier Online — Local roots. Local pros. Local pride.</span>
       <span>
-        <a href="<?= htmlspecialchars($mailto, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?></a>
+        <a href="<?= ho_e($mailto) ?>"><?= ho_e($email) ?></a>
         &nbsp;·&nbsp;
         <a class="staff" href="/admin.php">Staff</a>
       </span>
