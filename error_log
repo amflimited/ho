@@ -1,0 +1,109 @@
+[03-Jun-2026 18:40:16 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 18:55:22 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_safe_target_path() in /home1/spofnkte/public_html/upload.php:71
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/upload.php on line 71
+[03-Jun-2026 18:55:31 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_safe_target_path() in /home1/spofnkte/public_html/upload.php:71
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/upload.php on line 71
+[03-Jun-2026 18:55:34 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 18:55:36 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 18:55:37 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 19:17:22 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_safe_target_path() in /home1/spofnkte/public_html/upload.php:71
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/upload.php on line 71
+[03-Jun-2026 19:17:34 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 19:19:16 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 19:19:23 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_safe_target_path() in /home1/spofnkte/public_html/upload.php:71
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/upload.php on line 71
+[03-Jun-2026 19:19:27 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_safe_target_path() in /home1/spofnkte/public_html/upload.php:71
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/upload.php on line 71
+[03-Jun-2026 19:19:30 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 19:19:35 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_safe_target_path() in /home1/spofnkte/public_html/upload.php:71
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/upload.php on line 71
+[03-Jun-2026 19:30:04 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_safe_target_path() in /home1/spofnkte/public_html/upload.php:71
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/upload.php on line 71
+[03-Jun-2026 19:30:08 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 19:30:10 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[03-Jun-2026 19:30:14 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_public_url_for_entry() in /home1/spofnkte/public_html/sitemap.php:56
+Stack trace:
+#0 /home1/spofnkte/public_html/sitemap.php(129): ho_admin_sitemap_scan('/home1/spofnkte...')
+#1 {main}
+  thrown in /home1/spofnkte/public_html/sitemap.php on line 56
+[04-Jun-2026 06:40:49 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_require_auth() in /home1/spofnkte/public_html/admin-core.php:5
+Stack trace:
+#0 /home1/spofnkte/public_html/admin-hardening.php(4): require()
+#1 {main}
+  thrown in /home1/spofnkte/public_html/admin-core.php on line 5
+[04-Jun-2026 06:40:52 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_require_auth() in /home1/spofnkte/public_html/admin-core.php:5
+Stack trace:
+#0 {main}
+  thrown in /home1/spofnkte/public_html/admin-core.php on line 5
+[04-Jun-2026 06:40:55 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_require_auth() in /home1/spofnkte/public_html/admin-core.php:5
+Stack trace:
+#0 /home1/spofnkte/public_html/admin-hardening.php(4): require()
+#1 {main}
+  thrown in /home1/spofnkte/public_html/admin-core.php on line 5
+[04-Jun-2026 06:41:04 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_require_auth() in /home1/spofnkte/public_html/admin-core.php:5
+Stack trace:
+#0 /home1/spofnkte/public_html/admin-hardening.php(4): require()
+#1 {main}
+  thrown in /home1/spofnkte/public_html/admin-core.php on line 5
+[04-Jun-2026 06:41:07 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_require_auth() in /home1/spofnkte/public_html/admin-core.php:5
+Stack trace:
+#0 /home1/spofnkte/public_html/admin-hardening.php(4): require()
+#1 {main}
+  thrown in /home1/spofnkte/public_html/admin-core.php on line 5
+[04-Jun-2026 06:42:40 America/Chicago] PHP Fatal error:  Uncaught Error: Call to undefined function ho_admin_require_auth() in /home1/spofnkte/public_html/admin-core.php:5
+Stack trace:
+#0 /home1/spofnkte/public_html/upload.php(4): require()
+#1 {main}
+  thrown in /home1/spofnkte/public_html/admin-core.php on line 5
+[04-Jun-2026 07:28:04 America/Chicago] PHP Warning:  Undefined variable $refinementPrompt in /home1/spofnkte/public_html/sales-business.php on line 22
+[04-Jun-2026 07:28:13 America/Chicago] PHP Warning:  Undefined variable $refinementPrompt in /home1/spofnkte/public_html/sales-business.php on line 22

@@ -1,0 +1,42 @@
+
+# hoosier-online-security-v051 -- BEGIN
+# Block direct web access to internal credentials, packages, database seeds, logs, and manifests.
+<FilesMatch "^(database|database\.local|database\.local\.example|admin-secrets|admin-secrets\.example)\.php$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "^(deploy-manifest\.json|README_INSTALL\.txt|SECURITY_NOTES\.txt)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(sql|zip|log|env|ini|bak)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(db|uploads)/ - [F,L]
+</IfModule>
+
+Options -Indexes
+# hoosier-online-security-v051 -- END
+
+
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “ea-php85” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php85___lsphp .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit
+
+
+# V052 hardening: deny direct access to private/sensitive runtime artifacts
+<FilesMatch "(^\.|database\.local|admin-secrets|\.sql$|\.log$|\.zip$|composer\.(json|lock)|package(-lock)?\.json)">
+  Require all denied
+</FilesMatch>
+
+RedirectMatch 404 ^/(db|private|backups?|logs?|uploads?)/
+
+Options -Indexes
+

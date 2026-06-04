@@ -1,0 +1,26 @@
+Hoosier Online v048 UI / Operator Process Review
+
+Scope reviewed:
+- Admin Hub
+- Sales System
+- Research
+- Prospects
+- Business View
+- Upload / Sitemap positioning through Admin Hub
+
+Safe fixes implemented:
+- Added manual-test mode note to Admin Hub.
+- Tightened Research wording around one-prospect-at-a-time workflow.
+- Clarified validate-before-import behavior.
+- Clarified Prospects is an internal manual prospect queue.
+- Clarified Preview Readiness is internal only.
+- Clarified Business View is not customer-facing.
+- Added reusable admin CSS utilities for process notes, empty states, checklists, and mobile action rows.
+- Added v048 review/deferred-issues section to Sales System.
+
+Deferred to v050:
+- Whether opening Business View should auto-write readiness/option/address records or eventually require an explicit operator action.
+- Whether Sales System should preserve cumulative canon history rather than showing only current-release doctrine.
+- Whether old split pages should remain, be hidden deeper, or be removed.
+- Whether all inline page styling must be eliminated before preview.php.
+- Whether preview.php is allowed only after 3–5 manual prospects pass.

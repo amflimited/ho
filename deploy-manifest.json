@@ -1,0 +1,10 @@
+{
+  "schema": "hoosier_online.update_package.v1",
+  "release_id": "HO-LEAD-GENERATION-PROMPT-064",
+  "version": "064",
+  "description": "Updates Sales Research generic prompt to generate candidate leads when the operator is out of leads.",
+  "files": [
+    "sales-research.php",
+    "V064_LEAD_GENERATION_PROMPT_README.txt"
+  ]
+}

@@ -1,0 +1,15 @@
+v055b Self-Contained Refinement Prompt Fix
+
+Reason:
+- v055/v055a depended on prospect-model.php helper availability.
+- Live Business View showed the helper was unavailable.
+- v055b puts the prompt generator directly inside sales-business.php so the prompt can render even if prospect-model.php does not contain the helper.
+
+Scope:
+- sales-business.php
+- assets/css/admin.css
+- this note
+
+No database changes.
+No prospect-model.php changes.
+No upload/security changes.

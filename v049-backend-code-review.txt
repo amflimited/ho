@@ -1,0 +1,26 @@
+Hoosier Online v049 Backend / Code Functionality Review
+
+Scope reviewed:
+- prospect-model.php
+- sales-portal-dashboard.php
+- sales-business.php
+- sales-system.php
+- preview readiness logic
+- preview option assignment logic
+
+Safe fixes implemented:
+- Added table-existence helpers to prevent fatal errors when v044 preview SQL is missing.
+- Added preview schema status helper.
+- Added unavailable fallback result for preview_readiness when preview_readiness table is missing.
+- Added unavailable fallback result for preview option assignment when option/address tables are missing.
+- Replaced unsafe JSON encode use with safe helper for missing_inputs_json.
+- Changed dashboard assignment summary to avoid writing address suggestions during queue rendering.
+- Added clearer missing-schema notes in Prospects and Business View.
+- Added v049 backend review/deferred risk section to Sales System.
+
+Deferred to v050:
+- Decide whether Business View should continue auto-writing readiness/address suggestions or require explicit operator action.
+- Decide whether Sales System should preserve cumulative canon history separately.
+- Validate readiness thresholds against 3–5 real prospects.
+- Validate keyword-based business type classification.
+- Confirm v044 SQL and seeds are installed live before any preview.php work.
