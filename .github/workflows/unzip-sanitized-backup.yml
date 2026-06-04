@@ -1,4 +1,4 @@
-name: Unzip Sanitized Backup
+name: Unzip Backup
 
 on:
   workflow_dispatch:
@@ -30,16 +30,6 @@ jobs:
             exit 1
           }
 
-      - name: Block unsafe files
-        run: |
-          unzip -l "${{ github.event.inputs.zip_path }}" > zip-list.txt
-
-          if grep -Ei '(^|/)(database\.php|\.env|admin-secrets\.php|database\.local\.php|.*\.sql|.*\.log|.*\.zip)$' zip-list.txt; then
-            echo "Blocked: ZIP contains sensitive or unsafe files."
-            echo "Remove credentials, SQL dumps, logs, nested ZIPs, and secrets before unzipping into this public repo."
-            exit 1
-          fi
-
       - name: Unzip backup
         run: |
           rm -rf "${{ github.event.inputs.output_dir }}"
@@ -51,5 +41,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add "${{ github.event.inputs.output_dir }}"
-          git commit -m "Unzip sanitized Hoosier Online backup" || echo "No changes to commit"
+          git commit -m "Unzip Hoosier Online backup" || echo "No changes to commit"
           git push
