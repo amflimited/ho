@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home1/spofnkte/public_html/
+    - /bin/find $DEPLOYPATH -name "*.php" -exec chmod 644 {} \;
+    - /bin/find $DEPLOYPATH -name "*.css" -exec chmod 644 {} \;
+    - /bin/find $DEPLOYPATH -name "*.js" -exec chmod 644 {} \;
+    - /bin/find $DEPLOYPATH -name ".htaccess" -exec chmod 644 {} \;
