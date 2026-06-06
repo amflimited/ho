@@ -2,8 +2,6 @@
 -- Fresh start. Run this in phpMyAdmin against spofnkte_db.
 -- Import tab → choose this file → Go
 
-SET FOREIGN_KEY_CHECKS = 0;
-
 DROP TABLE IF EXISTS
   preview_build_handoff_links, preview_address_options, preview_choices,
   preview_customer_choices, preview_design_options, preview_events,
@@ -14,8 +12,6 @@ DROP TABLE IF EXISTS
   source_candidates, source_runs, evidence_sources, sales_assets,
   salesportal_reference, me_requirements, me_categories, market_coverage,
   build_handoffs, businesses, categories;
-
-SET FOREIGN_KEY_CHECKS = 1;
 
 -- ─── 1. categories ───────────────────────────────────────────────────────────
 
