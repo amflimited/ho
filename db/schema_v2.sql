@@ -1,46 +1,19 @@
 -- Hoosier Online v2 Schema
 -- Fresh start. Run this in phpMyAdmin against spofnkte_db.
--- Drops all old tables, creates the 7 new ones.
---
--- HOW TO RUN IN phpMyAdmin:
---   1. Select database spofnkte_db
---   2. Click the Import tab → choose this file → Go
---   OR paste into the SQL tab and click Go (runs all at once, same session)
+-- Import tab → choose this file → Go
 
 SET FOREIGN_KEY_CHECKS = 0;
 
--- Drop child tables (FK dependents) before parents
-DROP TABLE IF EXISTS preview_build_handoff_links;
-DROP TABLE IF EXISTS preview_address_options;
-DROP TABLE IF EXISTS preview_choices;
-DROP TABLE IF EXISTS preview_customer_choices;
-DROP TABLE IF EXISTS preview_design_options;
-DROP TABLE IF EXISTS preview_events;
-DROP TABLE IF EXISTS preview_option_groups;
-DROP TABLE IF EXISTS preview_readiness;
-DROP TABLE IF EXISTS prospect_previews;
-DROP TABLE IF EXISTS previews;
-DROP TABLE IF EXISTS outreach_drafts;
-DROP TABLE IF EXISTS outreach_events;
-DROP TABLE IF EXISTS outreach_log;
-DROP TABLE IF EXISTS contact_attempts;
-DROP TABLE IF EXISTS business_me_scores;
-DROP TABLE IF EXISTS business_requirement_scores;
-DROP TABLE IF EXISTS business_sources;
-DROP TABLE IF EXISTS business_claims;
-DROP TABLE IF EXISTS research_profiles;
-DROP TABLE IF EXISTS research_records;
-DROP TABLE IF EXISTS source_candidates;
-DROP TABLE IF EXISTS source_runs;
-DROP TABLE IF EXISTS evidence_sources;
-DROP TABLE IF EXISTS sales_assets;
-DROP TABLE IF EXISTS salesportal_reference;
-DROP TABLE IF EXISTS me_requirements;
-DROP TABLE IF EXISTS me_categories;
-DROP TABLE IF EXISTS market_coverage;
-DROP TABLE IF EXISTS build_handoffs;
-DROP TABLE IF EXISTS businesses;
-DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS
+  preview_build_handoff_links, preview_address_options, preview_choices,
+  preview_customer_choices, preview_design_options, preview_events,
+  preview_option_groups, preview_readiness, prospect_previews, previews,
+  outreach_drafts, outreach_events, outreach_log, contact_attempts,
+  business_me_scores, business_requirement_scores, business_sources,
+  business_claims, research_profiles, research_records,
+  source_candidates, source_runs, evidence_sources, sales_assets,
+  salesportal_reference, me_requirements, me_categories, market_coverage,
+  build_handoffs, businesses, categories;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
