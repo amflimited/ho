@@ -204,8 +204,12 @@ if (!empty($unresearched)) {
             <?php endforeach; ?>
           </select>
         </label>
-        <label class="cp-label">Area
-          <input class="cp-input" type="text" name="area" value="Indianapolis" placeholder="Indianapolis" required>
+        <label class="cp-label">Region
+          <select class="cp-select" name="area" required>
+            <?php foreach (ho_indiana_regions() as $region => $cities): ?>
+              <option value="<?= ho_h($region) ?>"><?= ho_h($region) ?></option>
+            <?php endforeach; ?>
+          </select>
         </label>
         <label class="cp-label">Count
           <input class="cp-input" type="number" name="count" value="15" min="5" max="50">

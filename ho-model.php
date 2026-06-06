@@ -93,6 +93,26 @@ function ho_current_job(array $counts): string {
     return 'source';
 }
 
+// ─── Indiana regions ──────────────────────────────────────────────────────────
+
+function ho_indiana_regions(): array {
+    return [
+        'Indianapolis Metro'       => 'Indianapolis, Carmel, Fishers, Noblesville, Greenwood, Avon, Plainfield',
+        'Fort Wayne Area'          => 'Fort Wayne, Auburn, Decatur, Bluffton',
+        'South Bend / Mishawaka'   => 'South Bend, Mishawaka, Elkhart, Goshen',
+        'Northwest Indiana'        => 'Merrillville, Hammond, Valparaiso, Crown Point, Portage, Michigan City',
+        'Evansville Area'          => 'Evansville, Newburgh, Henderson',
+        'Lafayette / West Lafayette' => 'Lafayette, West Lafayette, Frankfort',
+        'Bloomington Area'         => 'Bloomington, Bedford, Martinsville',
+        'Muncie / Anderson'        => 'Muncie, Anderson, Marion, Elwood',
+        'Terre Haute Area'         => 'Terre Haute, Brazil, Greencastle',
+        'Kokomo / Logansport'      => 'Kokomo, Logansport, Peru',
+        'Columbus / Bartholomew'   => 'Columbus, Seymour, Shelbyville',
+        'Richmond / East Central'  => 'Richmond, Connersville, New Castle, Winchester',
+        'Southern Indiana'         => 'New Albany, Jeffersonville, Clarksville, Scottsburg, Madison',
+    ];
+}
+
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 function ho_get_categories(PDO $pdo): array {
@@ -140,8 +160,11 @@ function ho_generate_sourcing_prompt(array $category, string $area, int $count, 
         ? 'Typical services include: ' . implode(', ', $services) . '.'
         : '';
 
+    $regions  = ho_indiana_regions();
+    $cityList = $regions[$area] ?? $area;
+
     return <<<PROMPT
-Find {$count} {$name} businesses in {$area}, Indiana. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint}
+Find {$count} {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint}
 
 Return ONLY valid JSON, no explanation, no markdown:
 
