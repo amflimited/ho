@@ -7,7 +7,7 @@
 // All claims trace to product.php (real pricing, ownership, performance terms). Nothing
 // here promises leads, total ownership, or anything the policies don't actually allow.
 
-$email = 'hello@hoosieronline.com';
+$email = 'adam@hoosieronline.com';
 $mailto = 'mailto:' . $email . '?subject=' . rawurlencode('Hello from a preview');
 
 function ho_e(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
@@ -15,9 +15,9 @@ function ho_e(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-
 // Who we are — warm, true facts.
 $chips = [
     'Indiana-based. For real.',
-    'A person answers.',
+    'No computer science degree needed on your part.',
     'No sales floor, no runaround.',
-    'We made your preview by hand.',
+    'Your preview is customized around your business.',
 ];
 
 // Straight talk — every promise traces to a real policy in product.php.
@@ -128,7 +128,7 @@ $faqs = [
     .btn:hover .arrow { transform: translateX(3px); }
 
     /* Hero */
-    .ho-hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(28px, 5vw, 60px); align-items: center; }
+    .ho-hero-grid { display: block; max-width: 760px; }
     .ho-hero h1 { margin: 0; font-family: var(--ho-font-display); text-transform: uppercase; font-size: clamp(52px, 8.4vw, 104px); line-height: .86; letter-spacing: .02em; }
     .ho-hero h1 em { color: var(--ho-primary); font-style: normal; }
     .ho-hero-lede { max-width: 50ch; margin: 22px 0 0; color: var(--ho-muted); font-size: clamp(18px, 1.6vw, 21px); }
@@ -222,7 +222,6 @@ $faqs = [
 
     @media (max-width: 920px) {
       .ho-hero-grid { grid-template-columns: 1fr; }
-      .ho-note { order: -1; }
       .ho-doorgrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
       .ho-steps { grid-template-columns: 1fr; }
       .ho-notrow { grid-template-columns: 1fr; gap: 6px; }
@@ -234,6 +233,1001 @@ $faqs = [
       .ho-promise { grid-template-columns: 1fr; gap: 12px; }
       .btn, .ho-hero-cta .btn { width: 100%; }
     }
+
+    /* v067 mobile correction */
+    .ho-preview-guide { padding: 0 0 clamp(32px, 6vw, 60px); }
+    .ho-guide-card {
+      padding: clamp(22px, 4vw, 30px);
+      border-radius: 24px;
+      background: rgba(255,255,255,.74);
+      border: 1px solid var(--ho-border);
+      box-shadow: 0 14px 42px rgba(24,22,19,.06);
+    }
+    .ho-guide-card h2 {
+      margin: 0;
+      font-family: var(--ho-font-display);
+      text-transform: uppercase;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: .95;
+      letter-spacing: .02em;
+    }
+    .ho-guide-steps {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+    }
+    .ho-guide-steps span {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #fffdf5;
+      border: 1px solid var(--ho-border);
+      color: var(--ho-muted);
+      font-weight: 800;
+      line-height: 1.25;
+    }
+    .ho-guide-steps b {
+      display: grid;
+      place-items: center;
+      flex: 0 0 28px;
+      width: 28px;
+      height: 28px;
+      border-radius: 9px;
+      background: var(--ho-secondary);
+      color: #fff;
+      font-family: var(--ho-font-display);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    @media (max-width: 680px) {
+      .ho-wrap,
+      .ho-narrow {
+        width: min(100% - 32px, var(--maxw));
+      }
+
+      .ho-section {
+        padding: 48px 0;
+      }
+
+      .ho-head-inner {
+        height: 58px;
+      }
+
+      .ho-brand img {
+        height: 28px;
+      }
+
+      .ho-nav {
+        gap: 6px;
+      }
+
+      .ho-nav .ho-nav-cta {
+        font-size: 14px;
+        padding: 8px 14px;
+      }
+
+      .ho-hero {
+        padding-top: 38px;
+      }
+
+      .ho-hero h1 {
+        font-size: clamp(44px, 15vw, 66px);
+        line-height: .9;
+        letter-spacing: .005em;
+      }
+
+      .ho-h2,
+      .ho-cta-card h2 {
+        font-size: clamp(30px, 10vw, 44px);
+        line-height: .98;
+        letter-spacing: .005em;
+      }
+
+      .ho-notrow h3,
+      .ho-feat span {
+        letter-spacing: .02em;
+      }
+
+      .ho-hero-lede,
+      .ho-lede,
+      .ho-prose p,
+      .ho-note p,
+      .ho-step p,
+      .ho-faq p,
+      .ho-promise p,
+      .ho-notrow p {
+        font-size: 17px;
+        line-height: 1.55;
+      }
+
+      .ho-note {
+        padding: 26px 24px 28px;
+        border-radius: 22px;
+      }
+
+      .ho-note .sig {
+        font-size: 23px;
+        line-height: 1.1;
+      }
+
+      .ho-preview-guide {
+        padding-top: 0;
+        padding-bottom: 36px;
+      }
+
+      .ho-guide-steps {
+        grid-template-columns: 1fr;
+      }
+
+      .ho-guide-steps span {
+        min-height: 52px;
+      }
+
+      .ho-chips {
+        gap: 10px;
+      }
+
+      .ho-chip {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 13px 16px;
+      }
+
+      .ho-promises {
+        gap: 12px;
+      }
+
+      .ho-promise {
+        padding: 20px;
+        border-radius: 18px;
+      }
+
+      .ho-promise .mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+
+      .ho-notgrid {
+        gap: 12px;
+      }
+
+      .ho-notrow {
+        display: block;
+        padding: 20px;
+        border: 1px solid var(--ho-border);
+        border-radius: 18px;
+        background: rgba(255,255,255,.58);
+      }
+
+      .ho-notrow h3 {
+        font-size: 23px;
+        line-height: 1.03;
+        margin-bottom: 10px;
+      }
+
+      .ho-doorgrid {
+        gap: 12px;
+      }
+
+      .ho-feat {
+        padding: 20px;
+      }
+
+      .ho-feat span {
+        font-size: 23px;
+        line-height: 1.05;
+      }
+
+      .ho-price-grid {
+        gap: 16px;
+      }
+
+      .ho-plan {
+        padding: 24px 22px;
+        border-radius: 22px;
+      }
+
+      .ho-plan h3 {
+        font-size: 28px;
+        line-height: .98;
+      }
+
+      .ho-plan .price {
+        display: block;
+        margin-top: 12px;
+      }
+
+      .ho-plan .price b {
+        display: block;
+        font-size: 48px;
+      }
+
+      .ho-plan .price span {
+        display: block;
+        margin-top: 4px;
+        font-size: 16px;
+      }
+
+      .ho-plan .renew {
+        margin-top: 8px;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+
+      .ho-plan .best {
+        font-size: 16px;
+      }
+
+      .ho-plan ul {
+        gap: 9px;
+      }
+
+      .ho-plan li {
+        font-size: 15px;
+        line-height: 1.42;
+      }
+
+      .ho-steps {
+        gap: 12px;
+      }
+
+      .ho-step {
+        padding: 22px 20px;
+      }
+
+      .ho-faq {
+        padding: 22px 20px;
+      }
+
+      .ho-cta-card {
+        border-radius: 24px;
+        padding: 34px 22px;
+      }
+
+      .ho-cta-card p {
+        font-size: 17px;
+      }
+
+      .ho-foot-inner {
+        display: grid;
+        gap: 10px;
+        padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+      }
+    }
+
+    @media (max-width: 430px) {
+      .ho-wrap,
+      .ho-narrow {
+        width: calc(100% - 28px);
+      }
+
+      .ho-head-inner {
+        height: 56px;
+      }
+
+      .ho-brand img {
+        height: 26px;
+      }
+
+      .ho-nav .ho-nav-cta {
+        padding: 8px 13px;
+      }
+
+      .ho-hero h1 {
+        font-size: clamp(42px, 14vw, 58px);
+      }
+
+      .ho-h2,
+      .ho-cta-card h2 {
+        font-size: clamp(28px, 9.7vw, 38px);
+      }
+
+      .ho-eyebrow {
+        letter-spacing: .16em;
+      }
+    }
+
+
+    /* v068 porch overlays */
+    .ho-bottom-trigger {
+      height: 1px;
+      margin-top: -1px;
+    }
+
+    .ho-overlay-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: max(18px, env(safe-area-inset-top, 0px)) 18px max(18px, env(safe-area-inset-bottom, 0px));
+      background: rgba(24, 22, 19, .28);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 240ms var(--ho-ease);
+    }
+
+    .ho-overlay-backdrop.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .ho-overlay-card {
+      position: relative;
+      width: min(620px, 100%);
+      max-height: min(760px, calc(100svh - 36px));
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      transform: translateY(14px) scale(.985);
+      transition: transform 260ms var(--ho-ease), opacity 260ms var(--ho-ease);
+      opacity: 0;
+    }
+
+    .ho-overlay-backdrop.is-visible .ho-overlay-card {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .ho-overlay-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(216,199,178,.78);
+      border-radius: 999px;
+      background: rgba(255,255,255,.82);
+      color: var(--ho-text);
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ho-note-overlay {
+      padding: clamp(28px, 4vw, 42px);
+      border-radius: 28px;
+      background: linear-gradient(160deg, #fffdf5, #fff7e6);
+      border: 1px solid var(--ho-border);
+      box-shadow: 0 28px 88px rgba(24,22,19,.28);
+    }
+
+    .ho-note-overlay::before {
+      content: "";
+      position: absolute;
+      top: 20px;
+      left: 24px;
+      right: 78px;
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--ho-accent), var(--ho-primary), var(--ho-secondary));
+    }
+
+    .ho-note-overlay .light,
+    .ho-cta-overlay .porch {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      font-weight: 850;
+    }
+
+    .ho-note-overlay .light {
+      color: var(--ho-secondary);
+    }
+
+    .ho-note-overlay .bulb,
+    .ho-cta-overlay .bulb {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: var(--ho-accent);
+      box-shadow: 0 0 0 6px rgba(242,176,30,.22), 0 0 20px rgba(242,176,30,.82);
+    }
+
+    .ho-note-overlay h2 {
+      margin: 22px 0 16px;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1;
+    }
+
+    .ho-note-overlay p {
+      margin: 0 0 14px;
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    .ho-note-overlay .sig {
+      margin-top: 18px;
+      font-family: var(--ho-font-display);
+      font-size: 26px;
+      letter-spacing: .02em;
+      color: var(--ho-text);
+    }
+
+    .ho-cta-overlay {
+      padding: clamp(34px, 6vw, 58px);
+      border-radius: 30px;
+      text-align: center;
+      background: radial-gradient(circle at 50% -10%, rgba(242,176,30,.5), transparent 52%), linear-gradient(160deg, #2f5e36, #234a29);
+      color: #fff;
+      box-shadow: 0 30px 90px rgba(35,74,41,.42);
+    }
+
+    .ho-cta-overlay .porch {
+      color: #ffe9b8;
+    }
+
+    .ho-cta-overlay h2 {
+      margin: 0;
+      font-family: var(--ho-font-display);
+      text-transform: uppercase;
+      font-size: clamp(32px, 5.6vw, 56px);
+      line-height: .94;
+      letter-spacing: .02em;
+    }
+
+    .ho-cta-overlay p {
+      max-width: 56ch;
+      margin: 16px auto 26px;
+      font-size: clamp(17px, 1.6vw, 20px);
+      opacity: .95;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 680px) {
+      .ho-overlay-card {
+        width: min(100%, 620px);
+        max-height: min(76svh, 700px);
+      }
+
+      .ho-note-overlay,
+      .ho-cta-overlay {
+        border-radius: 24px;
+      }
+
+      .ho-note-overlay {
+        padding: 30px 22px 24px;
+      }
+
+      .ho-note-overlay::before {
+        top: 17px;
+        left: 22px;
+        right: 74px;
+      }
+
+      .ho-note-overlay h2 {
+        font-size: 30px;
+      }
+
+      .ho-note-overlay .sig {
+        font-size: 23px;
+      }
+
+      .ho-cta-overlay {
+        padding: 34px 22px 24px;
+      }
+
+      .ho-cta-overlay h2 {
+        font-size: clamp(28px, 9vw, 38px);
+      }
+
+      .ho-cta-overlay .btn {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ho-overlay-backdrop,
+      .ho-overlay-card {
+        transition: none;
+      }
+    }
+
+
+    /* v069 overlay centering + shared font normalization */
+    .ho-overlay-backdrop,
+    .ho-overlay-backdrop.is-visible {
+      align-items: center !important;
+      justify-items: center !important;
+      place-items: center !important;
+      padding:
+        max(18px, env(safe-area-inset-top, 0px))
+        18px
+        max(18px, env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    .ho-overlay-card {
+      margin: auto;
+      font-family: var(--ho-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    }
+
+    .btn,
+    .ho-nav a,
+    .ho-chip,
+    .ho-plan-tag,
+    .ho-price-foot,
+    .ho-guide-steps span,
+    .ho-note-overlay .light,
+    .ho-cta-overlay .porch,
+    .ho-overlay-close {
+      font-family: var(--ho-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
+      letter-spacing: normal;
+    }
+
+    .ho-h2,
+    .ho-hero h1,
+    .ho-guide-card h2,
+    .ho-note-overlay h2,
+    .ho-cta-overlay h2,
+    .ho-plan h3,
+    .ho-feat span,
+    .ho-notrow h3,
+    .ho-step .num,
+    .ho-note-overlay .sig {
+      font-family: var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif);
+    }
+
+    .ho-promise,
+    .ho-feat,
+    .ho-plan,
+    .ho-step,
+    .ho-faq,
+    .ho-guide-card,
+    .ho-notrow,
+    .ho-note-overlay,
+    .ho-cta-overlay {
+      font-family: var(--ho-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    }
+
+    .ho-cta-overlay .btn,
+    .ho-plan .btn,
+    .ho-hero-cta .btn {
+      font-family: var(--ho-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif) !important;
+      font-weight: 850;
+      letter-spacing: normal;
+    }
+
+    .ho-overlay-close {
+      font-size: 26px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    @media (max-width: 680px) {
+      .ho-overlay-backdrop,
+      .ho-overlay-backdrop.is-visible {
+        align-items: center !important;
+        justify-items: center !important;
+        place-items: center !important;
+        padding:
+          max(14px, env(safe-area-inset-top, 0px))
+          14px
+          max(14px, env(safe-area-inset-bottom, 0px)) !important;
+      }
+
+      .ho-overlay-card {
+        width: min(100%, 620px);
+        max-height: min(76svh, 700px);
+      }
+
+      .ho-note-overlay,
+      .ho-cta-overlay {
+        transform-origin: center center;
+      }
+
+      .btn,
+      .ho-nav a,
+      .ho-chip,
+      .ho-guide-steps span {
+        font-size: 16px;
+      }
+    }
+
+
+    /* v070 public homepage type consistency
+       Use the same Hoosier display treatment for major buttons and preview guide boxes. */
+    .ho-home .btn,
+    .ho-home .ho-nav a,
+    .ho-home .ho-guide-steps span,
+    .ho-home .ho-chip,
+    .ho-home .ho-plan-tag {
+      font-family: var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif) !important;
+      text-transform: none;
+      letter-spacing: .015em;
+      font-weight: 700;
+      font-synthesis: none;
+    }
+
+    .ho-home .btn,
+    .ho-home .ho-nav-cta {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .ho-home .ho-guide-steps span {
+      font-size: 21px;
+      line-height: 1.05;
+      color: var(--ho-text);
+    }
+
+    .ho-home .ho-guide-steps b {
+      font-family: var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif) !important;
+      font-weight: 700;
+      font-size: 20px;
+    }
+
+    .ho-home .ho-chip {
+      font-size: 20px;
+      line-height: 1.05;
+      color: var(--ho-text);
+    }
+
+    .ho-home .ho-plan-tag,
+    .ho-home .ho-eyebrow {
+      font-family: var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif) !important;
+      letter-spacing: .18em;
+      font-weight: 700;
+    }
+
+    .ho-home .ho-overlay-close {
+      font-family: var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif) !important;
+    }
+
+    @media (max-width: 680px) {
+      .ho-home .btn,
+      .ho-home .ho-nav-cta {
+        font-size: 17px;
+      }
+
+      .ho-home .ho-guide-steps span {
+        font-size: 20px;
+      }
+
+      .ho-home .ho-chip {
+        font-size: 19px;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .ho-home .ho-guide-steps span,
+      .ho-home .ho-chip {
+        font-size: 18px;
+      }
+    }
+
+
+    /* v071 definitive public homepage type system
+       Rule:
+       - Display font = all headings, labels, nav, buttons, tags, chips, cards, pricing numbers, overlay labels.
+       - Body font = readable paragraphs, descriptions, FAQ answers, list body copy.
+       This block intentionally sits last and uses high specificity to override earlier pasted CSS. */
+
+    body.ho-home {
+      --ho-display-stack: var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", "Roboto Condensed", sans-serif);
+      --ho-body-stack: var(--ho-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-family: var(--ho-body-stack) !important;
+    }
+
+    body.ho-home h1,
+    body.ho-home h2,
+    body.ho-home h3,
+    body.ho-home .ho-h2,
+    body.ho-home .ho-eyebrow,
+    body.ho-home .ho-brand,
+    body.ho-home .ho-nav a,
+    body.ho-home .btn,
+    body.ho-home .ho-chip,
+    body.ho-home .ho-guide-card h2,
+    body.ho-home .ho-guide-steps span,
+    body.ho-home .ho-guide-steps b,
+    body.ho-home .ho-promise h3,
+    body.ho-home .ho-promise .mark,
+    body.ho-home .ho-notrow h3,
+    body.ho-home .ho-feat span,
+    body.ho-home .ho-plan-tag,
+    body.ho-home .ho-plan h3,
+    body.ho-home .ho-plan .price b,
+    body.ho-home .ho-step .num,
+    body.ho-home .ho-step h3,
+    body.ho-home .ho-faq h3,
+    body.ho-home .ho-cta-card h2,
+    body.ho-home .ho-cta-card .porch,
+    body.ho-home .ho-note .light,
+    body.ho-home .ho-note .sig,
+    body.ho-home .ho-note-overlay .light,
+    body.ho-home .ho-note-overlay h2,
+    body.ho-home .ho-note-overlay .sig,
+    body.ho-home .ho-cta-overlay .porch,
+    body.ho-home .ho-cta-overlay h2,
+    body.ho-home .ho-overlay-close,
+    body.ho-home .ho-foot .staff {
+      font-family: var(--ho-display-stack) !important;
+      font-synthesis: none;
+    }
+
+    body.ho-home p,
+    body.ho-home li,
+    body.ho-home .ho-hero-lede,
+    body.ho-home .ho-lede,
+    body.ho-home .ho-prose,
+    body.ho-home .ho-prose p,
+    body.ho-home .ho-promise p,
+    body.ho-home .ho-notrow p,
+    body.ho-home .ho-feat p,
+    body.ho-home .ho-plan .renew,
+    body.ho-home .ho-plan .best,
+    body.ho-home .ho-plan li,
+    body.ho-home .ho-plan .price span,
+    body.ho-home .ho-step p,
+    body.ho-home .ho-faq p,
+    body.ho-home .ho-cta-card p,
+    body.ho-home .ho-note p,
+    body.ho-home .ho-note-overlay p,
+    body.ho-home .ho-cta-overlay p,
+    body.ho-home .ho-foot,
+    body.ho-home .ho-foot a:not(.staff) {
+      font-family: var(--ho-body-stack) !important;
+      font-synthesis: none;
+    }
+
+    /* Display-treatment normalization */
+    body.ho-home .ho-nav a,
+    body.ho-home .btn,
+    body.ho-home .ho-chip,
+    body.ho-home .ho-guide-steps span,
+    body.ho-home .ho-plan-tag,
+    body.ho-home .ho-cta-card .porch,
+    body.ho-home .ho-note .light,
+    body.ho-home .ho-note-overlay .light,
+    body.ho-home .ho-cta-overlay .porch {
+      font-weight: 700 !important;
+      letter-spacing: .015em !important;
+      line-height: 1 !important;
+      text-transform: none !important;
+    }
+
+    body.ho-home .ho-eyebrow,
+    body.ho-home .ho-plan-tag,
+    body.ho-home .ho-foot .staff {
+      letter-spacing: .18em !important;
+      text-transform: uppercase !important;
+      font-weight: 700 !important;
+    }
+
+    body.ho-home .ho-nav a,
+    body.ho-home .btn {
+      font-size: 18px !important;
+    }
+
+    body.ho-home .ho-guide-steps span {
+      font-size: 21px !important;
+      color: var(--ho-text) !important;
+    }
+
+    body.ho-home .ho-chip {
+      font-size: 20px !important;
+      color: var(--ho-text) !important;
+    }
+
+    body.ho-home .ho-promise h3,
+    body.ho-home .ho-step h3,
+    body.ho-home .ho-faq h3 {
+      font-size: 24px !important;
+      line-height: 1.05 !important;
+      letter-spacing: .015em !important;
+    }
+
+    body.ho-home .ho-notrow h3,
+    body.ho-home .ho-feat span {
+      letter-spacing: .035em !important;
+      line-height: 1.04 !important;
+      font-weight: 700 !important;
+    }
+
+    body.ho-home .ho-overlay-close {
+      font-size: 28px !important;
+      line-height: 1 !important;
+      letter-spacing: 0 !important;
+      text-transform: none !important;
+    }
+
+    @media (max-width: 680px) {
+      body.ho-home .ho-nav a,
+      body.ho-home .btn {
+        font-size: 17px !important;
+      }
+
+      body.ho-home .ho-guide-steps span {
+        font-size: 20px !important;
+      }
+
+      body.ho-home .ho-chip {
+        font-size: 19px !important;
+      }
+
+      body.ho-home .ho-promise h3,
+      body.ho-home .ho-step h3,
+      body.ho-home .ho-faq h3 {
+        font-size: 22px !important;
+      }
+
+      body.ho-home .ho-notrow h3,
+      body.ho-home .ho-feat span {
+        font-size: 24px !important;
+      }
+    }
+
+    @media (max-width: 430px) {
+      body.ho-home .ho-guide-steps span,
+      body.ho-home .ho-chip {
+        font-size: 18px !important;
+      }
+
+      body.ho-home .ho-nav a,
+      body.ho-home .btn {
+        font-size: 16px !important;
+      }
+    }
+
+
+    /* v072 hero cleanup */
+    body.ho-home .ho-hero-lede {
+      max-width: 58ch;
+    }
+
+    body.ho-home .ho-hero-grid {
+      padding-bottom: clamp(14px, 3vw, 24px);
+    }
+
+
+    /* v073 homepage cleanup: remove drift between sections */
+    body.ho-home {
+      --ho-title-color: var(--ho-text);
+      --ho-label-color: var(--ho-primary);
+      --ho-card-bg: rgba(255,255,255,.72);
+      --ho-card-border: var(--ho-border);
+    }
+
+    body.ho-home .ho-head-inner {
+      justify-content: space-between;
+    }
+
+    body.ho-home .ho-nav {
+      justify-content: flex-end;
+    }
+
+    body.ho-home .ho-nav-links a {
+      color: var(--ho-text) !important;
+      background: transparent !important;
+      border: 0 !important;
+    }
+
+    body.ho-home .ho-eyebrow {
+      color: var(--ho-label-color) !important;
+    }
+
+    body.ho-home .ho-promise h3,
+    body.ho-home .ho-notrow h3,
+    body.ho-home .ho-feat span,
+    body.ho-home .ho-plan h3,
+    body.ho-home .ho-step h3,
+    body.ho-home .ho-faq h3 {
+      color: var(--ho-title-color) !important;
+      font-family: var(--ho-display-stack, var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif)) !important;
+      font-weight: 700 !important;
+      letter-spacing: .025em !important;
+      line-height: 1.04 !important;
+      text-transform: uppercase !important;
+    }
+
+    body.ho-home .ho-promise p,
+    body.ho-home .ho-notrow p,
+    body.ho-home .ho-feat p,
+    body.ho-home .ho-plan .renew,
+    body.ho-home .ho-plan .best,
+    body.ho-home .ho-plan li,
+    body.ho-home .ho-step p,
+    body.ho-home .ho-faq p,
+    body.ho-home .ho-lede,
+    body.ho-home .ho-hero-lede,
+    body.ho-home .ho-prose p {
+      color: var(--ho-muted) !important;
+      font-family: var(--ho-body-stack, var(--ho-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif)) !important;
+      letter-spacing: normal !important;
+      text-transform: none !important;
+    }
+
+    body.ho-home .ho-promise,
+    body.ho-home .ho-notrow,
+    body.ho-home .ho-feat,
+    body.ho-home .ho-plan,
+    body.ho-home .ho-step,
+    body.ho-home .ho-faq {
+      background: var(--ho-card-bg) !important;
+      border: 1px solid var(--ho-card-border) !important;
+      border-radius: 20px !important;
+      box-shadow: 0 12px 36px rgba(24,22,19,.045) !important;
+    }
+
+    body.ho-home .ho-notgrid,
+    body.ho-home .ho-doorgrid,
+    body.ho-home .ho-promises,
+    body.ho-home .ho-steps,
+    body.ho-home .ho-faq-list {
+      gap: 14px !important;
+    }
+
+    body.ho-home .ho-notrow,
+    body.ho-home .ho-feat {
+      padding: 24px !important;
+    }
+
+    body.ho-home .ho-notrow {
+      display: block !important;
+      border-bottom: 1px solid var(--ho-card-border) !important;
+    }
+
+    body.ho-home .ho-notrow h3,
+    body.ho-home .ho-feat span {
+      display: block;
+      margin: 0 0 10px !important;
+      font-size: 25px !important;
+    }
+
+    body.ho-home .btn {
+      font-family: var(--ho-display-stack, var(--ho-font-display, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif)) !important;
+      font-weight: 700 !important;
+      letter-spacing: .015em !important;
+    }
+
+    body.ho-home .ho-preview-guide,
+    body.ho-home .ho-guide-card {
+      display: none !important;
+    }
+
+    @media (max-width: 680px) {
+      body.ho-home .ho-nav-links {
+        display: none !important;
+      }
+
+      body.ho-home .ho-head-inner {
+        height: 56px !important;
+      }
+
+      body.ho-home .ho-brand img {
+        height: 27px !important;
+      }
+
+      body.ho-home .ho-hero {
+        padding-top: 42px !important;
+      }
+
+      body.ho-home .ho-notrow,
+      body.ho-home .ho-feat,
+      body.ho-home .ho-promise,
+      body.ho-home .ho-plan,
+      body.ho-home .ho-step,
+      body.ho-home .ho-faq {
+        padding: 22px !important;
+        border-radius: 20px !important;
+      }
+
+      body.ho-home .ho-notrow h3,
+      body.ho-home .ho-feat span {
+        font-size: 24px !important;
+      }
+    }
+
   </style>
 </head>
 <body class="ho-home">
@@ -249,7 +1243,6 @@ $faqs = [
           <a href="#straight">Straight talk</a>
           <a href="#faq">Questions</a>
         </span>
-        <a class="ho-nav-cta" href="#porch">Say hello</a>
       </nav>
     </div>
   </header>
@@ -262,33 +1255,13 @@ $faqs = [
           <p class="ho-eyebrow">You probably came in from your preview</p>
           <h1>Pull up<br>a <em>chair.</em></h1>
           <p class="ho-hero-lede">
-            You’ve already seen what we’d build for you. So we’ll skip the hard sell — this is
-            just the part where you size us up and decide whether we’re the kind of folks you’d
-            want to work with. Take your time, read as much as you like. There’s no countdown
-            timer, and nobody from “sales” is going to call you.
+            You already saw the thing. Not a vague “schedule a call and we’ll circle back” thing —
+            the actual direction we’d build. This page is just where you decide whether we seem
+            competent, local, and reasonably unlikely to make your life worse. No fake countdown,
+            no lead-machine fairy tale, no guy in a headset calling your mowing business a “brand ecosystem.”
           </p>
-          <div class="ho-hero-cta">
-            <a class="btn btn-primary" href="#porch">Say hello <span class="arrow">→</span></a>
-            <a class="btn btn-ghost" href="#who">Get to know us first</a>
-          </div>
-        </div>
-
-        <aside class="ho-note" aria-label="A note from Hoosier Online">
-          <span class="light"><span class="bulb"></span> The porch light’s on</span>
-          <p>Hey there —</p>
-          <p>
-            You found the homepage. Most folks land here from the preview we put together for
-            their business, just to see who’s behind it.
-          </p>
-          <p>
-            No robot wrote that preview, and no robot wrote this. Look around as long as you like.
-            When you’re ready, we’ll be right here.
-          </p>
-          <p class="sig">— The Hoosier Online folks</p>
-        </aside>
-      </div>
+        </div>      </div>
     </section>
-
     <!-- WHO WE ARE -->
     <section class="ho-who ho-section" id="who">
       <div class="ho-wrap">
@@ -412,14 +1385,14 @@ $faqs = [
               <li>Cleanup of the obvious old, broken, out-of-date stuff</li>
               <li>Mobile-friendly, hosting included for the year</li>
             </ul>
-            <a class="btn btn-primary" href="#porch">This sounds about right <span class="arrow">→</span></a>
+            <a class="btn btn-primary" href="<?= ho_e($mailto) ?>">This sounds about right <span class="arrow">→</span></a>
           </article>
 
           <article class="ho-plan">
             <span class="ho-plan-tag">If you’d rather not think about it</span>
             <h3>Managed Front Door</h3>
-            <div class="price"><b>$999</b><span>setup + 3 months managed</span></div>
-            <p class="renew">Renews at $250/quarter or $750/year after the first three months.</p>
+            <div class="price"><b>$999</b><span>setup + 3 months managed service</span></div>
+            <p class="renew">Includes three months of managed service. Renews at $99/month after the first three months.</p>
             <p class="best">For folks who’d rather we keep the whole thing current and handle the changes as life and seasons happen.</p>
             <ul>
               <li>Everything in Standard, with more hands-on setup</li>
@@ -429,7 +1402,7 @@ $faqs = [
               <li>Ongoing cleanup as things drift over time</li>
               <li>Seasonal offer changes and priority fixes</li>
             </ul>
-            <a class="btn btn-ghost" href="#porch">Tell me more about this one</a>
+            <a class="btn btn-ghost" href="<?= ho_e($mailto) ?>">Tell me more about this one</a>
           </article>
         </div>
         <p class="ho-price-foot">Genuinely unsure which one fits? Tell us your trade and we’ll point you to the simpler one.</p>
@@ -469,23 +1442,102 @@ $faqs = [
         </div>
       </div>
     </section>
-
-    <!-- PORCH-LIGHT CTA -->
-    <section class="ho-cta" id="porch">
-      <div class="ho-wrap">
-        <div class="ho-cta-card">
-          <span class="porch"><span class="bulb"></span> We’ll leave the porch light on</span>
-          <h2>No rush. Come find us when you’re ready.</h2>
-          <p>
-            Reply to your preview, or just send us a note. A real person — probably the same one
-            who built your preview — will read it and get back to you, in plain English, without a
-            sales script. That’s a promise, not a ticket number.
-          </p>
-          <a class="btn btn-accent" href="<?= ho_e($mailto) ?>">Send us a note <span class="arrow">→</span></a>
-        </div>
-      </div>
-    </section>
+    <!-- BOTTOM PORCH OVERLAY TRIGGER -->
+    <div id="porch-bottom-trigger" class="ho-bottom-trigger" aria-hidden="true"></div>
   </main>
+
+
+  <div class="ho-overlay-backdrop" id="helloOverlay" aria-hidden="true">
+    <section class="ho-overlay-card ho-note-overlay" role="dialog" aria-modal="true" aria-labelledby="helloOverlayTitle">
+      <button class="ho-overlay-close" type="button" data-close-overlay="helloOverlay" aria-label="Close note">×</button>
+      <span class="light"><span class="bulb"></span> The porch light’s on</span>
+      <h2 id="helloOverlayTitle">Hey there —</h2>
+      <p>
+        You found the homepage. Most folks land here from the preview we put together for
+        their business, just to see who’s behind it.
+      </p>
+      <p>
+        No robot wrote that preview, and no robot wrote this. Look around as long as you like.
+        When you’re ready, we’ll be right here.
+      </p>
+      <p class="sig">— The Hoosier Online folks</p>
+    </section>
+  </div>
+
+  <div class="ho-overlay-backdrop" id="porchOverlay" aria-hidden="true">
+    <section class="ho-overlay-card ho-cta-overlay" role="dialog" aria-modal="true" aria-labelledby="porchOverlayTitle">
+      <button class="ho-overlay-close" type="button" data-close-overlay="porchOverlay" aria-label="Close contact prompt">×</button>
+      <span class="porch"><span class="bulb"></span> We’ll Leave The Porch Light On</span>
+      <h2 id="porchOverlayTitle">No rush. Come find us when you’re ready.</h2>
+      <p>
+        When you’re ready to move forward, you already have the link to get started.
+        Once you finalize the details on your project, we will get working on it within
+        a few hours and have a real deliverable for you within 24 hours guaranteed.
+      </p>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function openOverlay(id) {
+        var overlay = document.getElementById(id);
+        if (!overlay || overlay.dataset.dismissed === '1') return;
+        overlay.classList.add('is-visible');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeOverlay(id) {
+        var overlay = document.getElementById(id);
+        if (!overlay) return;
+        overlay.classList.remove('is-visible');
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.dataset.dismissed = '1';
+      }
+
+      document.addEventListener('click', function (event) {
+        var close = event.target.closest('[data-close-overlay]');
+        if (close) {
+          closeOverlay(close.getAttribute('data-close-overlay'));
+          return;
+        }
+
+        if (event.target.classList && event.target.classList.contains('ho-overlay-backdrop')) {
+          closeOverlay(event.target.id);
+        }
+      });
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        closeOverlay('helloOverlay');
+        closeOverlay('porchOverlay');
+      });
+
+      window.setTimeout(function () {
+        openOverlay('helloOverlay');
+      }, prefersReducedMotion ? 0 : 1000);
+
+      var bottomTrigger = document.getElementById('porch-bottom-trigger');
+      if ('IntersectionObserver' in window && bottomTrigger) {
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              openOverlay('porchOverlay');
+              observer.disconnect();
+            }
+          });
+        }, { threshold: 0.2 });
+        observer.observe(bottomTrigger);
+      } else {
+        window.addEventListener('scroll', function () {
+          if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 220)) {
+            openOverlay('porchOverlay');
+          }
+        }, { passive: true });
+      }
+    })();
+  </script>
 
   <footer class="ho-foot">
     <div class="ho-wrap ho-foot-inner">

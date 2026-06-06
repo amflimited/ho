@@ -1,0 +1,12 @@
+After installing v118:
+
+Open:
+  /sales-portal-dashboard.php?view=preview_package_workbench
+
+Expected first visible card:
+  Dashboard View Router
+  Preview Package Workbench
+
+You should NOT see the normal Work Queue first.
+
+If you still see normal Work Queue first, the uploader did not replace sales-portal-dashboard.php with the v118 file.

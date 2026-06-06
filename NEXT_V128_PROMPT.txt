@@ -1,0 +1,110 @@
+Proceed with v128 — Marketing Desk Simplification Around /go Link.
+
+Use v127 as the base. Do not change diagnosis import logic. Do not change /go renderer. Do not add automatic sending.
+
+Goal:
+Refactor Marketing Desk so it no longer thinks in terms of old package dashboards, reports, domain checks, or 10-design assets. Marketing Desk should primarily sell one link:
+- /go.php?slug={business_slug}
+
+Touch:
+- sales-marketing-desk.php
+- command-center-model.php if state detection needs adjustment
+- prospect-model.php only if canonical fields are needed
+- assets/css/admin.css
+- sales-portal-dashboard.php only if label/button target needs adjustment
+
+Required:
+1. Marketing pipeline piles:
+   - Outreach Draft Needed
+   - Draft Ready
+   - Paused / Manual Review
+   - Sent Later placeholder only
+
+2. Load businesses where:
+   - go_path or outreach_asset_url exists
+   - marketing_desk_status is not draft_ready/sent/manual pause
+   These should be Outreach Draft Needed.
+
+3. Generate one batch outreach draft prompt.
+   Batch size up to 25.
+   Input for each business:
+   - business_id
+   - business_slug
+   - business_name
+   - business_type
+   - city/state
+   - public contact method/value
+   - go_path or outreach_asset_url
+   - top weakness keys
+   - top recommendation keys
+
+4. Prompt must instruct:
+   - short respectful copy
+   - no fake familiarity
+   - no guaranteed leads/rankings/sales
+   - no SMS
+   - no AI calls
+   - use only the /go preview link
+   - return ONLY valid JSON
+
+5. Draft JSON intake:
+   Accept:
+   marketing_batch.batch_type = front_door_outreach_drafts
+   drafts[]
+
+   Store claims:
+   - marketing_desk_status
+   - contact_method
+   - outreach_to
+   - outreach_subject
+   - outreach_body
+   - outreach_asset_url
+   - outreach_warnings_json
+   - outreach_next_step
+
+6. Add canonical claim fields if needed.
+
+7. Draft Ready cards show:
+   - business name
+   - contact method/to
+   - subject
+   - body
+   - /go link
+   - Copy To
+   - Copy Subject
+   - Copy Body
+   - Manual Ready To Send label
+
+8. Compliance checklist:
+   - public/customer-facing contact method
+   - truthful subject
+   - no fake familiarity
+   - no guarantee
+   - low-pressure language
+   - /go link present
+   - no SMS/call automation
+
+9. Keep actual sending manual only.
+   No send button.
+
+10. Demote old package-dashboard/report/domain language.
+   It may remain legacy/collapsed only if needed.
+
+Acceptance test:
+After installing v128:
+1. /sales-marketing-desk.php shows Outreach Draft Needed for /go-ready businesses.
+2. Copy Outreach Draft Prompt works.
+3. Paste draft result imports.
+4. Draft Ready cards show To/Subject/Body/go link.
+5. Copy buttons work.
+6. No send button exists.
+
+Do not:
+- no automatic email sending
+- no SMS
+- no AI calls
+- no CRM automation
+- no domain purchasing
+- no payment
+- no changes to diagnosis import
+- no changes to /go renderer

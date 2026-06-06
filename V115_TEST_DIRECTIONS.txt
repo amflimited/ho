@@ -1,0 +1,17 @@
+After installing v115:
+
+1. Open:
+   /sales-portal-dashboard.php
+
+2. Look for:
+   Downstream Sales Assets
+
+3. Use buttons:
+   /sales-preview-package-system.php
+   /sales-preview-package-workbench.php
+   /sales-marketing-desk.php
+
+4. If /sales-preview-package-workbench.php still does not load:
+   - note whether it is 404, blank page, or PHP error
+   - screenshot the browser result
+   - do not continue package workflow until that page loads

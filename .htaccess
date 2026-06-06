@@ -22,15 +22,6 @@ Options -Indexes
 # hoosier-online-security-v051 -- END
 
 
-
-# php -- BEGIN cPanel-generated handler, do not edit
-# Set the “ea-php85” package as the default “PHP” programming language.
-<IfModule mime_module>
-  AddHandler application/x-httpd-ea-php85___lsphp .php .php8 .phtml
-</IfModule>
-# php -- END cPanel-generated handler, do not edit
-
-
 # V052 hardening: deny direct access to private/sensitive runtime artifacts
 <FilesMatch "(^\.|database\.local|admin-secrets|\.sql$|\.log$|\.zip$|composer\.(json|lock)|package(-lock)?\.json)">
   Require all denied
@@ -40,3 +31,9 @@ RedirectMatch 404 ^/(db|private|backups?|logs?|uploads?)/
 
 Options -Indexes
 
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “ea-php85” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php85___lsphp .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit

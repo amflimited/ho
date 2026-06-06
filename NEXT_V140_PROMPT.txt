@@ -1,0 +1,46 @@
+Proceed with v140 — Production Lane Home.
+
+Use v139, v138, v137, v136, v135, v134, v133, v132, and v131a as the source of truth.
+
+Goal:
+Replace the visible dashboard/app home with a production-lane home that opens around the current unfinished job, not five equal module buttons.
+
+Touch:
+- sales-portal-dashboard.php
+- app-home-model.php or production-lane-model.php if cleaner
+- assets/css/admin.css
+
+Required:
+1. iPhone-first, Adam-only production lane.
+2. Do not show Source/Intake/Records/Prep/Send as five equal primary buttons.
+3. Compute/select one current job in this priority:
+   1. Send ready drafts
+   2. Prep contact-ready businesses
+   3. Intake pasted/held candidates if detectable
+   4. Repair blocked/problem records
+   5. Source more businesses
+4. Main visible surface should show:
+   - current job headline
+   - one-sentence why this is next
+   - one primary continuation control
+   - small proof/count text
+5. Specialist modules may remain reachable through a small Tools area, not the primary surface:
+   - Source
+   - Intake
+   - Records
+   - Prep
+   - Send
+   - Map
+   - Check
+   - Audit
+   - Contracts
+6. Legacy tools must stay behind Legacy only:
+   - Diagnosis Workbench
+   - Front Door Builder
+   - Preview Package Workbench
+   - Package System
+7. No new operational writes.
+8. No sending, SMS, AI calls, scraping automation, payments, or domain purchasing.
+
+Acceptance test:
+Opening /sales-portal-dashboard.php should not feel like a module dashboard. It should tell Adam the current unfinished production job and provide one obvious continuation.

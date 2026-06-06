@@ -1,0 +1,111 @@
+Proceed with v129 — Market Coverage / Category Completion Tracker.
+
+Use v128 as the base. Do not change diagnosis import logic. Do not change /go renderer. Do not change Marketing Desk sending behavior.
+
+Goal:
+Start tracking the scale objective:
+Have we identified, processed, previewed, and prepared outreach for relevant Indiana local service businesses by category/region/source context?
+
+New page:
+- /sales-market-map.php
+
+Touch:
+- sales-market-map.php
+- market-map-model.php if cleaner
+- sales-portal-dashboard.php to add a Market Map link/card
+- command-center-model.php only if shared helper needed
+- assets/css/admin.css
+
+Required:
+1. Create read-oriented Market Map page.
+   It should not scrape, send, import, or mutate records.
+
+2. Group current businesses by:
+   - business_type/category
+   - location_state
+   - location_city
+   - service_area_text if available
+   - source context if available from claims/notes where simple
+
+3. Show category coverage rows:
+   - category
+   - total records
+   - need triage
+   - need research
+   - contact ready
+   - diagnosis ready
+   - /go ready
+   - outreach draft needed
+   - draft ready
+   - blocked/skip
+   - customer/interested if existing fields support it
+
+4. Show a Next Market Action:
+   Examples:
+   - Finish /go previews for lawn care
+   - Draft outreach for cleaning
+   - Find more handyman businesses in Indiana
+   - Research contact-ready gaps
+
+5. Category model:
+   Treat business_type/category as sourcing context only.
+   Do not reject adjacent services.
+   Normalize display labels for:
+   - lawn_care
+   - cleaning
+   - handyman
+   - photography
+   - pressure_washing
+   - junk_removal
+   - mobile_detailing
+   - pet_grooming
+   - home_repair
+   - contractor
+   - landscaping
+   - tree_work
+   - snow_removal
+   - property_maintenance
+   - instructor_coach
+   - event_service
+   - local_service
+
+6. Add region/city view:
+   - Indiana only as the broad gate
+   - city/service area are context, not hard rules
+
+7. Add bottleneck summary:
+   - largest category needing diagnosis
+   - largest category needing /go previews
+   - largest category needing outreach drafts
+   - largest blocked/manual review category
+
+8. Add dashboard link/card:
+   - Market Map
+   - route /sales-market-map.php
+   It should not replace Command Center.
+
+9. iPhone-first:
+   - compact table/cards
+   - no huge raw JSON
+   - collapsible category details
+
+Acceptance test:
+After installing v129:
+1. /sales-market-map.php loads.
+2. It shows category rows with real counts.
+3. It shows bottlenecks.
+4. It recommends one Next Market Action.
+5. Dashboard links to Market Map.
+6. No scraping/sending/importing occurs.
+
+Do not:
+- no scraping automation
+- no sending
+- no SMS
+- no AI calls
+- no payment
+- no outreach automation
+- no domain purchasing
+- no changes to diagnosis import
+- no changes to /go renderer
+- no automatic market completion claims

@@ -1,0 +1,65 @@
+Proceed with v111 — Static Design Dashboard / Sales Report Generator.
+
+Use v110 as the base. Do not alter upstream triage/research/setup/contact-ready routing.
+
+Goal:
+Generate internal/static customer-facing preview artifacts for package_ready records:
+- /go/{short_slug}
+- /design/{short_slug}
+- /report/{short_slug}
+
+Touch:
+- sales-preview-package-workbench.php
+- preview-package-model.php
+- assets/css/admin.css
+- add preview-renderer.php or preview-materializer.php if cleaner
+- customer-facing route/files only if implemented safely
+
+Required:
+1. Add materialization action for package_ready records.
+   - It should not send outreach.
+   - It should not purchase domains.
+   - It should not require live API.
+   - It should generate or define static files/routes for:
+     /go/{short_slug}
+     /design/{short_slug}
+     /report/{short_slug}
+
+2. Design Dashboard:
+   - Personalized business header.
+   - 10 locked website design options.
+   - 10 browser-font identity directions.
+   - 10 verified available domain options.
+   - “Choose this direction” placeholder action only.
+   - No client persistence beyond placeholder unless simple and safe.
+
+3. Sales Report:
+   - Business snapshot.
+   - Strength blocks.
+   - Weakness blocks.
+   - Recommendation blocks.
+   - Plain-English next step.
+   - Polite, not insulting.
+   - No guaranteed leads.
+
+4. /go/{slug}:
+   - Lightweight router/landing page linking to design and report.
+   - Suitable for campaign hotlinking.
+
+5. After successful skeleton/materialization:
+   - set package_status = ready_for_marketing
+   - store materialized_at or package_next_step = marketing_desk
+
+6. UX:
+   - iPhone-first admin.
+   - Clear package_ready count.
+   - Clear ready_for_marketing count.
+   - Materialization action collapsed/explicit.
+
+Do not:
+- no outreach/send
+- no SMS
+- no AI calls
+- no domain purchase
+- no live domain API
+- no changes to upstream workflow

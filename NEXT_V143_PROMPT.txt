@@ -1,0 +1,29 @@
+Proceed with v143 — Stop and Test Live Screens.
+
+Use v142 as the base.
+
+Goal:
+Do not add code unless a live fatal/blank page is found. This pass is a test protocol and correction checklist for the installed live screens.
+
+Required:
+1. Install v142.
+2. Test on iPhone Safari:
+   - /sales-portal-dashboard.php
+   - /sales-production-lane-check.php
+   - /sales-source.php
+   - /sales-intake.php
+   - /sales-records.php
+   - /sales-prep.php
+   - /sales-send.php
+3. For each page, report:
+   - loads or fails
+   - first screen impression
+   - whether it feels like production lane or admin page
+   - what is still noisy
+   - what action is obvious
+4. Only patch fatal errors, broken links, missing files, or obvious CSS regressions.
+5. No new features.
+6. No operational writes, sending, SMS, AI calls, scraping automation, payments, or domain purchasing.
+
+Acceptance test:
+We have a live-screen truth report before continuing any more product build.

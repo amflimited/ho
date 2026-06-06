@@ -1,0 +1,49 @@
+Proceed with v137 — Send Tray: Manual Outreach Review.
+
+Use v136, v135, v134, v133, v132, and v131a as the source of truth.
+
+Goal:
+Build the Send module as a manual send tray for prepared outreach drafts.
+It should not send anything automatically.
+
+New page:
+- /sales-send.php
+
+Touch:
+- sales-send.php
+- send-model.php if cleaner
+- prep-model.php only if shared helpers are needed
+- sales-portal-dashboard.php link only
+- assets/css/admin.css
+
+Required:
+1. iPhone-first app-like Send page.
+2. Load records with outreach_subject + outreach_body + outreach_to where available.
+3. If no durable SalesPrep intake exists yet, also support pasted sales_prep JSON preview mode without writing.
+4. Show one sendable item at a time or a simple queue.
+5. Each item shows:
+   - business name
+   - contact method
+   - outreach_to
+   - outreach_subject
+   - outreach_body
+   - computed preview_url = /go.php?slug={business_slug}
+   - warnings
+6. Copy controls:
+   - Copy To
+   - Copy Subject
+   - Copy Body
+   - Open Preview
+7. Manual outcome controls may be visual placeholders only unless a safe outcome writer exists:
+   - Mark Sent Manually
+   - Hold
+   - Skip
+   - Follow Up
+   - Not Interested
+   - Customer
+   - Do Not Contact
+8. No automatic sending.
+9. No SMS, AI calls, scraping automation, payments, or domain purchasing.
+
+Acceptance test:
+Adam can open /sales-send.php, review prepared outreach, copy the contact/subject/body, open the computed /go preview, and see manual outcome options without any automatic send action.

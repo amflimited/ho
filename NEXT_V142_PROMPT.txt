@@ -1,0 +1,27 @@
+Proceed with v142 — Production Lane Visual Refinement.
+
+Use v141 as the base.
+
+Goal:
+Do not add workflow features. Refine the production lane home and specialist entry points so the visible experience feels less like admin pages and more like one guided production surface.
+
+Touch:
+- sales-portal-dashboard.php
+- sales-source.php only if entry wording needs alignment
+- sales-intake.php only if entry wording needs alignment
+- sales-records.php only if entry wording needs alignment
+- sales-prep.php only if entry wording needs alignment
+- sales-send.php only if entry wording needs alignment
+- assets/css/admin.css
+
+Required:
+1. Keep the production lane as the primary home.
+2. Reduce visual noise above the fold.
+3. Keep one current job and one primary continuation.
+4. Make Tools and Legacy visually secondary.
+5. Specialist pages should clearly show they are opened from the lane, not independent dashboards.
+6. No operational writes.
+7. No sending, SMS, AI calls, scraping automation, payments, or domain purchasing.
+
+Acceptance test:
+The app should feel like one production assistant, not multiple unrelated admin pages.
