@@ -17,30 +17,34 @@ try {
     $err = $e->getMessage();
 }
 
-// ─── Data helpers ─────────────────────────────────────────────────────────────
-$name     = $row ? (string)$row['business_name']     : '';
-$city     = $row ? (string)$row['location_city']     : '';
-$catName  = $row ? (string)$row['category_name']     : '';
-$headline = $row ? (string)$row['headline']          : '';
-$subhead  = $row ? (string)$row['subheadline']       : '';
+// ─── Data ───────────────────────────────────────────────────────────────────
+$name     = $row ? (string)$row['business_name']        : '';
+$city     = $row ? (string)$row['location_city']        : '';
+$catName  = $row ? (string)$row['category_name']        : '';
 $opp      = $row ? (string)$row['opportunity_statement'] : '';
+$subhead  = $row ? (string)$row['subheadline']          : '';
 $package  = $row ? (string)$row['package_recommendation'] : 'standard';
+$phone    = $row ? (string)($row['phone_number'] ?? '') : '';
 
 $services = $row ? (array)json_decode((string)($row['services_display'] ?? '[]'), true) : [];
-$strengths= $row ? (array)json_decode((string)($row['strengths']        ?? '[]'), true) : [];
-$gaps     = $row ? (array)json_decode((string)($row['gaps']             ?? '[]'), true) : [];
+if (empty($services) && $row) {
+    $services = (array)json_decode((string)($row['typical_services'] ?? '[]'), true);
+}
+$gaps     = $row ? (array)json_decode((string)($row['gaps'] ?? '[]'), true) : [];
 
 $googleCount  = (int)($row['google_review_count'] ?? 0);
 $googleRating = (float)($row['google_rating']     ?? 0);
 $hasGoogle    = (bool)($row['has_google_business'] ?? false);
-$hasWebsite   = (bool)($row['has_website']         ?? false);
-$hasFacebook  = (bool)($row['has_facebook']        ?? false);
-$websiteQ     = (string)($row['website_quality']   ?? 'none');
-$fbActivity   = (string)($row['facebook_activity'] ?? 'none');
 
-$serviceArea  = (string)($row['service_area_text'] ?? ($city !== '' ? $city . ' and surrounding area' : 'Indiana'));
+$serviceArea  = (string)($row['service_area_text'] ?? ($city !== '' ? $city . ' & surrounding area' : 'Indiana'));
+$isManaged    = $package === 'managed';
 
-$isManaged = $package === 'managed';
+// Phone display + tel link
+$telRaw = preg_replace('/\D/', '', $phone) ?? '';
+$telDisplay = $phone;
+if (strlen($telRaw) === 10) {
+    $telDisplay = '(' . substr($telRaw, 0, 3) . ') ' . substr($telRaw, 3, 3) . '-' . substr($telRaw, 6);
+}
 
 $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : 'Hoosier Online';
 
@@ -70,135 +74,115 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
 <?php else: ?>
 
-  <!-- ── HERO ─────────────────────────────────────────────────────────────── -->
-  <section class="fd-card fd-hero">
-    <p class="fd-kicker">Hoosier Online &mdash; Front Door Preview</p>
-    <h1>We took a look at <?= ho_h($name) ?>.</h1>
-    <p><?= ho_h($opp ?: $subhead) ?></p>
-    <div class="fd-meta">
-      <span><?= ho_h($catName) ?></span>
-      <?php if ($city !== ''): ?><span><?= ho_h($city) ?>, IN</span><?php endif; ?>
-      <?php if ($hasGoogle && $googleCount > 0): ?>
-        <span><?= $googleCount ?> Google reviews<?= $googleRating > 0 ? ' &middot; ' . number_format($googleRating, 1) . ' ★' : '' ?></span>
+  <!-- ── INTRO LINE ───────────────────────────────────────────────────────── -->
+  <p class="fd-intro-line">Hoosier Online built you a preview &mdash; here&rsquo;s what your front door could look like.</p>
+
+  <!-- ══ THE MOCKUP — their actual front door ═══════════════════════════════ -->
+  <section class="fd-mock">
+    <div class="fd-mock-badge">Preview</div>
+
+    <div class="fd-mock-hero">
+      <p class="fd-mock-eyebrow"><?= ho_h($catName) ?><?= $city !== '' ? ' &middot; ' . ho_h($city) . ', IN' : '' ?></p>
+      <h1 class="fd-mock-name"><?= ho_h($name) ?></h1>
+
+      <?php if ($hasGoogle && $googleRating > 0): ?>
+        <div class="fd-mock-stars">
+          <span class="fd-stars"><?= str_repeat('★', (int)round($googleRating)) . str_repeat('☆', 5 - (int)round($googleRating)) ?></span>
+          <span class="fd-mock-rating"><?= number_format($googleRating, 1) ?><?= $googleCount > 0 ? ' &middot; ' . $googleCount . ' reviews' : '' ?></span>
+        </div>
+      <?php endif; ?>
+
+      <p class="fd-mock-area">Serving <?= ho_h($serviceArea) ?></p>
+
+      <?php if ($telRaw !== ''): ?>
+        <a class="fd-mock-cta" href="tel:<?= ho_h($telRaw) ?>">Call for a Free Quote</a>
+        <p class="fd-mock-phone"><?= ho_h($telDisplay) ?></p>
+      <?php else: ?>
+        <a class="fd-mock-cta" href="#">Request a Free Quote</a>
       <?php endif; ?>
     </div>
+
+    <?php if (!empty($services)): ?>
+    <div class="fd-mock-services">
+      <h2 class="fd-mock-h2">What We Do</h2>
+      <div class="fd-mock-service-grid">
+        <?php foreach (array_slice($services, 0, 6) as $svc): ?>
+          <div class="fd-mock-service"><?= ho_h((string)$svc) ?></div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="fd-mock-trust">
+      <span>Locally Owned</span>
+      <span>Indiana Based</span>
+      <span>Free Quotes</span>
+    </div>
   </section>
 
-  <!-- ── ONLINE PRESENCE ──────────────────────────────────────────────────── -->
+  <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
+  <section class="fd-turn">
+    <p class="fd-turn-arrow">&uarr;</p>
+    <h2>That&rsquo;s your new front door, <?= ho_h($name) ?>.</h2>
+    <p>Clean, fast, and built for a phone &mdash; because that&rsquo;s where your customers are looking. No clutter. Just your name, your services, and an easy way to reach you.</p>
+  </section>
+
+  <!-- ── WHY NOW (gaps, light) ────────────────────────────────────────────── -->
+  <?php if (!empty($opp) || !empty($gaps)): ?>
   <section class="fd-card">
-    <p class="fd-kicker">What We Found Online</p>
-    <h2>Here&rsquo;s where you stand right now</h2>
-    <div class="fd-presence-grid">
-      <div class="fd-presence-item <?= $hasWebsite && in_array($websiteQ, ['basic','decent'], true) ? 'fd-present' : 'fd-gap' ?>">
-        <strong>Website</strong>
-        <span><?php
-          if (!$hasWebsite || $websiteQ === 'none')  echo 'No website found';
-          elseif ($websiteQ === 'poor')               echo 'Site exists but outdated';
-          elseif ($websiteQ === 'basic')              echo 'Basic site present';
-          else                                        echo 'Decent website';
-        ?></span>
-      </div>
-      <div class="fd-presence-item <?= $hasGoogle ? 'fd-present' : 'fd-gap' ?>">
-        <strong>Google</strong>
-        <span><?= $hasGoogle
-          ? ($googleCount > 0 ? $googleCount . ' reviews' : 'Listed, no reviews')
-          : 'Not on Google' ?></span>
-      </div>
-      <div class="fd-presence-item <?= ($hasFacebook && $fbActivity === 'active') ? 'fd-present' : 'fd-gap' ?>">
-        <strong>Facebook</strong>
-        <span><?php
-          if (!$hasFacebook)                  echo 'No Facebook page';
-          elseif ($fbActivity === 'dormant')  echo 'Page exists, not active';
-          elseif ($fbActivity === 'active')   echo 'Active on Facebook';
-          else                                echo 'No Facebook page';
-        ?></span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── SERVICES ─────────────────────────────────────────────────────────── -->
-  <?php if (!empty($services)): ?>
-  <section class="fd-card">
-    <p class="fd-kicker">Services</p>
-    <h2>What you do for <?= ho_h($serviceArea) ?></h2>
-    <ul class="fd-service-list">
-      <?php foreach ($services as $svc): ?>
-        <li><?= ho_h((string)$svc) ?></li>
-      <?php endforeach; ?>
-    </ul>
-  </section>
-  <?php endif; ?>
-
-  <!-- ── STRENGTHS ────────────────────────────────────────────────────────── -->
-  <?php if (!empty($strengths)): ?>
-  <section class="fd-section">
-    <div class="fd-section-head">
-      <p class="fd-kicker">Working in Your Favor</p>
-      <h2>You&rsquo;re already doing some things right</h2>
-    </div>
-    <div class="fd-tag-list">
-      <?php foreach ($strengths as $s): ?>
-        <span class="fd-tag fd-tag-good"><?= ho_h((string)$s) ?></span>
-      <?php endforeach; ?>
-    </div>
-  </section>
-  <?php endif; ?>
-
-  <!-- ── GAPS ─────────────────────────────────────────────────────────────── -->
-  <?php if (!empty($gaps)): ?>
-  <section class="fd-section">
-    <div class="fd-section-head">
-      <p class="fd-kicker">Where Customers Get Lost</p>
-      <h2>A few things that might be costing you jobs</h2>
-    </div>
-    <div class="fd-tag-list">
-      <?php foreach ($gaps as $g): ?>
-        <span class="fd-tag fd-tag-gap"><?= ho_h((string)$g) ?></span>
-      <?php endforeach; ?>
-    </div>
+    <p class="fd-kicker">Why We Reached Out</p>
+    <?php if (!empty($opp)): ?>
+      <p class="fd-why"><?= ho_h($opp) ?></p>
+    <?php endif; ?>
+    <?php if (!empty($gaps)): ?>
+      <ul class="fd-why-list">
+        <?php foreach (array_slice($gaps, 0, 3) as $g): ?>
+          <li><?= ho_h((string)$g) ?></li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
   </section>
   <?php endif; ?>
 
   <!-- ── OFFER ────────────────────────────────────────────────────────────── -->
   <section class="fd-card fd-offer">
-    <p class="fd-kicker">The Offer</p>
     <?php if ($isManaged): ?>
-      <h2>Managed Front Door &mdash; $999</h2>
-      <p class="fd-offer-sub">Everything handled for you, updated quarterly.</p>
+      <p class="fd-kicker">The Offer</p>
+      <h2>Managed Front Door</h2>
+      <p class="fd-price">$999<span> &mdash; we handle everything</span></p>
       <ul class="fd-offer-list">
-        <li>Custom front door built for <?= ho_h($name) ?></li>
-        <li>Your services, reviews, and contact path — all in one place</li>
-        <li>We keep it current — 3 months included, then $250/quarter</li>
-        <li>You stay focused on the work. We handle the online presence.</li>
+        <li>Built and launched for you, start to finish</li>
+        <li>Your services, reviews, and contact path in one place</li>
+        <li>We keep it current &mdash; 3 months included, then $250/quarter</li>
+        <li>You focus on the work. We handle the online side.</li>
       </ul>
     <?php else: ?>
-      <h2>Standard Front Door &mdash; $499</h2>
-      <p class="fd-offer-sub">One clean page. Up in days, not weeks.</p>
+      <p class="fd-kicker">The Offer</p>
+      <h2>Standard Front Door</h2>
+      <p class="fd-price">$499<span> &mdash; up in days, not weeks</span></p>
       <ul class="fd-offer-list">
-        <li>Custom front door built for <?= ho_h($name) ?></li>
-        <li>Your services, reviews, and contact path — clean and clear</li>
+        <li>Built and launched for you</li>
+        <li>Your services, reviews, and contact path &mdash; clean and clear</li>
         <li>1 year hosting included. Renews at $250/year or $25/month.</li>
-        <li>Simple. No contracts. No surprises.</li>
+        <li>No contracts. No surprises.</li>
       </ul>
     <?php endif; ?>
 
     <div class="fd-actions">
       <a class="fd-btn fd-btn-primary"
-         href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Front Door Preview — ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI saw the preview for {$name} and I'm interested.\n\n") ?>">
-        I&rsquo;m Interested &mdash; Email Us
+         href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Front Door for ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI saw the preview for {$name} and I'd like to move forward.\n\n") ?>">
+        Let&rsquo;s Do It
       </a>
       <a class="fd-btn fd-btn-secondary"
          href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
         I Have a Question
       </a>
     </div>
-    <p class="fd-muted">No pressure. No commitment. Just a conversation about your front door.</p>
+    <p class="fd-muted">No pressure. Just a conversation about your front door.</p>
   </section>
 
-  <!-- ── FOOTER ───────────────────────────────────────────────────────────── -->
   <footer class="fd-footer">
-    <a href="/">Hoosier Online</a>
-    &mdash; Building front doors for Indiana&rsquo;s local businesses.
+    <a href="/">Hoosier Online</a> &mdash; Front doors for Indiana&rsquo;s local businesses.
   </footer>
 
 <?php endif; ?>
