@@ -1,0 +1,28 @@
+Hoosier Online v124–v130 Sequence Complete
+
+v124 — Command Center State Audit
+Read-only truth page for pipeline and sales asset state.
+
+v125 — Command Center Dashboard Replace
+Dashboard starts with a Next Move and Do This Now button.
+
+v126 — Front Door Preview Renderer
+Customer-facing /go.php?slug={business_slug} page from diagnosis keys.
+
+v127 — Front Door Builder
+Batch assigns go_slug/go_path/outreach_asset_url claims.
+
+v128 — Marketing Desk /go Link
+Manual outreach drafts centered on one /go link. No sending.
+
+v129 — Market Map
+Read-oriented category/region/source coverage tracker.
+
+v130 — Stability + Operator Guide
+Operator guide, system check, workflow links, legacy demotion.
+
+Locked v1 path:
+Command Center → Diagnosis Workbench → Front Door Builder → Marketing Desk → Market Map
+
+No-send rule remains:
+No email sending, SMS, AI calls, CRM automation, payment, scraping, or domain purchasing.

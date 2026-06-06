@@ -1,0 +1,17 @@
+Remaining lines containing 'lawn' after normalization:
+
+sales-portal-dashboard.php
+L968: Use only the provided data plus quick public-facing verification if needed. This prompt should process exactly the businesses in the current setup task pile. Indiana is the only location gate; city/service area is sourci
+L1312: - Do not require the business to be pure lawn care.
+
+sales-research.php
+L298: $category = trim((string)($batch['category'] ?? 'lawn_care'));
+L475: $name=trim((string)($result['business_name'] ?? '')); $slug=trim((string)($result['business_slug'] ?? '')); $setupPath=trim((string)($result['setup_path'] ?? 'proceed_no_website')); $previewApproach=trim((string)($result
+L620: $knownExclusions = ho_salesportal_known_business_exclusions('lawn_care', 'New Castle, IN', 100);
+L634: lawn_care
+L655: - lawn care
+L661: - small local contractor/operator that overlaps with lawn/exterior work
+L710: "business_category": "lawn_care",
+
+sales-business.php
+L399: For lawn care, recurring_service or simple_service_card is usually enough unless evidence supports another option.

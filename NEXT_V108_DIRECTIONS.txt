@@ -1,0 +1,69 @@
+Proceed with v108 — Preview Package Workbench.
+
+Use v107 as the product contract and do not alter the upstream triage/research/setup/contact-ready pipeline.
+
+Goal:
+Create the admin workbench that loads Contact Ready businesses and generates a copy/paste GPT prompt to manufacture preview packages according to the locked registries.
+
+Touch:
+- sales-preview-package-workbench.php
+- sales-portal-dashboard.php
+- assets/css/admin.css
+- preview-package-model.php only if a helper function is clearly needed
+
+Required:
+1. New admin page:
+   /sales-preview-package-workbench.php
+
+2. Load Contact Ready businesses from the same queue truth used by the dashboard.
+
+3. Show batch groups:
+   - Package Needed
+   - Package Drafted
+   - Domain Check Needed
+   - Package Ready
+   - Ready For Marketing
+   - Manual Package Review
+   - Package Blocked
+
+4. Active prompt:
+   Generate Preview Package Prompt
+   This prompt must include:
+   - Contact Ready businesses
+   - locked 10 web design registry
+   - locked 10 identity/logo direction registry
+   - slug rules
+   - domain candidate rules
+   - sales report block registry
+   - package JSON contract
+   - readiness criteria
+
+5. Prompt instructions:
+   - Select and personalize all 10 locked website designs for each business.
+   - Select and personalize all 10 locked identity/logo directions for each business.
+   - Generate the shortest safe unique hotlink slug candidates.
+   - Generate 20 domain candidates only; do not claim availability.
+   - Generate personalized sales report using block keys and a short personalized summary.
+   - Set package_status = domain_check_needed unless blocked/manual review.
+   - Return ONLY valid JSON.
+
+6. Intake:
+   Do not build full package import yet unless existing Intake can safely absorb it.
+   For v108, the workbench may provide the prompt and an Intake route placeholder.
+
+7. UX:
+   - iPhone-first
+   - one active prompt
+   - copy button with existing v100 copy system
+   - no raw registry walls unless collapsed
+   - clear “Return to Work Queue” button
+
+Do not:
+- no outreach/send
+- no SMS
+- no AI calls
+- no customer-facing page generation yet
+- no domain purchasing
+- no live domain availability API yet
+- no schema changes unless absolutely necessary
+- no changes to existing lead/research/setup routing

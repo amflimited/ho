@@ -129,13 +129,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 ho_admin_render_start(
-    'upload',
-    'Hoosier Online Upload',
-    'Upload',
+    'tools',
+    'Upload Update',
+    'Tool',
     'Upload <em>Update</em>',
-    ''
+    'Use only when installing a generated package. Daily work belongs in Work Queue.'
 );
 ?>
+
+<section class="admin-tool-return admin-card">
+  <p class="admin-kicker">Tool Surface</p>
+  <h2>Install Carefully</h2>
+  <p class="admin-muted">Upload packages can change live files. Use this only when you intentionally want to install an update.</p>
+  <div class="admin-action-row">
+    <a class="admin-btn admin-btn-primary" href="/sales-portal-dashboard.php">Return To Work Queue</a>
+    <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php#dashboard-import">Go To Intake</a>
+  </div>
+</section>
+
+
 <section class="admin-upload-panel">
   <form id="ho-auto-upload-form" method="post" enctype="multipart/form-data">
     <input id="ho-package-input" class="admin-file-input" type="file" name="package" accept=".zip" required>

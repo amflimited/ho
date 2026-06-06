@@ -1,0 +1,112 @@
+Proceed with v130 — Stability, Workflow Lock, and Operator Guide.
+
+Use v129 as the base. Do not add major new product logic.
+
+Goal:
+Stop the patch spiral and lock the working v1 process with an operator guide, system checks, legacy demotion, and safer workflow pages.
+
+Touch:
+- sales-operator-guide.php
+- sales-system-check.php or sales-db-check.php if existing check page should be reused
+- sales-portal-dashboard.php
+- sales-command-center-audit.php
+- sales-diagnosis-workbench.php only if link/label safety needed
+- sales-front-door-builder.php only if link/label safety needed
+- sales-marketing-desk.php only if link/label safety needed
+- sales-market-map.php only if link/label safety needed
+- assets/css/admin.css
+
+Required:
+1. Add new operator guide page:
+   - /sales-operator-guide.php
+
+2. Operator guide must explain the v1 workflow:
+   1. Find leads
+   2. Triage
+   3. Research
+   4. Diagnose
+   5. Build /go preview
+   6. Draft outreach
+   7. Manual send
+   8. Follow up
+   9. Mark result / track market coverage
+
+3. Each guide step must show:
+   - what it means
+   - when to use it
+   - batch size
+   - input
+   - output
+   - next step
+   - where to click
+
+4. Add system health/check page or enhance existing:
+   It should verify:
+   - required PHP files exist
+   - command-center-model loaded
+   - diagnosis-model loaded
+   - front-door-preview-model loaded
+   - market-map-model loaded
+   - import function available
+   - canonical claim fields exist:
+     diagnosis_status
+     strength_keys_json
+     weakness_keys_json
+     recommendation_keys_json
+     primary_offer_path
+     preview_direction_keys_json
+     front_door_preview_status
+     go_slug
+     go_path
+     outreach_asset_url
+     marketing_desk_status
+     outreach_subject
+     outreach_body
+
+5. Main dashboard should include links:
+   - Operator Guide
+   - System Check
+   - Market Map
+   - Full State Audit
+
+6. Demote obsolete/legacy pages:
+   - Preview Package Workbench
+   - Package System
+   - old materialization/domain check path
+   These should be clearly labeled Legacy / Experimental if still linked.
+   Do not delete.
+
+7. Add safer page load behavior where simple:
+   - file_exists guards
+   - function_exists guards
+   - friendly error cards instead of blank page
+   Do not do risky rewrites.
+
+8. Lock primary flow language:
+   Command Center → Diagnosis Workbench → Front Door Builder → Marketing Desk → Market Map
+
+9. Add README:
+   - final v1 process
+   - no-send rule
+   - batch sizes
+   - next build ideas should be after v130, not included
+
+Acceptance test:
+After installing v130:
+1. Dashboard shows command center and clear links to guide/check/map/audit.
+2. /sales-operator-guide.php explains the full process.
+3. System check page loads and reports pass/fail for required files/functions/claim fields.
+4. Legacy tools are visibly demoted.
+5. No sending, SMS, AI calls, payment, scraping, or domain purchasing were added.
+
+Do not:
+- no new product features
+- no sending
+- no SMS
+- no AI calls
+- no payment
+- no scraping
+- no domain purchasing
+- no post-sale intake
+- no 10-template dashboard resurrection
+- no major dashboard redesign beyond guide/check links and legacy demotion

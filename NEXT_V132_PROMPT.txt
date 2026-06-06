@@ -1,0 +1,57 @@
+Proceed with v132 — Contract-Aligned App Simplification Plan.
+
+Use v131 as the source of truth. Do not add operational features yet.
+
+Goal:
+Create the implementation plan that converts the existing page-based sales portal into the v131 mobile app model:
+Source → Intake → Records → Prep → Send
+with support modules Review / Map / Check / Guide / Audit.
+
+Required:
+1. Audit current pages against the v131 contract:
+   - keep as primary app module
+   - convert
+   - support only
+   - legacy/deprecate
+   - remove from primary flow
+
+2. Identify fake steps to eliminate:
+   - Front Door Builder as required user step
+   - stored go_slug/go_path/outreach_asset_url as required proof
+   - Preview Package Workbench as primary flow
+   - Package System as primary flow
+   - domain/materialization pre-sale flow
+   - separate diagnosis and outreach prompts if one Sales Prep prompt can produce both
+
+3. Define the new primary app screens:
+   - Source
+   - Intake
+   - Records
+   - Prep
+   - Send
+   Each screen must describe what Adam literally does on iPhone Safari.
+
+4. Define support screens:
+   - Review
+   - Map
+   - Check
+   - Guide
+   - Audit
+
+5. Include data/write boundaries:
+   - research evidence importer
+   - generated SalesPrep intake
+   - OutreachDraft intake
+   - workflow/outcome writer
+   - computed /go preview
+
+Acceptance test:
+The plan must make it clear how lead generation, field conversion, table management, sales prep, and manual sending all fit into one mobile app without pretending any part is magic or hidden.
+
+Do not:
+- no sending
+- no SMS
+- no AI calls
+- no payment
+- no scraping automation
+- no domain purchasing

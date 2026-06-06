@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const HO_ADMIN_CORE_VERSION = 'HO-ADMIN-CORE-041';
+const HO_ADMIN_CORE_VERSION = 'HO-ADMIN-CORE-084';
 
 if (!function_exists('ho_admin_config')) {
     function ho_admin_config(): array {
@@ -18,12 +18,11 @@ if (!function_exists('ho_admin_config')) {
                 'favicon' => '/favicon.ico',
             ],
             'menu' => [
-                ['key' => 'dashboard', 'label' => 'Dashboard', 'url' => '/admin.php'],
-                ['key' => 'sales_research', 'label' => 'Research', 'url' => '/sales-research.php'],
-                ['key' => 'sales_prospects', 'label' => 'Prospects', 'url' => '/sales-portal-dashboard.php'],
-                ['key' => 'upload', 'label' => 'Upload', 'url' => '/upload.php'],
-                ['key' => 'sales_system', 'label' => 'Systems', 'url' => '/sales-system.php'],
-                ['key' => 'sitemap', 'label' => 'Backup', 'url' => '/sitemap.php'],
+                ['key' => 'sales_prospects', 'label' => 'Work', 'url' => '/sales-portal-dashboard.php'],
+                ['key' => 'intake', 'label' => 'Paste', 'url' => '/sales-portal-dashboard.php#dashboard-import'],
+                ['key' => 'sales_research', 'label' => 'Find', 'url' => '/sales-research.php'],
+                ['key' => 'cases', 'label' => 'Cases', 'url' => '/sales-portal-dashboard.php#work-queues'],
+                ['key' => 'tools', 'label' => 'Tools', 'url' => '/admin.php#tools'],
             ],
         ];
     }
@@ -70,10 +69,10 @@ if (!function_exists('ho_admin_render_start')) {
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <title><?= ho_h($title) ?></title>
   <link rel="icon" href="<?= ho_h($config['brand']['favicon']) ?>">
-  <link rel="stylesheet" href="/assets/css/admin.css?v=041-admin-design-fix">
+  <link rel="stylesheet" href="/assets/css/admin.css?v=084-admin-simplification">
   <script type="application/json" id="ho-admin-machine"><?= ho_h(json_encode($machine, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) ?></script>
 </head>
-<body>
+<body class="admin-experience-v082">
   <main class="admin-shell">
     <div class="admin-topbar">
       <a class="admin-logo" href="/index.php" aria-label="Hoosier Online public site">
@@ -85,6 +84,12 @@ if (!function_exists('ho_admin_render_start')) {
           <a<?= ho_admin_is_active($active, $item['key'], $item['url']) ?> href="<?= ho_h($item['url']) ?>"><?= ho_h($item['label']) ?></a>
         <?php endforeach; ?>
       </nav>
+
+      <div class="admin-route-strip" aria-label="Admin route hints">
+        <a href="/sales-portal-dashboard.php">Work</a>
+        <a href="/sales-portal-dashboard.php#dashboard-import">Paste</a>
+        <a href="/sales-research.php">Find</a>
+      </div>
     </div>
 
     <section class="admin-page">

@@ -1,0 +1,40 @@
+Proceed with v114 — Manual Send Checklist / Compliance Review Layer.
+
+Use v113 as the base. Do not alter upstream routing.
+
+Goal:
+Add a final manual pre-send checklist that helps confirm drafts are safe to send, without sending anything.
+
+Touch:
+- sales-marketing-desk.php
+- preview-package-model.php only if helper needed
+- assets/css/admin.css
+
+Required:
+1. Add checklist display to Draft Ready cards:
+   - contact method is public/customer-facing
+   - subject is truthful
+   - body references preview package without fake familiarity
+   - no lead/ranking/sales guarantee
+   - includes opt-out/friendly no-pressure language where appropriate
+   - asset links work/present
+   - no SMS/call action
+
+2. Add “Manual Ready To Send” visual label.
+   - This is only a label/checklist state.
+   - No send action.
+
+3. Add copy block:
+   - Copy To
+   - Copy Subject
+   - Copy Body
+
+4. Add paused warning emphasis for records with warnings.
+
+Do not:
+- no email sending
+- no SMS
+- no AI calls
+- no CRM automation
+- no domain purchasing
+- no upstream workflow changes

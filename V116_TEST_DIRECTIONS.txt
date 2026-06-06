@@ -1,0 +1,15 @@
+After installing v116:
+
+1. Open /sales-portal-dashboard.php
+2. Confirm Downstream Sales Assets shows Package Needed count.
+3. Tap Open Preview Package Workbench.
+4. Confirm /sales-preview-package-workbench.php loads.
+5. Confirm Workbench Source shows:
+   - Total Loaded > 0
+   - Package Needed should match Contact Ready-ish records
+6. Confirm Generate Preview Package Prompt appears if Package Needed > 0.
+
+If it still shows Package Needed 0:
+- screenshot the Workbench Source card
+- screenshot one Contact Ready business case file
+- do not continue to package generation until source detection is corrected

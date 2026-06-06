@@ -266,7 +266,7 @@ function ho_salesportal_list_businesses(?string $status = null, string $search =
         LIMIT 250
     ");
     $stmt->execute($params);
-    return $stmt->fetchAll();
+    return ho_salesportal_attach_latest_claims_to_businesses($stmt->fetchAll());
 }
 
 function ho_salesportal_business_evidence(int $businessId): array {
@@ -718,6 +718,51 @@ function ho_salesportal_preview_readiness_counts(): array {
     return $counts;
 }
 
+
+function ho_salesportal_attach_latest_claims_to_businesses(array $businesses): array {
+    if (!$businesses) return [];
+
+    $ids = array_values(array_filter(array_map(static fn($row) => (int)($row['id'] ?? 0), $businesses)));
+    if (!$ids) return $businesses;
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+    $stmt = ho_db()->prepare("
+        SELECT *
+        FROM business_claims
+        WHERE business_id IN ($placeholders)
+          AND claim_status <> 'archived'
+        ORDER BY business_id, field_key, updated_at DESC, id DESC
+    ");
+    $stmt->execute($ids);
+    $claimRows = $stmt->fetchAll();
+
+    $latestByBusiness = [];
+    foreach ($claimRows as $claim) {
+        $bid = (int)($claim['business_id'] ?? 0);
+        $field = (string)($claim['field_key'] ?? '');
+        if ($bid <= 0 || $field === '') continue;
+
+        if (!isset($latestByBusiness[$bid])) {
+            $latestByBusiness[$bid] = [];
+        }
+
+        // Rows are ordered newest first per field, so keep first field occurrence.
+        if (!isset($latestByBusiness[$bid][$field])) {
+            $latestByBusiness[$bid][$field] = $claim;
+        }
+    }
+
+    foreach ($businesses as &$business) {
+        $bid = (int)($business['id'] ?? 0);
+        $business['_claims'] = array_values($latestByBusiness[$bid] ?? []);
+        $business['_latest_claims_by_key'] = $latestByBusiness[$bid] ?? [];
+    }
+    unset($business);
+
+    return $businesses;
+}
+
 function ho_salesportal_list_businesses_with_readiness(?string $status = null, string $search = ''): array {
     $businesses = ho_salesportal_list_businesses($status, $search);
     if (!$businesses) return [];
@@ -737,8 +782,9 @@ function ho_salesportal_list_businesses_with_readiness(?string $status = null, s
     foreach ($businesses as &$business) {
         $business['_preview_readiness'] = $byBusiness[(int)$business['id']] ?? null;
     }
+    unset($business);
 
-    return $businesses;
+    return ho_salesportal_attach_latest_claims_to_businesses($businesses);
 }
 
 
@@ -1069,236 +1115,268 @@ function ho_salesportal_dashboard_assignment_summary(int $businessId): array {
 }
 
 
-/**
- * Business Refinement Prompt helpers v055
- *
- * Produces a paste-ready GPT prompt from the system's current knowledge of a business.
- * The returned JSON is still imported through the existing Sales Research importer.
- */
-function ho_salesportal_refinement_missing_fields(array $claims): array {
-    $required = [
-        'business_name',
-        'business_type',
-        'city',
-        'service_area',
-        'website_url',
-        'google_profile_url',
-        'facebook_url',
-        'phone_number',
-        'email_address',
-        'contact_form_present',
-        'request_form_present',
-        'services_list_present',
-        'photos_present',
-        'reviews_present',
-        'recent_activity_present',
-        'single_customer_destination_present',
-        'contact_path_clarity',
-        'primary_sales_angle',
-        'recommended_package',
-        'recommended_design',
-    ];
 
-    $present = [];
-    foreach ($claims as $claim) {
-        $key = (string)($claim['field_key'] ?? '');
-        if ($key !== '') {
-            $present[$key] = true;
-        }
+
+if (!function_exists('ho_salesportal_db')) {
+    function ho_salesportal_db(): PDO {
+        return ho_db();
     }
-
-    $missing = [];
-    foreach ($required as $key) {
-        if (empty($present[$key])) {
-            $missing[] = $key;
-        }
-    }
-
-    return $missing;
 }
 
-function ho_salesportal_refinement_existing_claim_summary(array $claims): array {
-    $summary = [];
-    foreach ($claims as $claim) {
-        $summary[] = [
-            'field_key' => (string)($claim['field_key'] ?? ''),
-            'claim_value' => (string)($claim['claim_value'] ?? ''),
-            'confidence_level' => (string)($claim['confidence_level'] ?? ''),
-            'confidence_score' => (float)($claim['confidence_score'] ?? 0),
-            'claim_status' => (string)($claim['claim_status'] ?? ''),
-            'source_type' => (string)($claim['source_type'] ?? ''),
-            'source_url' => (string)($claim['source_url'] ?? ''),
-            'evidence_note' => (string)($claim['evidence_note'] ?? ''),
+if (!function_exists('ho_salesportal_normalize_identifier')) {
+    function ho_salesportal_normalize_identifier(string $value, string $type = ''): string {
+        $value = trim(strtolower($value));
+        if ($value === '') return '';
+
+        $type = strtolower(trim($type));
+
+        if ($type === 'phone_number' || $type === 'phone') {
+            $digits = preg_replace('/\D+/', '', $value) ?? '';
+            if (strlen($digits) === 11 && str_starts_with($digits, '1')) {
+                $digits = substr($digits, 1);
+            }
+            return $digits;
+        }
+
+        if ($type === 'email_address' || $type === 'email') {
+            return $value;
+        }
+
+        if (str_contains($value, '://')) {
+            $parts = parse_url($value);
+            $host = strtolower((string)($parts['host'] ?? ''));
+            $path = strtolower(trim((string)($parts['path'] ?? ''), '/'));
+            $host = preg_replace('/^www\./', '', $host) ?? $host;
+            return trim($host . '/' . $path, '/');
+        }
+
+        if (preg_match('/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i', $value)) {
+            $value = preg_replace('/^www\./', '', $value) ?? $value;
+            return trim($value, '/');
+        }
+
+        $value = preg_replace('/[^a-z0-9]+/', ' ', $value) ?? $value;
+        return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
+    }
+}
+
+if (!function_exists('ho_salesportal_collect_payload_identifiers')) {
+    function ho_salesportal_collect_payload_identifiers(array $payload): array {
+        $identifiers = [];
+
+        $business = $payload['business'] ?? [];
+        if (is_array($business)) {
+            foreach (['business_slug', 'business_name_current', 'location_city', 'location_state'] as $key) {
+                if (!empty($business[$key])) {
+                    $identifiers[] = ['type' => $key, 'value' => (string)$business[$key]];
+                }
+            }
+        }
+
+        foreach (($payload['claims'] ?? []) as $claim) {
+            if (!is_array($claim)) continue;
+            $field = (string)($claim['field_key'] ?? '');
+            $value = (string)($claim['normalized_value'] ?? $claim['claim_value'] ?? '');
+            if ($field !== '' && trim($value) !== '') {
+                $identifiers[] = ['type' => $field, 'value' => $value];
+            }
+        }
+
+        foreach (($payload['evidence_sources'] ?? []) as $source) {
+            if (!is_array($source)) continue;
+            $type = (string)($source['source_type'] ?? '');
+            foreach (['source_url', 'raw_excerpt', 'source_title'] as $key) {
+                if (!empty($source[$key])) {
+                    $identifiers[] = ['type' => $type, 'value' => (string)$source[$key]];
+                }
+            }
+        }
+
+        return $identifiers;
+    }
+}
+
+if (!function_exists('ho_salesportal_duplicate_check_payload')) {
+    function ho_salesportal_duplicate_check_payload(array $payload, ?PDO $pdo = null): array {
+        $pdo = $pdo ?: ho_db();
+
+        $business = $payload['business'] ?? [];
+        if (!is_array($business)) $business = [];
+
+        $slug = trim((string)($business['business_slug'] ?? ''));
+        $name = trim((string)($business['business_name_current'] ?? ''));
+        $city = trim((string)($business['location_city'] ?? ''));
+
+        $exact = [];
+        $possible = [];
+
+        if ($slug !== '') {
+            $stmt = $pdo->prepare("SELECT id, business_name_current, business_slug, location_city FROM businesses WHERE business_slug = ? LIMIT 5");
+            $stmt->execute([$slug]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $exact[] = ['reason' => 'same_slug', 'business' => $row];
+            }
+        }
+
+        if ($name !== '') {
+            $normalizedName = ho_salesportal_normalize_identifier($name, 'business_name');
+            $stmt = $pdo->query("SELECT id, business_name_current, business_slug, location_city FROM businesses");
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $rowName = ho_salesportal_normalize_identifier((string)($row['business_name_current'] ?? ''), 'business_name');
+                $rowCity = trim(strtolower((string)($row['location_city'] ?? '')));
+
+                if ($rowName !== '' && $rowName === $normalizedName) {
+                    if ($city === '' || $rowCity === strtolower($city)) {
+                        $exact[] = ['reason' => 'same_name_city', 'business' => $row];
+                    } else {
+                        $possible[] = ['reason' => 'same_name_different_city', 'business' => $row];
+                    }
+                } elseif ($rowName !== '' && $normalizedName !== '') {
+                    similar_text($rowName, $normalizedName, $percent);
+                    if ($percent >= 88 && ($city === '' || $rowCity === strtolower($city))) {
+                        $possible[] = ['reason' => 'similar_name_city', 'business' => $row, 'similarity' => round($percent, 1)];
+                    }
+                }
+            }
+        }
+
+        $payloadIds = ho_salesportal_collect_payload_identifiers($payload);
+        $interesting = [
+            'website_url', 'facebook_url', 'google_profile_url', 'phone_number', 'email_address',
+            'website', 'facebook', 'google_business_profile', 'email', 'directory'
+        ];
+
+        if ($payloadIds) {
+            $stmt = $pdo->query("SELECT bc.business_id, bc.field_key, bc.normalized_value, bc.claim_value, b.business_name_current, b.business_slug, b.location_city
+                                 FROM business_claims bc
+                                 JOIN businesses b ON b.id = bc.business_id
+                                 WHERE bc.claim_status <> 'archived'");
+            $claimRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($payloadIds as $pid) {
+                $ptype = strtolower((string)($pid['type'] ?? ''));
+                $pval = (string)($pid['value'] ?? '');
+                if (trim($pval) === '') continue;
+
+                $pnorm = ho_salesportal_normalize_identifier($pval, $ptype);
+                if ($pnorm === '' || strlen($pnorm) < 4) continue;
+
+                foreach ($claimRows as $row) {
+                    $field = strtolower((string)($row['field_key'] ?? ''));
+                    $claimValue = (string)($row['normalized_value'] ?? $row['claim_value'] ?? '');
+                    $rnorm = ho_salesportal_normalize_identifier($claimValue, $field);
+                    if ($rnorm === '' || strlen($rnorm) < 4) continue;
+
+                    $strongType = in_array($field, ['website_url','facebook_url','google_profile_url','phone_number','email_address'], true)
+                        || in_array($ptype, $interesting, true);
+
+                    if ($strongType && $pnorm === $rnorm) {
+                        $exact[] = [
+                            'reason' => 'same_identifier_' . ($field ?: $ptype),
+                            'business' => [
+                                'id' => $row['business_id'],
+                                'business_name_current' => $row['business_name_current'],
+                                'business_slug' => $row['business_slug'],
+                                'location_city' => $row['location_city'],
+                            ]
+                        ];
+                    }
+                }
+            }
+        }
+
+        $dedupe = function(array $matches): array {
+            $seen = [];
+            $out = [];
+            foreach ($matches as $match) {
+                $id = (string)($match['business']['id'] ?? '');
+                $reason = (string)($match['reason'] ?? '');
+                $key = $reason . ':' . $id;
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $out[] = $match;
+            }
+            return $out;
+        };
+
+        $exact = $dedupe($exact);
+        $possible = $dedupe($possible);
+
+        return [
+            'has_exact_duplicate' => count($exact) > 0,
+            'has_possible_duplicate' => count($possible) > 0,
+            'exact_matches' => $exact,
+            'possible_matches' => $possible,
         ];
     }
-
-    return $summary;
 }
 
-function ho_salesportal_refinement_evidence_summary(array $evidence): array {
-    $summary = [];
-    foreach ($evidence as $source) {
-        $summary[] = [
-            'source_type' => (string)($source['source_type'] ?? ''),
-            'source_url' => (string)($source['source_url'] ?? ''),
-            'source_title' => (string)($source['source_title'] ?? ''),
-            'notes' => (string)($source['notes'] ?? ''),
-        ];
+if (!function_exists('ho_salesportal_known_business_exclusions')) {
+    function ho_salesportal_known_business_exclusions(string $category = '', string $targetArea = '', int $limit = 100): array {
+        $pdo = ho_db();
+
+        $rows = [];
+        try {
+            $stmt = $pdo->query("SELECT id, business_name_current, business_slug, business_type, location_city, location_state, service_area_text FROM businesses ORDER BY id DESC LIMIT 500");
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            return [];
+        }
+
+        $categoryNorm = strtolower(trim($category));
+        $areaNorm = strtolower(trim($targetArea));
+
+        $filtered = [];
+        foreach ($rows as $row) {
+            $type = strtolower((string)($row['business_type'] ?? ''));
+            $city = strtolower((string)($row['location_city'] ?? ''));
+            $service = strtolower((string)($row['service_area_text'] ?? ''));
+
+            $categoryMatch = $categoryNorm === '' || $type === '' || $type === $categoryNorm || str_contains($type, $categoryNorm) || str_contains($categoryNorm, $type);
+            $areaMatch = $areaNorm === '' || ($city !== '' && str_contains($areaNorm, $city)) || ($service !== '' && (str_contains($service, $areaNorm) || str_contains($areaNorm, $service)));
+
+            if ($categoryMatch || $areaMatch || count($rows) <= 100) {
+                $filtered[] = $row;
+            }
+            if (count($filtered) >= $limit) break;
+        }
+
+        if (!$filtered) {
+            $filtered = array_slice($rows, 0, $limit);
+        }
+
+        $ids = array_map(static fn($r) => (int)$r['id'], $filtered);
+        $claimsByBusiness = [];
+        if ($ids) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $pdo->prepare("SELECT business_id, field_key, normalized_value, claim_value
+                                   FROM business_claims
+                                   WHERE business_id IN ($placeholders)
+                                   AND field_key IN ('website_url','facebook_url','google_profile_url','phone_number','email_address','address')
+                                   AND claim_status <> 'archived'");
+            $stmt->execute($ids);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $claim) {
+                $bid = (int)$claim['business_id'];
+                $value = trim((string)($claim['normalized_value'] ?? $claim['claim_value'] ?? ''));
+                if ($value !== '') {
+                    $claimsByBusiness[$bid][] = $value;
+                }
+            }
+        }
+
+        $out = [];
+        foreach ($filtered as $row) {
+            $bid = (int)$row['id'];
+            $out[] = [
+                'business_name' => (string)($row['business_name_current'] ?? ''),
+                'business_slug' => (string)($row['business_slug'] ?? ''),
+                'city' => (string)($row['location_city'] ?? ''),
+                'state' => (string)($row['location_state'] ?? ''),
+                'identifiers' => array_values(array_unique(array_slice($claimsByBusiness[$bid] ?? [], 0, 6))),
+            ];
+        }
+
+        return $out;
     }
-
-    return $summary;
-}
-
-function ho_salesportal_build_refinement_prompt(int $businessId): string {
-    $business = ho_salesportal_get_business_by_id($businessId);
-    if (!$business) {
-        return 'Business not found.';
-    }
-
-    $canon = ho_salesportal_canon();
-    $claims = ho_salesportal_business_claims($businessId);
-    $evidence = ho_salesportal_business_evidence($businessId);
-
-    $knownPacket = [
-        'business_id' => $businessId,
-        'business' => [
-            'business_slug' => (string)($business['business_slug'] ?? ''),
-            'business_name_current' => (string)($business['business_name_current'] ?? ''),
-            'business_type' => (string)($business['business_type'] ?? ''),
-            'location_city' => (string)($business['location_city'] ?? ''),
-            'location_state' => (string)($business['location_state'] ?? ''),
-            'service_area_text' => (string)($business['service_area_text'] ?? ''),
-            'marketing_clearance_status' => (string)($business['marketing_clearance_status'] ?? ''),
-            'marketing_clearance_score' => (string)($business['marketing_clearance_score'] ?? ''),
-            'recommended_package' => (string)($business['recommended_package'] ?? ''),
-            'recommended_design' => (string)($business['recommended_design'] ?? ''),
-        ],
-        'known_evidence_sources' => ho_salesportal_refinement_evidence_summary($evidence),
-        'existing_claims' => ho_salesportal_refinement_existing_claim_summary($claims),
-        'missing_or_unconfirmed_priority_fields' => ho_salesportal_refinement_missing_fields($claims),
-    ];
-
-    $allowedFieldKeys = $canon['claim_fields'] ?? [];
-    $confidenceLevels = $canon['confidence_levels'] ?? ['confirmed','likely','inferred','weak_inference','missing','conflicting','rejected'];
-    $claimStatuses = $canon['claim_statuses'] ?? ['active','needs_review','missing','conflicting','rejected','superseded'];
-    $sourceTypes = $canon['source_types'] ?? ['website','google_business_profile','facebook','instagram','directory','email','manual_observation','phone_call','customer_submission','other'];
-    $meCategories = $canon['me_categories'] ?? ['find_me','trust_me','contact_me','show_me','book_me','pay_me','fix_me'];
-    $requirements = $canon['requirements'] ?? [];
-
-    $knownJson = json_encode($knownPacket, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    $fields = implode("\n", $allowedFieldKeys);
-    $confidence = implode(', ', $confidenceLevels);
-    $statuses = implode(', ', $claimStatuses);
-    $sources = implode(', ', $sourceTypes);
-    $categories = implode(', ', $meCategories);
-    $reqs = implode("\n", $requirements);
-
-    return <<<PROMPT
-You are refining one existing Hoosier Online Sales Portal business record.
-
-Goal:
-Use the current known business data below to research and return a stronger importable JSON payload for the same business.
-
-Important:
-- Return ONLY valid JSON.
-- Do not include markdown.
-- Do not invent private facts.
-- Use only public customer-facing information.
-- Confirm what is true.
-- Mark what is missing when it appears not to exist.
-- Mark what cannot be confirmed as weak_inference or needs_review.
-- Do not use owner_name unless clearly public and high confidence.
-- Do not include sensitive personal assumptions.
-- Do not create new field_key values.
-- Use "missing" when a customer-facing asset appears not to exist after reasonable public checking.
-- A confirmed absence is useful. Do not simply omit important missing fields.
-
-Current known system data:
-$knownJson
-
-Allowed field_key values:
-$fields
-
-Allowed confidence_level values:
-$confidence
-
-Allowed claim_status values:
-$statuses
-
-Allowed source_type values:
-$sources
-
-Allowed supports_me_category values:
-$categories
-
-Allowed supports_requirement_key values:
-$reqs
-
-Research priorities:
-1. Confirm the business name, business type, city, service area, and public identity.
-2. Confirm whether website_url, google_profile_url, facebook_url, phone_number, and email_address exist.
-3. Determine whether customers have one clean destination to understand services and request work.
-4. Determine what looks active, trustworthy, or useful.
-5. Determine where customers may get confused or fail to contact the business.
-6. Identify service display, visual proof, booking/request path, and payment path if publicly visible.
-7. Mark missing items explicitly when they do not appear to exist.
-8. Recommend standard or managed only if evidence supports it.
-9. Recommend a design direction only if evidence supports it.
-
-Return ONLY this JSON structure:
-
-{
-  "business": {
-    "business_slug": "",
-    "business_name_current": "",
-    "business_type": "",
-    "location_city": "",
-    "location_state": "IN",
-    "service_area_text": ""
-  },
-  "evidence_sources": [
-    {
-      "source_type": "website|google_business_profile|facebook|instagram|directory|email|manual_observation|phone_call|customer_submission|other",
-      "source_url": "",
-      "source_title": "",
-      "capture_status": "manual",
-      "raw_excerpt": "",
-      "notes": ""
-    }
-  ],
-  "claims": [
-    {
-      "field_key": "",
-      "claim_value": "",
-      "normalized_value": "",
-      "confidence_level": "",
-      "confidence_score": 0,
-      "claim_status": "active|needs_review|missing|conflicting|rejected|superseded",
-      "source_type": "",
-      "source_url": "",
-      "source_label": "",
-      "evidence_note": "",
-      "supports_me_category": "",
-      "supports_requirement_key": "",
-      "evidence_source_index": 0
-    }
-  ],
-  "marketing_clearance": {
-    "business_activity_score": 0,
-    "need_score": 0,
-    "fit_score": 0,
-    "confidence_score": 0,
-    "contactability_score": 0,
-    "buildability_score": 0,
-    "marketing_clearance_score": 0,
-    "marketing_clearance_status": "cleared|warm_clear|needs_review|hold|skip|blocked",
-    "recommended_package": "standard|managed|unknown",
-    "recommended_design": "",
-    "reason": ""
-  },
-  "notes": []
-}
-
-PROMPT;
 }
 

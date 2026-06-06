@@ -1,0 +1,53 @@
+Proceed with v112 — Marketing Desk Intake Scaffold.
+
+Use v111 as the base. Do not alter upstream triage/research/setup/contact-ready routing.
+
+Goal:
+Create the first Marketing Desk scaffold that consumes ready_for_marketing packages and prepares outreach review cards, but does not send anything.
+
+Touch:
+- sales-marketing-desk.php
+- sales-preview-package-workbench.php only for navigation/status link
+- assets/css/admin.css
+- preview-package-model.php only if helper is needed
+
+Required:
+1. New admin page:
+   /sales-marketing-desk.php
+
+2. Load ready_for_marketing packages.
+
+3. Show Marketing Desk piles:
+   - Ready For Outreach Review
+   - Draft Needed
+   - Draft Ready
+   - Paused / Manual Review
+   - Sent Later (placeholder only)
+
+4. Generate outreach draft prompt:
+   - Use hotlink_path, design_dashboard_path, sales_report_path.
+   - Use business contact method.
+   - Use respectful short copy.
+   - No guaranteed leads.
+   - No fake familiarity.
+   - No SMS.
+   - No AI calls.
+   - Return ONLY JSON.
+
+5. Do not send.
+   - The desk can stage copy.
+   - Actual sending remains manual/future.
+
+6. UX:
+   - iPhone-first.
+   - one active prompt.
+   - links to generated package assets.
+   - clear return to workbench button.
+
+Do not:
+- no automatic email sending
+- no SMS
+- no AI calls
+- no CRM automation
+- no domain purchase
+- no changes to upstream workflow

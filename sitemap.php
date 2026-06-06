@@ -134,13 +134,25 @@ if (isset($_GET['download']) && $_GET['download'] === 'full') {
 $totalSize = array_sum(array_column($files, 'size'));
 
 ho_admin_render_start(
-    'sitemap',
-    'Hoosier Online Sitemap / Backup',
-    'Live server scan',
-    'Sitemap / <em>Backup</em>',
-    ''
+    'tools',
+    'Backup',
+    'Tool',
+    'Backup <em>Copy</em>',
+    'Use only when saving or inspecting the site. This is a utility, not a daily sales step.'
 );
 ?>
+
+<section class="admin-tool-return admin-card">
+  <p class="admin-kicker">Tool Surface</p>
+  <h2>Backup Tool</h2>
+  <p class="admin-muted">Use this to save or inspect a copy of the site. Do not treat backup/download actions as part of the normal prospect workflow.</p>
+  <div class="admin-action-row">
+    <a class="admin-btn admin-btn-primary" href="/sales-portal-dashboard.php">Return To Work Queue</a>
+    <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php#dashboard-import">Go To Intake</a>
+  </div>
+</section>
+
+
 <div class="admin-grid-three">
   <section class="admin-stat">
     <strong><?= ho_h((string)count($files)) ?></strong>

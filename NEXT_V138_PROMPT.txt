@@ -1,0 +1,54 @@
+Proceed with v138 — App Home: Source → Intake → Records → Prep → Send.
+
+Use v137, v136, v135, v134, v133, v132, and v131a as the source of truth.
+
+Goal:
+Replace the top of the old dashboard experience with an app-style Home that presents the current Hoosier Online app modules:
+Source, Intake, Records, Prep, Send
+with Review/Map/Check/Guide/Audit as support.
+
+Touch:
+- sales-portal-dashboard.php
+- app-home-model.php if cleaner
+- assets/css/admin.css
+
+Required:
+1. iPhone-first app Home, not a stat-card dashboard.
+2. Show the five main modules prominently:
+   - Source
+   - Intake
+   - Records
+   - Prep
+   - Send
+3. Each module button/card should show:
+   - module name
+   - short plain-English purpose
+   - current count/status if safely computed
+   - route
+4. Source route:
+   /sales-source.php
+5. Intake route:
+   /sales-intake.php
+6. Records route:
+   /sales-records.php
+7. Prep route:
+   /sales-prep.php
+8. Send route:
+   /sales-send.php
+9. Support routes must be lower/secondary:
+   - Migration Plan
+   - App Contract
+   - Market Map
+   - System Check
+   - State Audit
+10. Demote old workbench routes:
+   - Diagnosis Workbench
+   - Front Door Builder
+   - Preview Package Workbench
+   - Package System
+   They may remain under Legacy only.
+11. No new operational writes.
+12. No sending, SMS, AI calls, scraping automation, payments, or domain purchasing.
+
+Acceptance test:
+Opening /sales-portal-dashboard.php should feel like the Home screen for the mobile app modules, not a pile of legacy admin cards.

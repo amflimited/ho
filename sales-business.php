@@ -4,9 +4,67 @@ require __DIR__ . '/admin-core.php';
 require __DIR__ . '/prospect-model.php';
 
 
+if (!function_exists('ho_sales_business_local_setup_prompt')) {
+    function ho_sales_business_local_setup_prompt(array $business, array $claims, array $evidence, int $businessId): string {
+        $importantClaims=[];
+        foreach($claims as $claim){
+            $field=(string)($claim['field_key'] ?? '');
+            if(in_array($field,['business_name','business_type','city','service_area','website_url','google_profile_url','facebook_url','phone_number','email_address','contact_form_present','request_form_present','facebook_message_enabled','single_customer_destination_present','contact_path_clarity','primary_sales_angle','recommended_design','recommended_features','recommended_package','marketing_clearance_status'],true)){
+                $importantClaims[]=['field_key'=>$field,'claim_value'=>(string)($claim['claim_value'] ?? ''),'confidence_level'=>(string)($claim['confidence_level'] ?? ''),'claim_status'=>(string)($claim['claim_status'] ?? ''),'evidence_note'=>(string)($claim['evidence_note'] ?? '')];
+            }
+        }
+        $packet=['setup_goal'=>'single_business_preview_contact_setup','business'=>['business_id'=>$businessId,'business_slug'=>(string)($business['business_slug'] ?? ''),'business_name'=>(string)($business['business_name_current'] ?? ''),'business_type'=>(string)($business['business_type'] ?? ''),'city'=>(string)($business['location_city'] ?? ''),'state'=>(string)($business['location_state'] ?? ''),'service_area'=>(string)($business['service_area_text'] ?? ''),'current_clearance'=>(string)($business['marketing_clearance_status'] ?? ''),'recommended_package'=>(string)($business['recommended_package'] ?? ''),'recommended_design'=>(string)($business['recommended_design'] ?? '')],'important_claims'=>$importantClaims];
+        $json=json_encode($packet, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES);
+        return <<<PROMPT
+You are setting up one Hoosier Online business for preview readiness and contact prep.
+
+Goal:
+Decide the backend setup path, preview approach, contact readiness, and best contact method.
+
+Do NOT do full research.
+Do NOT build preview.php.
+Do NOT write long sales copy.
+Use only public customer-facing information and the provided record.
+
+Current business:
+$json
+
+Return ONLY valid JSON in this exact structure:
+
+{
+  "setup_batch": {"method": "preview_contact_setup", "category": "local_service", "target_area": "New Castle, IN"},
+  "setup_results": [
+    {
+      "business_id": $businessId,
+      "business_slug": "{$business['business_slug']}",
+      "business_name": "{$business['business_name_current']}",
+      "setup_path": "research_with_website|proceed_no_website|do_not_proceed",
+      "preview_approach": "website_fix_preview|simple_front_door_preview|local_service_card|quote_request_page|recurring_service_page|none",
+      "contact_readiness": "ready_to_contact|needs_manual_check|not_contactable|do_not_contact",
+      "best_contact_method": "website_contact_form|public_email|facebook_message|phone_manual_later|none",
+      "contact_value": "",
+      "contact_angle": "",
+      "must_verify_before_contact": [],
+      "reason": ""
+    }
+  ]
+}
+
+Rules:
+- If there is a real website/contact form, use research_with_website and website_contact_form when appropriate.
+- If there is no website but the business appears real and contactable, use proceed_no_website and simple_front_door_preview.
+- If identity/contact are too weak, use needs_manual_check or do_not_contact.
+- Keep contact_angle short and practical.
+
+PROMPT;
+    }
+}
+
+
+
 if (!function_exists('ho_sales_business_local_triage_prompt')) {
     function ho_sales_business_local_triage_prompt(array $business, array $claims, array $evidence, int $businessId): string {
-        $claimSummary = [];$triagePrompt='';
+        $claimSummary = [];$setupPrompt='';$triagePrompt='';
         foreach ($claims as $claim) {
             $field = (string)($claim['field_key'] ?? '');
             if (in_array($field, [
@@ -90,7 +148,7 @@ Return ONLY valid JSON in this structure:
 
 {
   "triage_batch": {
-    "category": "lawn_care",
+    "category": "local_service",
     "target_area": "New Castle, IN",
     "triage_method": "manual_gpt_assisted_candidate_triage"
   },
@@ -157,7 +215,7 @@ if (!function_exists('ho_sales_business_local_refinement_prompt')) {
         ];
 
         $existingClaimKeys = [];
-        $claimSummary = [];$triagePrompt='';$refinementPrompt='';
+        $claimSummary = [];$setupPrompt='';$triagePrompt='';$refinementPrompt='';
         foreach ($claims as $claim) {
             $field = (string)($claim['field_key'] ?? '');
             if ($field !== '') {
@@ -399,66 +457,702 @@ PROMPT;
 }
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-try { $business=$id>0?ho_salesportal_get_business_by_id($id):null; $evidence=$business?ho_salesportal_business_evidence($id):[]; $claims=$business?ho_salesportal_business_claims($id):[]; $claimGroups=ho_salesportal_group_claims_by_category($claims); $claimSummary=ho_salesportal_claim_summary($claims); $triagePrompt=$business?ho_sales_business_local_triage_prompt($business,$claims,$evidence,$id):''; $refinementPrompt=$business?ho_sales_business_local_refinement_prompt($business,$claims,$evidence,$id):''; $dbError=null; }
-catch(Throwable $e){$business=null;$evidence=[];$claims=[];$claimGroups=[];$claimSummary=[];$triagePrompt='';$refinementPrompt='';$dbError=$e->getMessage();}
+try { $business=$id>0?ho_salesportal_get_business_by_id($id):null; $evidence=$business?ho_salesportal_business_evidence($id):[]; $claims=$business?ho_salesportal_business_claims($id):[]; $claimGroups=ho_salesportal_group_claims_by_category($claims); $claimSummary=ho_salesportal_claim_summary($claims); $setupPrompt=$business?ho_sales_business_local_setup_prompt($business,$claims,$evidence,$id):''; $triagePrompt=$business?ho_sales_business_local_triage_prompt($business,$claims,$evidence,$id):''; $refinementPrompt=$business?ho_sales_business_local_refinement_prompt($business,$claims,$evidence,$id):''; $dbError=null; }
+catch(Throwable $e){$business=null;$evidence=[];$claims=[];$claimGroups=[];$claimSummary=[];$setupPrompt='';$triagePrompt='';$refinementPrompt='';$dbError=$e->getMessage();}
 function ho_salesportal_readiness_text(string $status): string { return ['cleared'=>'Ready for preview and outreach.','warm_clear'=>'Close to ready. Keep any weak facts out of outreach.','needs_review'=>'Not ready yet. Review claims first.','hold'=>'More research needed.','skip'=>'Low priority / low value.','blocked'=>'Do not contact.'][$status] ?? 'Needs manual review.'; }
 $titleName = $business ? ($business['business_name_current'] ?: $business['business_slug']) : 'Business';
-ho_admin_render_start('sales_prospects','Sales Business View','Sales','Business <em>View</em>','Internal business operator view: verify claims, readiness, option assignment, and whether a future preview would be safe.');
+ho_admin_render_start(
+    'cases',
+    'Case File',
+    'Sales',
+    'Case <em>File</em>',
+    'One record. One next decision.'
+);
 ?>
-<section class="admin-process-note">
-  <strong>Internal review only:</strong> do not send this page to a prospect. Use it to decide whether the stored research can support a future preview.
+
+<style>
+/* v097 Case File viewport lock */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+body.admin-experience-v082,
+body.admin-experience-v082 * {
+  box-sizing: border-box;
+}
+body.admin-experience-v082 .admin-shell,
+body.admin-experience-v082 .admin-page,
+body.admin-experience-v082 .admin-main,
+body.admin-experience-v082 main,
+body.admin-experience-v082 section,
+body.admin-experience-v082 .admin-card {
+  max-width: 100vw !important;
+  overflow-x: hidden;
+}
+body.admin-experience-v082 .admin-card {
+  width: auto !important;
+}
+body.admin-experience-v082 textarea,
+body.admin-experience-v082 .admin-textarea,
+body.admin-experience-v082 pre,
+body.admin-experience-v082 code,
+body.admin-experience-v082 .admin-code,
+body.admin-experience-v082 .admin-auto-collapsed-body,
+body.admin-experience-v082 .admin-case-prompt,
+body.admin-experience-v082 .admin-case-prompt details,
+body.admin-experience-v082 .admin-case-details,
+body.admin-experience-v082 .admin-case-details details {
+  max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+body.admin-experience-v082 textarea,
+body.admin-experience-v082 .admin-textarea {
+  display: block !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  overflow-x: auto !important;
+}
+body.admin-experience-v082 pre,
+body.admin-experience-v082 code,
+body.admin-experience-v082 .admin-code {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+body.admin-experience-v082 table {
+  max-width: 100% !important;
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+body.admin-experience-v082 th,
+body.admin-experience-v082 td {
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+@media (max-width: 760px) {
+  body.admin-experience-v082 .admin-card {
+    margin-left: 10px !important;
+    margin-right: 10px !important;
+    width: calc(100vw - 20px) !important;
+  }
+}
+</style>
+
+
+
+<style>
+/* v096 collapse raw case machinery */
+.admin-auto-collapsed-section,
+.admin-server-collapsed-section,
+.admin-case-details {
+  opacity: .86;
+}
+.admin-auto-collapsed-details,
+.admin-case-details > details {
+  border: 1px solid var(--ho-border-soft);
+  border-radius: 16px;
+  background: rgba(255,255,255,.62);
+  overflow: hidden;
+}
+.admin-auto-collapsed-details > summary,
+.admin-case-details > details > summary {
+  padding: 13px 14px;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+.admin-auto-collapsed-details > summary::-webkit-details-marker,
+.admin-case-details > details > summary::-webkit-details-marker {
+  display: none;
+}
+.admin-auto-collapsed-body {
+  padding: 10px 12px 12px;
+  overflow-x: auto;
+}
+.admin-auto-collapsed-body table {
+  font-size: 13px;
+}
+</style>
+
+
+<style>
+/* v095 case action-first cleanup */
+.admin-case-details{opacity:.86}
+.admin-case-details details,.admin-case-prompt details{border:1px solid var(--ho-border-soft);border-radius:16px;background:rgba(255,255,255,.62);overflow:hidden}
+.admin-case-details summary,.admin-case-prompt summary{padding:13px 14px;font-weight:900;cursor:pointer;list-style:none}
+.admin-case-details summary::-webkit-details-marker,.admin-case-prompt summary::-webkit-details-marker{display:none}
+.admin-case-details table,.admin-case-details .admin-data-list,.admin-case-details .admin-stat-grid{margin:10px 12px 12px}
+.admin-case-prompt textarea,.admin-case-prompt .admin-next-row,.admin-case-prompt .admin-empty-state,.admin-case-prompt p.admin-muted{margin:10px 12px 12px}
+</style>
+
+
+
+<?php
+function ho_case_claim_value(array $claims, string $fieldKey): string {
+    foreach ($claims as $claim) {
+        if ((string)($claim['field_key'] ?? '') === $fieldKey) {
+            return trim((string)($claim['normalized_value'] ?? $claim['claim_value'] ?? ''));
+        }
+    }
+    return '';
+}
+
+function ho_case_setup_path(array $claims): string {
+    foreach (['setup_path','preview_setup_path'] as $field) {
+        $value = strtolower(ho_case_claim_value($claims, $field));
+        if ($value !== '') return $value;
+    }
+    $angle = strtolower(ho_case_claim_value($claims, 'primary_sales_angle'));
+    foreach (['research_with_website','website_fix_preview','proceed_no_website','simple_front_door','simple_front_door_preview','ready_to_contact','do_not_proceed','blocked'] as $candidate) {
+        if (str_contains($angle, $candidate)) return $candidate;
+    }
+    return '';
+}
+
+function ho_case_contact_readiness(array $claims): string {
+    foreach (['contact_readiness','contact_path_clarity','contact_method_status'] as $field) {
+        $value = strtolower(ho_case_claim_value($claims, $field));
+        if ($value !== '') return $value;
+    }
+    return '';
+}
+
+function ho_case_has_setup_result(array $claims): bool {
+    return ho_case_setup_path($claims) !== ''
+        || ho_case_contact_readiness($claims) !== ''
+        || ho_case_claim_value($claims, 'best_contact_method') !== ''
+        || ho_case_claim_value($claims, 'preview_approach') !== ''
+        || ho_case_claim_value($claims, 'must_verify_before_contact') !== '';
+}
+
+function ho_case_state_label(array $business, array $claims): string {
+    $setupPath = ho_case_setup_path($claims);
+    $contact = ho_case_contact_readiness($claims);
+    $status = strtolower((string)($business['marketing_clearance_status'] ?? ''));
+
+    if (str_contains($setupPath, 'do_not_proceed') || str_contains($setupPath, 'blocked') || in_array($status, ['skip','blocked'], true)) {
+        return 'Blocked / Skip';
+    }
+
+    if (str_contains($setupPath, 'research_with_website') || str_contains($setupPath, 'website_fix') || str_contains($contact, 'needs_manual_check') || str_contains($contact, 'manual_check')) {
+        return 'Need Research';
+    }
+
+    if (str_contains($contact, 'not_contactable') || str_contains($contact, 'bad_contact')) {
+        return 'Blocked / Skip';
+    }
+
+    if (ho_case_has_setup_result($claims) && (
+        str_contains($setupPath, 'proceed_no_website')
+        || str_contains($setupPath, 'simple_front_door')
+        || str_contains($setupPath, 'ready')
+        || str_contains($contact, 'ready')
+        || str_contains($contact, 'usable')
+        || str_contains($contact, 'website_contact_form')
+        || str_contains($contact, 'email')
+        || str_contains($contact, 'phone')
+    )) {
+        return 'Ready To Contact';
+    }
+
+    $triageStatus = strtolower(ho_case_claim_value($claims, 'triage_result_status'));
+    $angle = strtolower(ho_case_claim_value($claims, 'primary_sales_angle'));
+    if (str_contains($triageStatus, 'research') || str_contains($angle, 'research_with_website')) return 'Need Research';
+    if (str_contains($triageStatus, 'proceed') || str_contains($angle, 'proceed_no_website')) return 'Ready For Setup';
+
+    return 'Need Triage';
+}
+
+function ho_case_next_action_text(array $business, array $claims): string {
+    $state = ho_case_state_label($business, $claims);
+    $reason = ho_case_setup_reason($claims);
+    return match ($state) {
+        'Need Research' => 'Setup result requested research/manual check' . ($reason ? ': ' . $reason : '') . '.',
+        'Ready To Contact' => 'Setup result produced a usable contact path' . ($reason ? ': ' . $reason : '') . '.',
+        'Ready For Setup' => 'Copy setup prompt, run GPT, paste setup result in Intake.',
+        'Need Triage' => 'Copy triage prompt, run GPT, paste result in Intake.',
+        'Blocked / Skip' => 'Do not proceed unless manually reopened' . ($reason ? ': ' . $reason : '') . '.',
+        default => 'Open and decide next action.',
+    };
+}
+
+function ho_case_setup_reason(array $claims): string {
+    $parts = [];
+    $path = ho_case_setup_path($claims);
+    $contact = ho_case_contact_readiness($claims);
+    if ($path !== '') $parts[] = 'setup_path=' . $path;
+    if ($contact !== '') $parts[] = 'contact_readiness=' . $contact;
+    return implode('; ', $parts);
+}
+
+function ho_case_display_location(array $business, array $claims): string {
+    $city = trim((string)($business['location_city'] ?? ''));
+    $state = trim((string)($business['location_state'] ?? 'IN'));
+    $service = trim((string)($business['service_area_text'] ?? ''));
+
+    $strongCity = trim(ho_case_claim_value($claims, 'city'));
+    $strongState = trim(ho_case_claim_value($claims, 'state'));
+    if ($strongCity !== '' && strtolower($strongCity) !== strtolower($city)) {
+        $city = $strongCity;
+    }
+    if ($strongState !== '') {
+        $state = $strongState;
+    }
+
+    $bits = [];
+    if ($city !== '' || $state !== '') $bits[] = trim($city . ', ' . $state, ', ');
+    if ($service !== '' && strtolower($service) !== strtolower($city) && !str_contains(strtolower($service), 'new castle')) {
+        $bits[] = $service;
+    } else {
+        $bits[] = 'Indiana';
+    }
+    return implode(' · ', array_unique(array_filter($bits)));
+}
+
+$caseStateLabel = ho_case_state_label($business, $claims);
+$caseNextActionText = ho_case_next_action_text($business, $claims);
+$caseLocationText = ho_case_display_location($business, $claims);
+?>
+
+<?php
+function ho_case_primary_prompt_label(string $state): string {
+    return match ($state) {
+        'Need Research' => 'Copy Research Prompt',
+        'Need Triage' => 'Copy Triage Prompt',
+        'Ready For Setup' => 'Copy Setup Prompt',
+        'Ready To Contact' => 'Review Contact Path',
+        'Blocked / Skip' => 'Review Block Reason',
+        default => 'Open Relevant Prompt',
+    };
+}
+function ho_case_primary_prompt_target(string $state): string {
+    return match ($state) {
+        'Need Research' => '#businessRefinementPromptBox',
+        'Need Triage' => '#primary-case-prompt',
+        'Ready For Setup' => '#setupPromptBox',
+        default => '#caseDetails',
+    };
+}
+function ho_case_primary_prompt_help(string $state): string {
+    return match ($state) {
+        'Need Research' => 'This case has evidence or setup output asking for deeper research/manual check. Use the refinement prompt next.',
+        'Need Triage' => 'This case still needs first-pass sorting.',
+        'Ready For Setup' => 'This case can move into preview/contact setup.',
+        'Ready To Contact' => 'This case appears to have enough contact direction. Review before outreach.',
+        'Blocked / Skip' => 'This case is not active unless manually reopened.',
+        default => 'Use the next relevant action for this case.',
+    };
+}
+?>
+
+<?php
+function ho_case_primary_prompt_copy_id(string $state): string {
+    return match ($state) {
+        'Need Research' => 'businessRefinementPromptBox',
+        'Need Triage' => 'candidateTriagePromptBox',
+        'Ready For Setup' => 'setupPromptBox',
+        default => '',
+    };
+}
+?>
+
+
+
+
+
+
+<style>
+/* v084 case file simplification */
+.admin-case-file,
+.admin-case-action-card{
+  margin:12px 12px !important;
+  padding:18px !important;
+  border-radius:22px !important;
+}
+.admin-case-file h2,
+.admin-case-action-card h2{
+  font-size:clamp(28px, 8vw, 40px) !important;
+  line-height:.95 !important;
+}
+.admin-case-file .admin-muted{
+  font-size:16px !important;
+  line-height:1.35 !important;
+}
+.admin-case-next,
+.admin-case-action-card{
+  background:rgba(47,94,54,.07) !important;
+  border:1px solid rgba(47,94,54,.2) !important;
+}
+.admin-status-blocks{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:8px !important;
+}
+.admin-status-blocks article{
+  padding:10px !important;
+  border-radius:14px !important;
+}
+.admin-case-prompt details,
+.admin-case-details details{
+  border:1px solid var(--ho-border-soft) !important;
+  border-radius:18px !important;
+  background:rgba(255,255,255,.64) !important;
+  overflow:hidden !important;
+}
+.admin-case-prompt summary,
+.admin-case-details summary{
+  padding:14px 15px !important;
+  min-height:52px !important;
+  font-weight:900 !important;
+  list-style:none !important;
+}
+.admin-case-prompt summary::-webkit-details-marker,
+.admin-case-details summary::-webkit-details-marker{display:none !important}
+</style>
+
+
+<?php if ($dbError !== null): ?><section class="admin-status error"><div class="admin-status-head"><strong>Database Error</strong></div><p><?= ho_h($dbError) ?></p></section><?php elseif (!$business): ?><section class="admin-status error"><div class="admin-status-head"><strong>Not Found</strong></div><p>No business found for this ID.</p></section><?php else: ?>
+
+
+<section class="admin-card admin-sourcing-context-note">
+  <p class="admin-kicker">Sourcing Context</p>
+  <details>
+    <summary>Indiana and category are loose context</summary>
+    <p class="admin-muted">City, service area, and category describe how the record was sourced. They are not hard gates. The only broad location gate is Indiana relevance unless the record clearly belongs outside Indiana. Category can include cleaners, handyman services, photographers, and other customer-facing local service operators.</p>
+  </details>
 </section>
 
 
-<section class="admin-card">
-  <h2>Business Operator Steps</h2>
-  <div class="admin-mini-flow">
-    <span><b>1</b> Triage first</span>
-    <span><b>2</b> Research only if useful</span>
-    <span><b>3</b> Import on Prospects</span>
-    <span><b>4</b> Decide next action</span>
+
+<section class="admin-card admin-merge-repair-note">
+  <p class="admin-kicker">State Rule</p>
+  <details>
+    <summary>Setup results move cases forward</summary>
+    <p class="admin-muted">If setup_path or contact_readiness exists, this case should not keep looping through setup. Research/manual-check results route to Need Research; usable contact paths route to Ready To Contact.</p>
+  </details>
+</section>
+
+<section class="admin-card admin-batch-first-note">
+  <p class="admin-kicker">Batch First</p>
+  <details>
+    <summary>Do not work one-by-one unless this is an exception</summary>
+    <p class="admin-muted">The normal workflow is Work Queue → copy pile prompt → paste batch result. Case File is for inspection, stuck records, or checking why a business landed in a pile.</p>
+  </details>
+</section>
+
+<section class="admin-card admin-case-file">
+  <p class="admin-kicker">Case File</p>
+  <h2><?= ho_h($titleName) ?></h2>
+  <p class="admin-muted">
+    <?= ho_h((string)$business['business_type']) ?>
+    <?php if ($business['location_city'] || $business['location_state']): ?> · <?= ho_h(trim((string)$business['location_city'] . ', ' . (string)$business['location_state'], ', ')) ?><?php endif; ?>
+    <?php if (!empty($business['service_area_text'])): ?> · <?= ho_h((string)$business['service_area_text']) ?><?php endif; ?>
+  </p>
+
+  <div class="admin-case-next">
+    <span class="admin-dispatch-label">State</span>
+    <strong><?= ho_h($caseStateLabel) ?></strong>
+    <p><?= ho_h($caseNextActionText) ?></p>
+  </div>
+
+  <div class="admin-status-blocks">
+    <article><strong><?= ho_h($business['marketing_clearance_score'] !== null ? (string)$business['marketing_clearance_score'] : '—') ?></strong><span>Clearance</span></article>
+    <article><strong><?= ho_h((string)count($claims)) ?></strong><span>Claims</span></article>
+    <article><strong><?= ho_h((string)count($evidence)) ?></strong><span>Evidence</span></article>
+    <article><strong><?= ho_h((string)($claimSummary['needs_review'] + $claimSummary['conflicting'])) ?></strong><span>Flags</span></article>
   </div>
 </section>
 
-<?php if ($dbError !== null): ?><section class="admin-status error"><div class="admin-status-head"><strong>Database Error</strong></div><p><?= ho_h($dbError) ?></p></section><?php elseif (!$business): ?><section class="admin-status error"><div class="admin-status-head"><strong>Not Found</strong></div><p>No business found for this ID.</p></section><?php else: ?>
-<section class="admin-card"><h2><?= ho_h($titleName) ?></h2><p class="admin-muted"><?= ho_h((string)$business['business_type']) ?><?php if ($business['location_city'] || $business['location_state']): ?> · <?= ho_h(trim((string)$business['location_city'] . ', ' . (string)$business['location_state'], ', ')) ?><?php endif; ?><?php if (!empty($business['service_area_text'])): ?> · <?= ho_h((string)$business['service_area_text']) ?><?php endif; ?></p><div class="admin-stat-grid"><article class="admin-stat-card"><strong><?= ho_h($business['marketing_clearance_score'] !== null ? (string)$business['marketing_clearance_score'] : '—') ?></strong><span>Clearance Score</span></article><article class="admin-stat-card"><strong><?= ho_h((string)count($claims)) ?></strong><span>Claims Stored</span></article><article class="admin-stat-card"><strong><?= ho_h((string)count($evidence)) ?></strong><span>Evidence Sources</span></article><article class="admin-stat-card"><strong><?= ho_h((string)($claimSummary['needs_review'] + $claimSummary['conflicting'])) ?></strong><span>Review Flags</span></article></div></section>
 
 
-<section class="admin-card admin-triage-prompt-card">
-  <h2>Candidate Triage Prompt</h2>
+<section class="admin-card admin-case-prompt admin-triage-prompt-card" id="primary-case-prompt">
+  <details <?= $caseStateLabel === 'Need Triage' ? 'open' : '' ?>>
+    <summary>Candidate Triage Prompt<?= $caseStateLabel !== 'Need Triage' ? ' · not current action' : '' ?></summary>
+    
+  <p class="admin-kicker">Primary Prompt</p><h2>Candidate Triage Prompt</h2>
+  <p class="admin-muted">This is the prompt for deciding whether this candidate needs research, can proceed without website research, or should be skipped.</p>
   <p class="admin-muted">Use this before full research. It asks GPT to decide whether this candidate deserves full refinement, manual checking, or elimination.</p>
   <textarea id="triagePromptBox" class="admin-textarea"><?= ho_h($triagePrompt ?? '') ?></textarea>
   <p class="admin-next-row">
-    <button class="admin-btn admin-btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('triagePromptBox').value)">Copy Triage Prompt</button>
-    <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php#dashboard-import">Paste Result on Prospects</a>
+    <button class="admin-btn admin-btn-primary js-copy-prompt" type="button" data-copy-target="triagePromptBox">Copy Triage Prompt</button>
+    <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php#dashboard-import">Paste In Intake Desk</a>
   </p>
+
+  </details>
 </section>
 
-<section class="admin-card admin-refinement-prompt-card">
+
+<section class="admin-card admin-case-prompt admin-preview-contact-setup-card">
+  <details <?= $caseStateLabel === 'Ready For Setup' ? 'open' : '' ?>>
+    <summary>Preview / Contact Setup Prompt</summary>
+    
+  <h2>Preview & Contact Setup</h2>
+  <p class="admin-muted">Use this after triage/refinement to decide whether this business is ready for a preview setup and contact prep.</p>
+  <textarea id="singleSetupPromptBox" class="admin-textarea"><?= ho_h($setupPrompt ?? '') ?></textarea>
+  <p class="admin-next-row">
+    <button class="admin-btn admin-btn-primary js-copy-prompt" type="button" data-copy-target="singleSetupPromptBox">Copy Setup Prompt</button>
+    <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php#dashboard-import">Paste In Intake Desk</a>
+  </p>
+
+  </details>
+</section>
+
+<section class="admin-card admin-case-prompt admin-refinement-prompt-card">
+  <details <?= $caseStateLabel === 'Need Research' ? 'open' : '' ?>>
+    <summary>Business Refinement Prompt</summary>
+    
   <h2>Business Refinement Prompt</h2>
   <p class="admin-muted">Copy this prompt after a rough import. It tells GPT what the system already knows, what is missing, and how to return a stronger importable JSON update.</p>
   <?php if (trim((string)$refinementPrompt) === ''): ?>
     <div class="admin-empty-state">Refinement prompt could not be generated for this business record.</div>
   <?php else: ?>
-    <textarea id="refinementPromptBox" class="admin-textarea"><?= ho_h($refinementPrompt) ?></textarea>
+    <textarea id="businessRefinementPromptBox" class="admin-textarea"><?= ho_h($refinementPrompt) ?></textarea>
     <p class="admin-next-row">
-      <button class="admin-btn admin-btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('refinementPromptBox').value)">Copy Refinement Prompt</button>
-      <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php#dashboard-import">Paste Result on Prospects</a>
+      <button class="admin-btn admin-btn-primary js-copy-prompt" type="button" data-copy-target="refinementPromptBox">Copy Refinement Prompt</button>
+      <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php#dashboard-import">Paste In Intake Desk</a>
     </p>
   <?php endif; ?>
+
+  </details>
 </section>
 
-<section class="admin-card"><h2>Workflow Position</h2><div class="admin-workflow-strip"><span>Business</span><span>Evidence</span><span>Claims</span><span>Clearance</span><span>Preview</span><span>Outreach</span><span>Build</span></div><p class="admin-muted"><strong>Status:</strong> <?= ho_h(ucwords(str_replace('_',' ',(string)$business['marketing_clearance_status']))) ?> · <?= ho_h(ho_salesportal_readiness_text((string)$business['marketing_clearance_status'])) ?></p><p class="admin-muted"><strong>Recommended package:</strong> <?= ho_h((string)$business['recommended_package']) ?><?= !empty($business['recommended_design']) ? ' · ' . ho_h((string)$business['recommended_design']) : '' ?></p></section>
-<section class="admin-card-grid two"><section class="admin-card"><h2>Best Signals</h2><?php if (empty($claimSummary['top_strengths'])): ?><p class="admin-muted">No strengths surfaced yet.</p><?php else: ?><?= ho_admin_doc_list($claimSummary['top_strengths']) ?><?php endif; ?></section><section class="admin-card"><h2>Main Problems</h2><?php if (empty($claimSummary['top_issues'])): ?><p class="admin-muted">No major issues surfaced yet.</p><?php else: ?><?= ho_admin_doc_list($claimSummary['top_issues']) ?><?php endif; ?></section></section>
-<section class="admin-card"><h2>Claims by Category</h2><?php if (empty($claimGroups)): ?><p class="admin-muted">No claims recorded.</p><?php else: ?><div class="admin-section"><?php foreach ($claimGroups as $category=>$items): ?><section class="admin-secondary-card"><h3><?= ho_h(ucwords(str_replace('_',' ',(string)$category))) ?></h3><table class="admin-file-table"><thead><tr><th>Field</th><th>Value</th><th>Confidence</th></tr></thead><tbody><?php foreach ($items as $claim): ?><tr><td><code><?= ho_h((string)$claim['field_key']) ?></code></td><td><?= ho_h((string)$claim['claim_value']) ?><?php if (!empty($claim['evidence_note'])): ?><div class="admin-muted"><?= ho_h((string)$claim['evidence_note']) ?></div><?php endif; ?></td><td><?= ho_h((string)$claim['confidence_level']) ?><div class="admin-muted"><?= ho_h((string)$claim['confidence_score']) ?></div></td></tr><?php endforeach; ?></tbody></table></section><?php endforeach; ?></div><?php endif; ?></section>
-<section class="admin-card"><h2>Evidence Sources</h2><?php if (empty($evidence)): ?><p class="admin-muted">No evidence sources recorded.</p><?php else: ?><div class="admin-data-list"><?php foreach ($evidence as $source): ?><div class="admin-data-row"><div><div class="admin-data-row-title"><?= ho_h((string)$source['source_type']) ?><?= !empty($source['source_title']) ? ' · ' . ho_h((string)$source['source_title']) : '' ?></div><?php if (!empty($source['notes'])): ?><div class="admin-data-row-note"><?= ho_h((string)$source['notes']) ?></div><?php endif; ?></div><?php if (!empty($source['source_url'])): ?><a class="admin-btn admin-btn-secondary" href="<?= ho_h((string)$source['source_url']) ?>" target="_blank" rel="noopener">Open</a><?php endif; ?></div><?php endforeach; ?></div><?php endif; ?></section>
+<section class="admin-card admin-case-details" id="caseDetails">
+  <details>
+    <summary>Workflow Position</summary>
+    <div class="admin-workflow-strip"><span>Business</span><span>Evidence</span><span>Claims</span><span>Clearance</span><span>Preview</span><span>Outreach</span><span>Build</span></div><p class="admin-muted"><strong>Status:</strong> <?= ho_h(ucwords(str_replace('_',' ',(string)$business['marketing_clearance_status']))) ?> · <?= ho_h(ho_salesportal_readiness_text((string)$business['marketing_clearance_status'])) ?></p><p class="admin-muted"><strong>Recommended package:</strong> <?= ho_h((string)$business['recommended_package']) ?><?= !empty($business['recommended_design']) ? ' · ' . ho_h((string)$business['recommended_design']) : '' ?></p>
+  </details>
+</section>
+<section class="admin-card-grid two"><section class="admin-card admin-case-details" id="caseDetails">
+  <details>
+    <summary>Best Signals</summary>
+    <?php if (empty($claimSummary['top_strengths'])): ?><p class="admin-muted">No strengths surfaced yet.</p><?php else: ?><?= ho_admin_doc_list($claimSummary['top_strengths']) ?><?php endif; ?>
+  </details>
+</section><section class="admin-card admin-case-details admin-server-collapsed-section" id="caseDetails">
+  <details>
+    <summary>Main Problems</summary>
+    <div class="admin-auto-collapsed-body">
+      <h2>Main Problems</h2><?php if (empty($claimSummary['top_issues'])): ?><p class="admin-muted">No major issues surfaced yet.</p><?php else: ?><?= ho_admin_doc_list($claimSummary['top_issues']) ?><?php endif; ?>
+    </div>
+  </details>
+</section></section>
+<section class="admin-card admin-case-details" id="caseDetails">
+  <details>
+    <summary>Claims by Category</summary>
+    <?php if (empty($claimGroups)): ?><p class="admin-muted">No claims recorded.</p><?php else: ?><div class="admin-section"><?php foreach ($claimGroups as $category=>$items): ?><section class="admin-secondary-card"><h3><?= ho_h(ucwords(str_replace('_',' ',(string)$category))) ?></h3><table class="admin-file-table"><thead><tr><th>Field</th><th>Value</th><th>Confidence</th></tr></thead><tbody><?php foreach ($items as $claim): ?><tr><td><code><?= ho_h((string)$claim['field_key']) ?></code></td><td><?= ho_h((string)$claim['claim_value']) ?><?php if (!empty($claim['evidence_note'])): ?><div class="admin-muted"><?= ho_h((string)$claim['evidence_note']) ?></div><?php endif; ?></td><td><?= ho_h((string)$claim['confidence_level']) ?><div class="admin-muted"><?= ho_h((string)$claim['confidence_score']) ?></div></td></tr><?php endforeach; ?></tbody></table>
+  </details>
+</section><?php endforeach; ?></div><?php endif; ?></section>
+<section class="admin-card admin-case-details">
+  <details>
+    <summary>Evidence Sources</summary>
+    <?php if (empty($evidence)): ?><p class="admin-muted">No evidence sources recorded.</p><?php else: ?><div class="admin-data-list"><?php foreach ($evidence as $source): ?><div class="admin-data-row"><div><div class="admin-data-row-title"><?= ho_h((string)$source['source_type']) ?><?= !empty($source['source_title']) ? ' · ' . ho_h((string)$source['source_title']) : '' ?></div><?php if (!empty($source['notes'])): ?><div class="admin-data-row-note"><?= ho_h((string)$source['notes']) ?></div><?php endif; ?></div><?php if (!empty($source['source_url'])): ?><a class="admin-btn admin-btn-secondary" href="<?= ho_h((string)$source['source_url']) ?>" target="_blank" rel="noopener">Open</a><?php endif; ?></div><?php endforeach; ?></div><?php endif; ?>
+  </details>
+</section>
 <section class="admin-card"><h2>Next Action</h2><p><?= ho_h(ho_salesportal_readiness_text((string)$business['marketing_clearance_status'])) ?></p><p><a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php">Back to Prospects</a> <a class="admin-btn admin-btn-primary" href="/sales-research.php">Add Research</a></p></section>
 <?php endif; ?>
 
 <section class="admin-action-dock" id="business-bottom-dock">
   <a class="admin-btn admin-btn-primary" href="/sales-portal-dashboard.php#dashboard-import">Paste Result</a>
+  <a class="admin-btn admin-btn-secondary" href="#singleSetupPromptBox">Setup</a>
   <a class="admin-btn admin-btn-secondary" href="/sales-portal-dashboard.php">Prospects</a>
   <a class="admin-btn admin-btn-secondary" href="/admin.php">Admin</a>
 </section>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const rawTitles = [
+    'workflow position',
+    'best signals',
+    'main problem',
+    'main problems',
+    'claims by category',
+    'find me',
+    'fix me',
+    'trust me',
+    'show me',
+    'contact me',
+    'evidence sources',
+    'raw claims',
+    'all claims',
+    'latest claims',
+    'requirement scores',
+    'me scores',
+    'preview readiness',
+    'option assignment'
+  ];
+
+  document.querySelectorAll('section.admin-card').forEach(function (section) {
+    if (section.closest('.admin-case-prompt') || section.classList.contains('admin-case-file') || section.classList.contains('admin-case-action-card') || section.classList.contains('admin-sourcing-context-note')) {
+      return;
+    }
+    if (section.querySelector('details')) {
+      return;
+    }
+
+    const titleNode = section.querySelector('h2,h3,.admin-kicker,strong');
+    const title = titleNode ? titleNode.textContent.trim() : '';
+    const lower = title.toLowerCase();
+    const hasRawTitle = rawTitles.some(function (raw) { return lower === raw || lower.includes(raw); });
+    const hasTable = !!section.querySelector('table');
+    const hasManyRows = section.querySelectorAll('tr,.admin-data-row,.admin-claim-row,.admin-signal-row').length >= 3;
+
+    if (!hasRawTitle && !hasTable && !hasManyRows) {
+      return;
+    }
+
+    const summaryText = title || 'Case Details';
+    const details = document.createElement('details');
+    details.className = 'admin-auto-collapsed-details';
+    const summary = document.createElement('summary');
+    summary.textContent = summaryText;
+
+    const body = document.createElement('div');
+    body.className = 'admin-auto-collapsed-body';
+
+    while (section.firstChild) {
+      body.appendChild(section.firstChild);
+    }
+
+    details.appendChild(summary);
+    details.appendChild(body);
+    section.appendChild(details);
+    section.classList.add('admin-case-details', 'admin-auto-collapsed-section');
+  });
+});
+</script>
+
+
+<script>
+function hoCopyTextById(id, button) {
+  const el = document.getElementById(id);
+  if (!el) {
+    alert('Prompt box not found on this case.');
+    return false;
+  }
+
+  const text = el.value || el.textContent || '';
+  if (!text.trim()) {
+    alert('Prompt is empty.');
+    return false;
+  }
+
+  function markDone() {
+    if (button) {
+      const old = button.textContent;
+      button.textContent = 'Copied';
+      button.classList.add('admin-copy-done');
+      setTimeout(function () {
+        button.textContent = old;
+        button.classList.remove('admin-copy-done');
+      }, 1400);
+    }
+  }
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(markDone).catch(function () {
+      fallbackCopy(el, markDone);
+    });
+  } else {
+    fallbackCopy(el, markDone);
+  }
+
+  return false;
+}
+
+function fallbackCopy(el, done) {
+  const oldReadonly = el.getAttribute('readonly');
+  el.removeAttribute('readonly');
+  el.focus();
+  el.select();
+  el.setSelectionRange(0, (el.value || '').length);
+  try {
+    document.execCommand('copy');
+    if (done) done();
+  } catch (err) {
+    alert('Copy failed. Tap inside the prompt, Select All, then Copy.');
+  }
+  if (oldReadonly !== null) el.setAttribute('readonly', oldReadonly);
+}
+</script>
+
+
+<script>
+(function(){
+  function setCopyStatus(button, message, ok) {
+    if (!button) return;
+    var old = button.getAttribute('data-original-label') || button.textContent;
+    if (!button.getAttribute('data-original-label')) button.setAttribute('data-original-label', old);
+    button.textContent = message;
+    button.classList.toggle('admin-copy-done', !!ok);
+    button.classList.toggle('admin-copy-error', !ok);
+    setTimeout(function(){
+      button.textContent = button.getAttribute('data-original-label') || old;
+      button.classList.remove('admin-copy-done');
+      button.classList.remove('admin-copy-error');
+    }, 1600);
+  }
+
+  function fallbackCopyText(text, button) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '0';
+    ta.style.width = '1px';
+    ta.style.height = '1px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    try {
+      var ok = document.execCommand('copy');
+      setCopyStatus(button, ok ? 'Copied' : 'Copy Failed', ok);
+    } catch (e) {
+      setCopyStatus(button, 'Copy Failed', false);
+      window.prompt('Copy this prompt:', text);
+    }
+    document.body.removeChild(ta);
+  }
+
+  window.hoCopyPromptById = function(id, button) {
+    var el = document.getElementById(id);
+    if (!el) {
+      setCopyStatus(button, 'Prompt Missing', false);
+      return false;
+    }
+
+    var text = el.value || el.textContent || '';
+    if (!text.trim()) {
+      setCopyStatus(button, 'Prompt Empty', false);
+      return false;
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function(){
+        setCopyStatus(button, 'Copied', true);
+      }).catch(function(){
+        fallbackCopyText(text, button);
+      });
+    } else {
+      fallbackCopyText(text, button);
+    }
+
+    return false;
+  };
+
+  document.addEventListener('click', function(event){
+    var button = event.target.closest('.js-copy-prompt');
+    if (!button) return;
+    event.preventDefault();
+    var target = button.getAttribute('data-copy-target');
+    window.hoCopyPromptById(target, button);
+  });
+})();
+</script>
 
 <?php ho_admin_render_end(); ?>

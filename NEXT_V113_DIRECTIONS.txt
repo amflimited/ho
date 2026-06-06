@@ -1,0 +1,54 @@
+Proceed with v113 — Marketing Draft Intake + Manual Ready-To-Send Staging.
+
+Use v112 as the base. Do not alter upstream triage/research/setup/contact-ready/package routing.
+
+Goal:
+Allow Marketing Desk to accept outreach draft JSON, store draft copy as claims, and stage records as Draft Ready / Ready To Send for manual sending only.
+
+Touch:
+- sales-marketing-desk.php
+- preview-package-model.php
+- assets/css/admin.css
+
+Required:
+1. Add marketing draft intake.
+   - Accept JSON shaped like:
+     marketing_batch.batch_type = marketing_desk_outreach_drafts
+     drafts[]
+   - Store:
+     marketing_desk_status
+     contact_method
+     outreach_to
+     outreach_subject
+     outreach_body
+     outreach_asset_links_json
+     outreach_warnings_json
+     outreach_next_step
+
+2. Routing:
+   - draft_ready when usable subject/body/contact exists.
+   - paused_manual_review when missing contact or warnings exist.
+   - sent_later remains placeholder only.
+
+3. UI:
+   - Show Draft Ready cards.
+   - Each card shows:
+     business name
+     contact method/to
+     subject
+     body
+     hotlink/design/report links
+   - Add “Copy Email Body” and “Copy Subject” buttons if simple.
+   - No send button.
+
+4. Ready To Send:
+   - Manual staging only.
+   - The page may label a draft “Ready To Send Manually,” but must not send.
+
+Do not:
+- no automatic email sending
+- no SMS
+- no AI calls
+- no CRM automation
+- no domain purchasing
+- no upstream workflow changes
