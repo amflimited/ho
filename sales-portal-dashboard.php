@@ -5,12 +5,6 @@ require_once __DIR__ . '/admin-core.php';
 require_once __DIR__ . '/prospect-model.php';
 require_once __DIR__ . '/production-lane-model.php';
 
-/**
- * v140 Production Lane Home
- * Opens around the current unfinished production job.
- * No operational writes. No sending. No automation.
- */
-
 $loadError = null;
 $businesses = [];
 try {
@@ -22,7 +16,6 @@ try {
 $counts = ho_lane_counts($businesses);
 $currentJob = ho_lane_current_job($counts);
 $tools = ho_lane_tools();
-$legacyTools = ho_lane_legacy_tools();
 
 ho_admin_render_start(
     'production_lane_home',
@@ -52,48 +45,16 @@ ho_admin_render_start(
   <span>Known <?= ho_h((string)$counts['known_records']) ?></span>
 </section>
 
-<section class="admin-lane-tools admin-lane-secondary-tools">
-  <details>
-    <summary>Other tools</summary>
-    <div class="admin-lane-tool-list">
-      <?php foreach ($tools as $tool): ?>
-        <a href="<?= ho_h($tool[1]) ?>">
-          <strong><?= ho_h($tool[0]) ?></strong>
-          <span><?= ho_h($tool[2]) ?></span>
-        </a>
-      <?php endforeach; ?>
-    </div>
-  </details>
-</section>
-
-<section class="admin-lane-tools admin-lane-legacy">
-  <details>
-    <summary>Legacy tools</summary>
-    <p>Kept for continuity. These are not the primary production lane.</p>
-    <div class="admin-lane-tool-list">
-      <?php foreach ($legacyTools as $tool): ?>
-        <a href="<?= ho_h($tool[1]) ?>">
-          <strong><?= ho_h($tool[0]) ?></strong>
-          <span><?= ho_h($tool[2]) ?></span>
-        </a>
-      <?php endforeach; ?>
-    </div>
-  </details>
-</section>
-
-<section class="admin-lane-boundary">
-  <details>
-    <summary>Safety boundary</summary>
-    <ul>
-      <li>No operational writes were added in v140.</li>
-      <li>No automatic sending.</li>
-      <li>No SMS.</li>
-      <li>No AI calls.</li>
-      <li>No scraping automation.</li>
-      <li>No payments.</li>
-      <li>No domain purchasing.</li>
-    </ul>
-  </details>
+<section class="admin-lane-tools">
+  <p style="margin:0 0 10px;font-weight:950;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">All tools</p>
+  <div class="admin-lane-tool-list">
+    <?php foreach ($tools as $tool): ?>
+      <a href="<?= ho_h($tool[1]) ?>">
+        <strong><?= ho_h($tool[0]) ?></strong>
+        <span><?= ho_h($tool[2]) ?></span>
+      </a>
+    <?php endforeach; ?>
+  </div>
 </section>
 
 <?php ho_admin_render_end(); ?>

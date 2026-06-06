@@ -19,10 +19,10 @@ if (!function_exists('ho_admin_config')) {
             ],
             'menu' => [
                 ['key' => 'sales_prospects', 'label' => 'Work', 'url' => '/sales-portal-dashboard.php'],
-                ['key' => 'intake', 'label' => 'Paste', 'url' => '/sales-portal-dashboard.php#dashboard-import'],
                 ['key' => 'sales_research', 'label' => 'Find', 'url' => '/sales-research.php'],
-                ['key' => 'cases', 'label' => 'Cases', 'url' => '/sales-portal-dashboard.php#work-queues'],
-                ['key' => 'tools', 'label' => 'Tools', 'url' => '/admin.php#tools'],
+                ['key' => 'intake', 'label' => 'Intake', 'url' => '/sales-intake.php'],
+                ['key' => 'sales_records', 'label' => 'Records', 'url' => '/sales-records.php'],
+                ['key' => 'tools', 'label' => 'Tools', 'url' => '/admin.php'],
             ],
         ];
     }
@@ -85,11 +85,6 @@ if (!function_exists('ho_admin_render_start')) {
         <?php endforeach; ?>
       </nav>
 
-      <div class="admin-route-strip" aria-label="Admin route hints">
-        <a href="/sales-portal-dashboard.php">Work</a>
-        <a href="/sales-portal-dashboard.php#dashboard-import">Paste</a>
-        <a href="/sales-research.php">Find</a>
-      </div>
     </div>
 
     <section class="admin-page">
