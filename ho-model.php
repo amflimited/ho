@@ -296,9 +296,9 @@ function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10): array {
         WHERE b.pipeline_status = 'identified'
           AND r.id IS NULL
         ORDER BY b.created_at ASC
-        LIMIT ?
+        LIMIT " . (int)$limit . "
     ");
-    $s->execute([$limit]);
+    $s->execute([]);
     return $s->fetchAll();
 }
 
