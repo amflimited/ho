@@ -169,8 +169,8 @@ if (!empty($unresearched)) {
   <div class="cp-telemetry" onclick="openDash()" title="View dashboard">
     <span class="cp-stat<?= $counts['identified']    > 0 ? ' cp-hi' : '' ?>"><em><?= $counts['identified']    ?></em>LEADS</span>
     <span class="cp-stat<?= $counts['preview_ready'] > 0 ? ' cp-hot' : '' ?>"><em><?= $counts['preview_ready'] ?></em>READY</span>
-    <span class="cp-stat"><em><?= $counts['pitched']    ?></em>SENT</span>
-    <span class="cp-stat cp-win"><em><?= $counts['converted']  ?></em>WON</span>
+    <span class="cp-stat<?= $counts['pitched']   > 0 ? ' cp-sent' : '' ?>"><em><?= $counts['pitched']   ?></em>SENT</span>
+    <span class="cp-stat cp-win"><em><?= $counts['converted'] ?></em>WON</span>
   </div>
 </header>
 

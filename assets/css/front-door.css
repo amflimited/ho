@@ -306,8 +306,9 @@ body.front-door-preview-page{
   font-size:15px;line-height:1.4;color:var(--fd-ink);
 }
 .fd-gap-marker{
-  flex-shrink:0;width:8px;height:8px;
-  border-radius:50%;background:#b06212;margin-top:5px;
+  flex-shrink:0;
+  font-size:15px;font-weight:900;color:#c04a00;
+  line-height:1.4;margin-top:-1px;
 }
 
 /* ── WHY NOW ── */
@@ -668,8 +669,8 @@ body.front-door-preview-page{
 }
 
 /* ── Trust section ────────────────────────────────────────────────────────── */
-.fd-trust h2 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
-.fd-trust p  { font-size: 15px; line-height: 1.55; color: #333; }
+.fd-trust h2 { font-size: clamp(26px,7vw,38px); font-weight: 800; margin-bottom: 10px; color: var(--fd-ink); }
+.fd-trust p  { font-size: 15px; line-height: 1.55; color: var(--fd-muted); }
 .fd-trust-signals {
   list-style: none; padding: 0;
   display: flex; flex-direction: column; gap: 6px;
@@ -810,6 +811,38 @@ body.front-door-preview-page{
 }
 .fd-paid-banner h2{ color:var(--fd-green); }
 
+/* ── Scroll hint (after hero turn) ──────────────────────────────────────── */
+.fd-scroll-hint{
+  text-align:center;padding:6px 0 2px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.fd-scroll-arrow{
+  font-size:22px;color:var(--fd-green);
+  animation:fd-bounce 1.8s ease-in-out infinite;
+  line-height:1;
+}
+.fd-scroll-hint span:last-child{
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  font-weight:700;color:var(--fd-muted);
+}
+@keyframes fd-bounce{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(7px)}
+}
+
+/* ── Price change animation ───────────────────────────────────────────────── */
+@keyframes fd-price-pop{
+  0%  {transform:scale(1.22);color:var(--fd-green)}
+  100%{transform:scale(1)}
+}
+.fd-total-flash{ animation:fd-price-pop .28s ease-out; }
+
+/* ── Stripe secure note ───────────────────────────────────────────────────── */
+.fd-secure-note{
+  font-size:12px;color:var(--fd-muted);text-align:center;
+  margin:8px 0 0;
+}
+
 /* ── Bundle cards ────────────────────────────────────────────────────────── */
 .fd-bundle-grid{
   display:grid;
@@ -837,6 +870,14 @@ body.front-door-preview-page{
   border-color:var(--fd-green);
   background:rgba(47,94,54,.05);
   box-shadow:0 4px 20px rgba(47,94,54,.14);
+}
+.fd-bundle-card.is-selected::after{
+  content:'✓';
+  position:absolute;top:10px;right:10px;
+  width:22px;height:22px;border-radius:50%;
+  background:var(--fd-green);color:#fff;
+  font-size:12px;font-weight:900;line-height:22px;
+  text-align:center;
 }
 .fd-bundle-badge{
   display:inline-block;

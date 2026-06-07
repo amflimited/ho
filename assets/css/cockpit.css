@@ -46,7 +46,8 @@ a { color: inherit; }
 }
 .cp-hi  { color: var(--gold); }
 .cp-hot { color: var(--gold); }
-.cp-win { color: rgba(255,255,255,.9); }
+.cp-win  { color: #9ef0a8; }
+.cp-sent { color: #7ecdf5; }
 
 /* ── TABS ────────────────────────────────────────────────────────────────── */
 .cp-tabs {

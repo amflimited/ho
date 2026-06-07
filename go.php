@@ -113,6 +113,10 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
     <p class="fd-turn-tag">This is your new front door.</p>
   </section>
+  <div class="fd-scroll-hint" aria-hidden="true">
+    <span class="fd-scroll-arrow">↓</span>
+    <span>See your preview</span>
+  </div>
 
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <div id="preview"></div>
@@ -178,7 +182,7 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
       <?php endforeach; ?>
     </div>
   </div>
-  <p class="fd-phone-hint">Scroll inside &uarr;</p>
+  <p class="fd-phone-hint">Your website, on any phone &nbsp;&middot;&nbsp; scroll inside to explore &uarr;</p>
 
   <script>
   (function(){
@@ -231,7 +235,7 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
     <?php if (!empty($gaps)): ?>
       <div class="fd-gap-list">
         <?php foreach (array_slice($gaps, 0, 3) as $g): ?>
-          <div class="fd-gap-item"><span class="fd-gap-marker"></span><?= ho_h((string)$g) ?></div>
+          <div class="fd-gap-item"><span class="fd-gap-marker" aria-hidden="true">✗</span><?= ho_h((string)$g) ?></div>
         <?php endforeach; ?>
       </div>
     <?php endif; ?>
@@ -405,9 +409,10 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
              value="<?= ho_h($addonKey) ?>"<?= !$isChecked ? ' disabled' : '' ?>>
       <?php endforeach; endforeach; ?>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
-        Get Started &mdash; Pay Now &rarr;
+        🔒 Get Started &mdash; Pay Now
       </button>
     </form>
+    <p class="fd-secure-note">Stripe secure checkout &middot; 256-bit SSL &middot; 30-day money-back guarantee</p>
     <?php if ($stripeErr): ?>
       <p class="fd-stripe-err">Online checkout isn&rsquo;t set up yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
     <?php endif; ?>
@@ -450,7 +455,21 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
     var btn  = document.getElementById('fd-customize-btn');
     if (!area) return;
     area.hidden = !area.hidden;
-    btn.textContent = area.hidden ? '+ Customize or add more items' : '− Hide customization';
+    if (area.hidden) {
+      btn.textContent = '+ Customize or add more items';
+    } else {
+      fdUpdateCustomizeBtn();
+    }
+  }
+
+  function fdUpdateCustomizeBtn() {
+    var btn  = document.getElementById('fd-customize-btn');
+    var area = document.getElementById('fd-addon-area');
+    if (!btn || !area || area.hidden) return;
+    var count = document.querySelectorAll('.fd-addon-list input[type="checkbox"]:checked').length;
+    btn.textContent = count > 0
+      ? '− ' + count + ' add-on' + (count !== 1 ? 's' : '') + ' selected · hide'
+      : '− Hide customization';
   }
 
   function fdUpdateTotal() {
@@ -462,12 +481,19 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
       var hid = document.getElementById('fd-h-' + (cb.dataset.addon || ''));
       if (hid) { hid.disabled = !cb.checked; if (cb.checked) hid.value = cb.dataset.addon; }
     });
-    document.getElementById('fd-pkg-total').textContent = '$' + (base + addons).toLocaleString();
+    var totalEl = document.getElementById('fd-pkg-total');
+    if (totalEl) {
+      totalEl.textContent = '$' + (base + addons).toLocaleString();
+      totalEl.classList.remove('fd-total-flash');
+      void totalEl.offsetWidth;
+      totalEl.classList.add('fd-total-flash');
+    }
     var pkgHid = document.getElementById('fd-h-pkg');
     if (pkgHid && pkg) pkgHid.value = pkg.value;
     document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
       var r = el.querySelector('input[type="radio"]'); el.classList.toggle('is-selected', !!(r && r.checked));
     });
+    fdUpdateCustomizeBtn();
   }
   </script>
 
