@@ -57,7 +57,8 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
 // ── Your contact info ─────────────────────────────────────────────────────
 $adamPhone = '(765) 443-4321';
-$paid = isset($_GET['paid']);
+$paid      = isset($_GET['paid']);
+$stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
 
 ?><!doctype html>
 <html lang="en">
@@ -366,6 +367,9 @@ $paid = isset($_GET['paid']);
           Get Started &mdash; Pay Now &rarr;
         </button>
       </form>
+      <?php if ($stripeErr): ?>
+        <p class="fd-stripe-err">Online checkout isn&rsquo;t set up yet &mdash; reach out directly and we&rsquo;ll get you started: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+      <?php endif; ?>
       <a class="fd-btn fd-btn-secondary"
          href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
         Have Questions?

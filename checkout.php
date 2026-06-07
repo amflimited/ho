@@ -6,13 +6,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+$slug = trim((string)($_POST['slug'] ?? ''));
+$back = $slug !== '' ? '/go.php?slug=' . rawurlencode($slug) : '/';
+
+if (!is_file(__DIR__ . '/stripe-config.php')) {
+    header('Location: ' . $back . '&err=stripe');
+    exit;
+}
+
 require_once __DIR__ . '/stripe-config.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/ho-model.php';
 
-$slug    = trim((string)($_POST['slug'] ?? ''));
-$pkg     = trim((string)($_POST['pkg']  ?? ''));
-$addons  = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
+$pkg    = trim((string)($_POST['pkg']   ?? ''));
+$addons = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
 
 $packages = ho_package_catalog();
 $priceMap = ho_addon_price_map();

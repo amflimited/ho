@@ -798,6 +798,10 @@ body.front-door-preview-page{
 
 /* ── Checkout form wrapper ────────────────────────────────────────────────── */
 .fd-checkout-form{ display:contents; }
+.fd-stripe-err{
+  font-size:13px;color:var(--fd-red);margin:8px 0;
+  padding:10px 14px;background:rgba(181,18,34,.06);border-radius:10px;
+}
 
 /* ── Payment success banner ──────────────────────────────────────────────── */
 .fd-paid-banner{
