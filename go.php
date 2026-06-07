@@ -62,7 +62,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title><?= ho_h($pageTitle) ?></title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/assets/css/front-door.css">
+  <link rel="stylesheet" href="/assets/css/front-door.css?v=<?= filemtime(__DIR__ . '/assets/css/front-door.css') ?>">
   <meta name="robots" content="noindex">
 </head>
 <body class="front-door-preview-page">
