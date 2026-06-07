@@ -1,7 +1,7 @@
 [
-  {"key": "navy_lime",    "label": "Navy Lime",    "color": "#4338ca"},
-  {"key": "forest_green", "label": "Forest Green", "color": "#166534"},
-  {"key": "navy_process", "label": "Navy Pro",     "color": "#1e3a5f"},
-  {"key": "black_lime",   "label": "Black Lime",   "color": "#B6D421"},
-  {"key": "purple_lime",  "label": "Purple",       "color": "#6B21A8"}
+  {"key": "light_green",  "label": "Light Green", "color": "#2f7a35"},
+  {"key": "teal_pro",     "label": "Teal",        "color": "#0d6e6e"},
+  {"key": "dark_bold",    "label": "Dark Bold",   "color": "#1a1a1a"},
+  {"key": "orange_bold",  "label": "Orange",      "color": "#e07b12"},
+  {"key": "eco_green",    "label": "Eco",         "color": "#2d5a27"}
 ]

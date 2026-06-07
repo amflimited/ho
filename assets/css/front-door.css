@@ -511,17 +511,14 @@ body.front-door-preview-page{
   background:rgba(37,99,235,.14);color:#6ba4f8;
 }
 
-/* ══ Junk Removal — shared image+overlay base ═════════════════════════════ */
+/* ══ Junk Removal — template base ════════════════════════════════════════ */
 .fd-jrt-wrap{position:relative;display:block;line-height:0}
 .fd-jrt-img{width:100%;display:block}
-.fd-jrt-ov{position:absolute;line-height:1.1;pointer-events:none}
-
-/* ══ Junk Removal — template section backgrounds ══════════════════════════ */
-.fd-nl{background:#0a1525}
-.fd-fg{background:#1c2e1c}
-.fd-np{background:#0d1e2c}
-.fd-bl{background:#0d0d0d}
-.fd-pl{background:#1a0d3e}
+.fd-jrt-light-green{background:#f8f8f8}
+.fd-jrt-teal-pro{background:#0d2030}
+.fd-jrt-dark-bold{background:#111}
+.fd-jrt-orange-bold{background:#1a1a1a}
+.fd-jrt-eco-green{background:#f0f7f0}
 
 .fd-wtd{background:#fff}
 .fd-wtd-hero{
