@@ -36,7 +36,7 @@ body.front-door-preview-page{
 }
 .fd-kicker{
   margin:0 0 8px;
-  color:var(--fd-red);
+  color:var(--fd-green);
   text-transform:uppercase;
   letter-spacing:.09em;
   font-size:12px;
@@ -126,7 +126,7 @@ body.front-door-preview-page{
   font-weight:950;
 }
 .fd-btn-primary{
-  background:var(--fd-red);
+  background:var(--fd-green);
   color:#fff;
 }
 .fd-btn-secondary{
@@ -243,20 +243,37 @@ body.front-door-preview-page{
 /* ── THE TURN ── */
 .fd-turn{
   text-align:center;
-  padding:26px 18px 10px;
+  padding:36px 18px 18px;
 }
-.fd-turn-arrow{
-  margin:0 0 6px;
-  font-size:28px;color:var(--fd-green);font-weight:900;
+.fd-turn-eyebrow{
+  margin:0 0 16px;
+  font-size:11px;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--fd-muted);
 }
-.fd-turn h2{
-  margin:0 0 12px;
-  font-size:clamp(26px,7vw,40px);
-  line-height:1.04;letter-spacing:-.03em;color:var(--fd-ink);
+.fd-turn-name{
+  margin:0 0 14px;
+  font-size:clamp(32px,10vw,60px);
+  line-height:.95;letter-spacing:-.04em;color:var(--fd-ink);
 }
-.fd-turn p{
-  margin:0 auto;max-width:520px;
-  font-size:16px;line-height:1.5;color:var(--fd-muted);
+.fd-turn-tag{
+  margin:0;
+  font-size:18px;font-weight:700;
+  color:var(--fd-green);letter-spacing:-.01em;
+}
+
+/* ── GAP ITEMS (why section) ── */
+.fd-gap-list{display:flex;flex-direction:column;gap:8px;margin:16px 0 0}
+.fd-gap-item{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(176,98,18,.07);
+  border:1px solid rgba(176,98,18,.16);
+  border-radius:12px;
+  padding:12px 14px;
+  font-size:15px;line-height:1.4;color:var(--fd-ink);
+}
+.fd-gap-marker{
+  flex-shrink:0;width:8px;height:8px;
+  border-radius:50%;background:#b06212;margin-top:5px;
 }
 
 /* ── WHY NOW ── */
@@ -326,10 +343,12 @@ body.front-door-preview-page{
 
 /* ── FOOTER ── */
 .fd-footer{
-  text-align:center;padding:24px 0 36px;
-  font-size:13px;color:var(--fd-muted);
+  text-align:center;padding:28px 0 44px;
+  font-size:13px;color:var(--fd-muted);line-height:1.8;
 }
 .fd-footer a{color:var(--fd-green);font-weight:700;text-decoration:none}
+.fd-footer strong{color:var(--fd-ink)}
+.fd-footer-by{font-size:12px;color:var(--fd-muted);opacity:.75}
 
 @media(max-width:420px){
   .fd-feature-list{grid-template-columns:1fr}
@@ -348,8 +367,7 @@ body.front-door-preview-page{
   display:flex;gap:8px;
   overflow-x:auto;scrollbar-width:none;
   -webkit-overflow-scrolling:touch;
-  padding:4px 4px 14px;
-  justify-content:center;flex-wrap:wrap;
+  padding:4px 8px 14px;
 }
 .fd-tpl-picker::-webkit-scrollbar{display:none}
 

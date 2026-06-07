@@ -83,8 +83,9 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
-    <h2>This is your new front door, <?= ho_h($name) ?>&hellip;</h2>
-    <p>Pick the style that feels right. We&rsquo;ll build it exactly that way &mdash; clean, fast, and made for a phone, because that&rsquo;s where your customers are looking.</p>
+    <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN &middot; Hoosier Online Preview</p>
+    <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
+    <p class="fd-turn-tag">This is your new front door.</p>
   </section>
 
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
@@ -127,9 +128,9 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   ?>
 
   <?php if (!$usingCatTpls): ?>
-  <p class="fd-tpl-intro">We picked <strong><?= ho_h($design['name'] ?: 'Classic') ?></strong> for your category. Tap any style to see it on your page.</p>
+  <p class="fd-tpl-intro">We defaulted to <strong><?= ho_h($design['name'] ?: 'Classic') ?></strong> &mdash; tap any style to preview it on your page.</p>
   <?php else: ?>
-  <p class="fd-tpl-intro">Pick the style that fits your brand. Tap any option to preview it.</p>
+  <p class="fd-tpl-intro">Tap any style to see it &mdash; we&rsquo;ll build whichever one you choose.</p>
   <?php endif; ?>
 
   <?php if (!empty($available)): ?>
@@ -152,7 +153,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
       <?php endforeach; ?>
     </div>
   </div>
-  <p class="fd-phone-hint">Scroll inside the preview &uarr;</p>
+  <p class="fd-phone-hint">Scroll inside &uarr;</p>
 
   <script>
   (function(){
@@ -191,21 +192,21 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <?php endif; ?>
 
 
-  <!-- ── WHY WE REACHED OUT (doctrine angle + gaps) ───────────────────────── -->
+  <!-- ── WHY THIS BUSINESS ───────────────────────────────────────────────── -->
   <section class="fd-card">
-    <p class="fd-kicker">Why We Reached Out</p>
+    <p class="fd-kicker">Why <?= ho_h($name) ?></p>
     <?php if ($angle !== ''): ?>
-      <p class="fd-why"><?= ho_h($angle) ?></p>
+      <h2><?= ho_h($angle) ?></h2>
     <?php endif; ?>
     <?php if (!empty($opp)): ?>
       <p class="fd-why"><?= ho_h($opp) ?></p>
     <?php endif; ?>
     <?php if (!empty($gaps)): ?>
-      <ul class="fd-why-list">
+      <div class="fd-gap-list">
         <?php foreach (array_slice($gaps, 0, 3) as $g): ?>
-          <li><?= ho_h((string)$g) ?></li>
+          <div class="fd-gap-item"><span class="fd-gap-marker"></span><?= ho_h((string)$g) ?></div>
         <?php endforeach; ?>
-      </ul>
+      </div>
     <?php endif; ?>
   </section>
 
@@ -213,8 +214,8 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
   <section class="fd-section">
     <div class="fd-section-head">
-      <p class="fd-kicker">What You Get</p>
-      <h2>Your Front Door, module by module</h2>
+      <p class="fd-kicker">What We Build</p>
+      <h2>Five things, done right.</h2>
     </div>
     <div class="fd-module-list">
       <?php foreach ($modules as $i => $m): ?>
@@ -231,8 +232,8 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
   <section class="fd-card">
-    <p class="fd-kicker">Everything Included</p>
-    <h2>No add-ons, no surprises</h2>
+    <p class="fd-kicker">What&rsquo;s Included</p>
+    <h2>Everything. No add-ons.</h2>
     <ul class="fd-feature-list">
       <?php foreach ($features as $f): ?>
         <li><?= ho_h($f) ?></li>
@@ -243,9 +244,9 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <!-- ── YOUR WEB ADDRESS ─────────────────────────────────────────────────── -->
   <section class="fd-card fd-domain">
     <p class="fd-kicker">Your Web Address</p>
-    <h2>Live the day we launch</h2>
+    <h2>Yours the day we launch.</h2>
     <p class="fd-domain-name"><?= ho_h($subdomain) ?></p>
-    <p class="fd-muted">Comes free with your Front Door. Want your own custom domain like <strong><?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?></strong>? We&rsquo;ll set that up for you too.</p>
+    <p class="fd-muted">Included with your Front Door. Want your own domain &mdash; like <strong><?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?></strong>? We handle that too.</p>
   </section>
 
   <!-- ── OFFER ────────────────────────────────────────────────────────────── -->
@@ -256,18 +257,18 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
       <p class="fd-price">$999<span> &mdash; we handle everything</span></p>
       <ul class="fd-offer-list">
         <li>Built and launched for you, start to finish</li>
-        <li>Your services, reviews, and contact path in one place</li>
+        <li>Your services, reviews, and contact path &mdash; in one clean place</li>
         <li>We keep it current &mdash; 3 months included, then $250/quarter</li>
-        <li>You focus on the work. We handle the online side.</li>
+        <li>You run the business. We run the online side.</li>
       </ul>
     <?php else: ?>
       <p class="fd-kicker">The Offer</p>
       <h2>Standard Front Door</h2>
-      <p class="fd-price">$499<span> &mdash; up in days, not weeks</span></p>
+      <p class="fd-price">$499<span> &mdash; yours in days, not weeks</span></p>
       <ul class="fd-offer-list">
-        <li>Built and launched for you</li>
+        <li>Built and launched for you, start to finish</li>
         <li>Your services, reviews, and contact path &mdash; clean and clear</li>
-        <li>1 year hosting included. Renews at $250/year or $25/month.</li>
+        <li>1 year of hosting included. Renews at $250/year or $25/month.</li>
         <li>No contracts. No surprises.</li>
       </ul>
     <?php endif; ?>
@@ -275,18 +276,20 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
     <div class="fd-actions">
       <a class="fd-btn fd-btn-primary"
          href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Front Door for ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI saw the preview for {$name} and I'd like to move forward.\n\n") ?>">
-        Let&rsquo;s Do It
+        Yes, Let&rsquo;s Build It
       </a>
       <a class="fd-btn fd-btn-secondary"
          href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
-        I Have a Question
+        I Have Questions
       </a>
     </div>
-    <p class="fd-muted">No pressure. Just a conversation about your front door.</p>
+    <p class="fd-muted">Take it. Share it. Sleep on it &mdash; it&rsquo;ll still make sense in the morning.</p>
   </section>
 
   <footer class="fd-footer">
-    <a href="/">Hoosier Online</a> &mdash; Front doors for Indiana&rsquo;s local businesses.
+    <strong><a href="/">Hoosier Online</a></strong><br>
+    Front doors for Indiana&rsquo;s hardest-working businesses.<br>
+    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></span>
   </footer>
 
 <?php endif; ?>
