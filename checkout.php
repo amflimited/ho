@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
+ob_start(); // capture any accidental output (BOM bytes, stray whitespace in required files)
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ob_end_clean();
     header('Location: /');
     exit;
 }
@@ -13,10 +15,9 @@ $back = $slug !== '' ? '/go.php?slug=' . rawurlencode($slug) : '/';
 register_shutdown_function(function () use ($back): void {
     $err = error_get_last();
     if ($err && ($err['type'] & (E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR))) {
-        if (!headers_sent()) {
-            header('Location: ' . $back . '&err=' . rawurlencode('Server error: ' . $err['message']));
-            exit;
-        }
+        ob_end_clean();
+        header('Location: ' . $back . '&err=' . rawurlencode('Server error: ' . $err['message']));
+        exit;
     }
 });
 
@@ -28,6 +29,7 @@ try {
         : __DIR__ . '/stripe-config.php';
 
     if (!is_file($stripeConfig)) {
+        ob_end_clean();
         header('Location: ' . $back . '&err=stripe');
         exit;
     }
@@ -35,6 +37,7 @@ try {
     require_once $stripeConfig;
 
     if (!defined('STRIPE_SECRET_KEY') || trim(STRIPE_SECRET_KEY) === '') {
+        ob_end_clean();
         header('Location: ' . $back . '&err=' . rawurlencode('Stripe key not set'));
         exit;
     }
@@ -50,6 +53,7 @@ try {
     $priceMap = ho_addon_price_map();
 
     if ($slug === '' || !isset($packages[$pkg])) {
+        ob_end_clean();
         header('Location: /');
         exit;
     }
@@ -99,6 +103,7 @@ try {
     }
 
     if (!function_exists('curl_init')) {
+        ob_end_clean();
         throw new RuntimeException('curl is not available on this server');
     }
 
@@ -130,17 +135,20 @@ try {
     $url  = (string)($data['url'] ?? '');
 
     if ($url !== '' && $httpCode === 200) {
+        ob_end_clean();
         header('Location: ' . $url);
         exit;
     }
 
     $stripeMsg = (string)($data['error']['message'] ?? ('HTTP ' . $httpCode));
     error_log('Stripe checkout error (' . $httpCode . '): ' . $response);
+    ob_end_clean();
     header('Location: ' . $cancelUrl . '&err=' . rawurlencode($stripeMsg));
     exit;
 
 } catch (Throwable $e) {
     error_log('checkout.php exception: ' . $e->getMessage());
+    ob_end_clean();
     header('Location: ' . $back . '&err=' . rawurlencode($e->getMessage()));
     exit;
 }

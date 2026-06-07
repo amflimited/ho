@@ -99,6 +99,17 @@ $stripeErr  = $errCode !== '';
 
 <?php else: ?>
 
+  <?php if ($stripeErr): ?>
+  <section class="fd-card" style="border-left:4px solid var(--fd-red);margin-bottom:12px">
+    <p class="fd-kicker" style="color:var(--fd-red)">Checkout error</p>
+    <?php if ($errCode === 'stripe'): ?>
+      <p style="margin:0;font-size:15px">Online checkout isn&rsquo;t configured yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+    <?php else: ?>
+      <p style="margin:0;font-size:15px">Something went wrong<?= ($errCode !== 'checkout_failed' && $errCode !== '1') ? ': <strong>' . ho_h(urldecode($errCode)) . '</strong>' : '' ?> &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+    <?php endif; ?>
+  </section>
+  <?php endif; ?>
+
   <?php if ($paid): ?>
   <section class="fd-card fd-paid-banner">
     <p class="fd-kicker">Payment received</p>
@@ -414,13 +425,6 @@ $stripeErr  = $errCode !== '';
       </button>
     </form>
     <p class="fd-secure-note">Stripe secure checkout &middot; 256-bit SSL &middot; 30-day money-back guarantee</p>
-    <?php if ($stripeErr): ?>
-      <?php if ($errCode === 'stripe'): ?>
-        <p class="fd-stripe-err">Online checkout isn&rsquo;t configured yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
-      <?php else: ?>
-        <p class="fd-stripe-err">Something went wrong starting checkout<?= ($errCode !== 'checkout_failed' && $errCode !== '1') ? ': ' . ho_h(urldecode($errCode)) : '' ?> &mdash; please try again or reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
-      <?php endif; ?>
-    <?php endif; ?>
     <a class="fd-btn fd-btn-secondary"
        href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
       Have Questions?
