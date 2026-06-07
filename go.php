@@ -81,6 +81,12 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
 <?php else: ?>
 
+  <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
+  <section class="fd-turn">
+    <h2>That&rsquo;s your new front door, <?= ho_h($name) ?>.</h2>
+    <p>Pick the style that feels right. We&rsquo;ll build it exactly that way &mdash; clean, fast, and made for a phone, because that&rsquo;s where your customers are looking.</p>
+  </section>
+
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <?php
   $templateKey = $design['key'] ?? 'default';
@@ -158,12 +164,6 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <?php endif; ?>
 
-  <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
-  <section class="fd-turn">
-    <p class="fd-turn-arrow">&uarr;</p>
-    <h2>That&rsquo;s your new front door, <?= ho_h($name) ?>.</h2>
-    <p>Pick the style that feels right. We&rsquo;ll build it exactly that way &mdash; clean, fast, and made for a phone, because that&rsquo;s where your customers are looking.</p>
-  </section>
 
   <!-- ── WHY WE REACHED OUT (doctrine angle + gaps) ───────────────────────── -->
   <section class="fd-card">
