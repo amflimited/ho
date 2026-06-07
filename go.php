@@ -102,7 +102,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
           $k = $entry['key'] ?? '';
           $f = $catTemplateDir . $k . '.php';
           if ($k !== '' && is_file($f) && is_readable($f)) {
-              $available[$k] = ['label' => $entry['label'] ?? $k, 'color' => $entry['color'] ?? '#2f5e36'];
+              $available[$k] = ['label' => $entry['label'] ?? $k, 'color' => $entry['color'] ?? '#2f5e36', 'file' => $f];
           }
       }
       // Default selected = first in list
@@ -120,7 +120,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
       ];
       foreach ($genericOptions as $k => $opt) {
           $f = __DIR__ . '/templates/previews/' . $k . '.php';
-          if (is_file($f) && is_readable($f)) $available[$k] = $opt;
+          if (is_file($f) && is_readable($f)) $available[$k] = array_merge($opt, ['file' => $f]);
       }
   }
   ?>
@@ -142,7 +142,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
     <div class="fd-phone-screen" id="fd-phone-screen">
       <?php foreach ($available as $k => $opt): ?>
         <div class="fd-tpl-pane" id="tpl-<?= ho_h($k) ?>"<?= $k !== $templateKey ? ' hidden' : '' ?>>
-          <?php include __DIR__ . '/templates/previews/' . $k . '.php'; ?>
+          <?php include $opt['file']; ?>
         </div>
       <?php endforeach; ?>
     </div>
