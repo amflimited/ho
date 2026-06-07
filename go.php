@@ -81,32 +81,71 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
 <?php else: ?>
 
-  <!-- ── INTRO LINE ───────────────────────────────────────────────────────── -->
-  <p class="fd-intro-line">Hoosier Online built you a preview &mdash; here&rsquo;s what your front door could look like.</p>
-
-  <!-- ══ THE MOCKUP — their actual front door ═══════════════════════════════ -->
+  <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <?php
-  $templateKey  = $design['key'] ?? 'default';
-  $templateFile = __DIR__ . '/templates/previews/' . $templateKey . '.php';
-  if (!is_file($templateFile)) {
-      $templateFile = __DIR__ . '/templates/previews/default.php';
+  $templateKey = $design['key'] ?? 'default';
+  $templateOptions = [
+      'default'           => ['label' => 'Classic',      'color' => '#2f5e36'],
+      'bold_work_truck'   => ['label' => 'Work Truck',   'color' => '#e07b12'],
+      'clean_local_pro'   => ['label' => 'Clean Pro',    'color' => '#1e3a5f'],
+      'warm_neighborhood' => ['label' => 'Neighborhood', 'color' => '#6b3a2a'],
+      'sharp_modern'      => ['label' => 'Sharp Modern', 'color' => '#2563eb'],
+  ];
+  $available = [];
+  foreach ($templateOptions as $k => $opt) {
+      $f = __DIR__ . '/templates/previews/' . $k . '.php';
+      if (is_file($f) && is_readable($f)) $available[$k] = $opt;
   }
-  if (is_file($templateFile) && is_readable($templateFile)) {
-      include $templateFile;
-  } else {
-      // Inline fallback — renders if templates/ directory is missing or unreadable
-      ?>
+  ?>
+
+  <p class="fd-tpl-intro">We picked <strong><?= ho_h($design['name'] ?: 'Classic') ?></strong> for your category. Tap any style to see it on your page.</p>
+
+  <?php if (!empty($available)): ?>
+
+  <div class="fd-tpl-picker">
+    <?php foreach ($available as $k => $opt): ?>
+      <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>">
+        <span class="fd-tpl-dot" style="background:<?= ho_h($opt['color']) ?>"></span>
+        <?= ho_h($opt['label']) ?>
+      </button>
+    <?php endforeach; ?>
+  </div>
+
+  <div class="fd-phone-frame">
+    <div class="fd-phone-screen" id="fd-phone-screen">
+      <?php foreach ($available as $k => $opt): ?>
+        <div class="fd-tpl-pane" id="tpl-<?= ho_h($k) ?>"<?= $k !== $templateKey ? ' hidden' : '' ?>>
+          <?php include __DIR__ . '/templates/previews/' . $k . '.php'; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <p class="fd-phone-hint">Scroll inside the preview &uarr;</p>
+
+  <script>
+  (function(){
+    var tabs   = document.querySelectorAll('.fd-tpl-tab');
+    var screen = document.getElementById('fd-phone-screen');
+    tabs.forEach(function(tab){
+      tab.addEventListener('click', function(){
+        var key = tab.dataset.tpl;
+        tabs.forEach(function(t){ t.classList.remove('fd-tpl-tab--active'); });
+        document.querySelectorAll('.fd-tpl-pane').forEach(function(p){ p.hidden = true; });
+        tab.classList.add('fd-tpl-tab--active');
+        var pane = document.getElementById('tpl-' + key);
+        if (pane) pane.hidden = false;
+        if (screen) screen.scrollTop = 0;
+      });
+    });
+  })();
+  </script>
+
+  <?php else: ?>
+
   <section class="fd-mock">
-    <div class="fd-mock-badge">Preview<?= $design['name'] !== '' ? ' &middot; ' . ho_h($design['name']) : '' ?></div>
     <div class="fd-mock-hero">
       <p class="fd-mock-eyebrow"><?= ho_h($catName) ?><?= $city !== '' ? ' &middot; ' . ho_h($city) . ', IN' : '' ?></p>
       <h1 class="fd-mock-name"><?= ho_h($name) ?></h1>
-      <?php if ($hasGoogle && $googleRating > 0): ?>
-        <div class="fd-mock-stars">
-          <span class="fd-stars"><?= str_repeat('★', (int)round($googleRating)) . str_repeat('☆', 5 - (int)round($googleRating)) ?></span>
-          <span class="fd-mock-rating"><?= number_format($googleRating, 1) ?><?= $googleCount > 0 ? ' &middot; ' . $googleCount . ' reviews' : '' ?></span>
-        </div>
-      <?php endif; ?>
       <p class="fd-mock-area">Serving <?= ho_h($serviceArea) ?></p>
       <?php if ($telRaw !== ''): ?>
         <a class="fd-mock-cta" href="tel:<?= ho_h($telRaw) ?>">Call for a Free Quote</a>
@@ -115,27 +154,15 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
         <a class="fd-mock-cta" href="#">Request a Free Quote</a>
       <?php endif; ?>
     </div>
-    <?php if (!empty($services)): ?>
-    <div class="fd-mock-services">
-      <h2 class="fd-mock-h2">What We Do</h2>
-      <div class="fd-mock-service-grid">
-        <?php foreach (array_slice($services, 0, 6) as $svc): ?>
-          <div class="fd-mock-service"><?= ho_h((string)$svc) ?></div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-    <?php endif; ?>
-    <div class="fd-mock-trust">
-      <span>Locally Owned</span><span>Indiana Based</span><span>Free Quotes</span>
-    </div>
   </section>
-  <?php } ?>
+
+  <?php endif; ?>
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
     <p class="fd-turn-arrow">&uarr;</p>
     <h2>That&rsquo;s your new front door, <?= ho_h($name) ?>.</h2>
-    <p>Clean, fast, and built for a phone &mdash; because that&rsquo;s where your customers are looking. No clutter. Just your name, your services, and an easy way to reach you.</p>
+    <p>Pick the style that feels right. We&rsquo;ll build it exactly that way &mdash; clean, fast, and made for a phone, because that&rsquo;s where your customers are looking.</p>
   </section>
 
   <!-- ── WHY WE REACHED OUT (doctrine angle + gaps) ───────────────────────── -->
@@ -156,15 +183,6 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
     <?php endif; ?>
   </section>
 
-  <!-- ── RECOMMENDED DESIGN ───────────────────────────────────────────────── -->
-  <?php if ($design['name'] !== ''): ?>
-  <section class="fd-card fd-design">
-    <p class="fd-kicker">Recommended Design</p>
-    <h2><?= ho_h($design['name']) ?></h2>
-    <p class="fd-design-feel"><?= ho_h($design['feel']) ?></p>
-    <p class="fd-muted">Picked to fit a <?= ho_h(strtolower($catName)) ?> business. We can adjust the look to your taste before launch.</p>
-  </section>
-  <?php endif; ?>
 
   <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
   <section class="fd-section">
