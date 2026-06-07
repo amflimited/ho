@@ -59,6 +59,15 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 ho_mark_sent($pdo, $bizId, $sentVia, $sentTo);
                 header('Location: ?tab=send&flash=' . urlencode('Marked as sent.'));
                 exit;
+
+            case 'exclude_business':
+                $bizId  = (int)($_POST['business_id'] ?? 0);
+                $reason = trim((string)($_POST['reason'] ?? 'franchise'));
+                $addBl  = (bool)($_POST['add_blocklist'] ?? false);
+                if ($bizId === 0) throw new RuntimeException('Business ID missing.');
+                ho_mark_excluded($pdo, $bizId, $reason, $addBl);
+                header('Location: ?tab=research&research_cat_id=' . (int)($_POST['research_cat_id'] ?? 0) . '&flash=' . urlencode('Business excluded.'));
+                exit;
         }
     } catch (Throwable $e) {
         header('Location: ?tab=' . urlencode($_POST['tab'] ?? 'source') . '&error=' . urlencode($e->getMessage()));
@@ -78,8 +87,9 @@ if ($tab === '') $tab = $job;
 
 $categories    = $pdo ? ho_get_categories($pdo) : [];
 $resCatId      = (int)($_GET['research_cat_id'] ?? 0);
-$unresearched  = $pdo ? ho_get_unresearched_businesses($pdo, 25, $resCatId) : [];
-$resCatCounts  = $pdo ? ho_unresearched_category_counts($pdo) : [];
+$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 25, $resCatId) : [];
+$resCatCounts     = $pdo ? ho_unresearched_category_counts($pdo) : [];
+$multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $unresearched) : [];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
 
 $coverage = $pdo ? ho_source_coverage($pdo) : [];
@@ -370,13 +380,42 @@ if (!empty($unresearched)) {
       </form>
     </section>
 
+    <?php if (!empty($multiMarketIds)): ?>
+    <div class="cp-alert cp-alert-warn">
+      <strong><?= count($multiMarketIds) ?> multi-market flag<?= count($multiMarketIds) !== 1 ? 's' : '' ?></strong> &mdash; same business name appears in multiple cities. Review below &mdash; likely national franchises.
+    </div>
+    <?php endif; ?>
+
     <section class="cp-section">
       <h2 class="cp-sh" style="font-size:14px;">In this batch</h2>
+      <?php
+        // Sort: flagged businesses first
+        $sortedBatch = $unresearched;
+        usort($sortedBatch, fn($a,$b) =>
+            in_array((int)$b['id'], $multiMarketIds, true) <=> in_array((int)$a['id'], $multiMarketIds, true)
+        );
+      ?>
       <ul class="cp-biz-list">
-        <?php foreach ($unresearched as $b): ?>
-          <li class="cp-biz-row">
-            <strong><?= ho_h((string)$b['business_name']) ?></strong>
-            <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+        <?php foreach ($sortedBatch as $b):
+          $isMulti = in_array((int)$b['id'], $multiMarketIds, true);
+        ?>
+          <li class="cp-biz-row<?= $isMulti ? ' cp-biz-row-flagged' : '' ?>">
+            <div class="cp-biz-info">
+              <?php if ($isMulti): ?><span class="cp-multi-badge">MULTI-MARKET</span><?php endif; ?>
+              <strong><?= ho_h((string)$b['business_name']) ?></strong>
+              <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+            </div>
+            <?php if ($isMulti): ?>
+            <form method="POST" class="cp-exclude-form">
+              <input type="hidden" name="action" value="exclude_business">
+              <input type="hidden" name="tab" value="research">
+              <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+              <input type="hidden" name="research_cat_id" value="<?= $resCatId ?>">
+              <input type="hidden" name="reason" value="franchise">
+              <input type="hidden" name="add_blocklist" value="1">
+              <button class="cp-btn-exclude" type="submit">Not Local</button>
+            </form>
+            <?php endif; ?>
           </li>
         <?php endforeach; ?>
       </ul>
@@ -425,7 +464,12 @@ if (!empty($unresearched)) {
                 <strong><?= ho_h((string)$b['business_name']) ?></strong>
                 <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
               </div>
-              <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
+              <div class="cp-send-meta">
+                <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
+                <?php if ((int)$b['view_count'] > 0): ?>
+                  <span class="cp-view-count"><?= (int)$b['view_count'] ?> view<?= (int)$b['view_count'] !== 1 ? 's' : '' ?></span>
+                <?php endif; ?>
+              </div>
             </div>
             <div class="cp-send-actions">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>

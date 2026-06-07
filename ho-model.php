@@ -64,6 +64,68 @@ function ho_norm_name(string $n): string {
     return trim(preg_replace('/\s+/', ' ', $n) ?? $n);
 }
 
+// ─── Franchise / exclusion helpers ───────────────────────────────────────────
+
+function ho_get_blocklist_norms(PDO $pdo): array {
+    try {
+        return $pdo->query("SELECT normalized_name FROM business_exclusions")
+            ->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable) {
+        return [];
+    }
+}
+
+function ho_mark_excluded(PDO $pdo, int $bizId, string $reason, bool $addToBlocklist = false): void {
+    $pdo->prepare("UPDATE businesses SET pipeline_status = 'excluded', exclusion_reason = ?, updated_at = NOW() WHERE id = ?")
+        ->execute([$reason, $bizId]);
+    if ($addToBlocklist) {
+        $row = $pdo->prepare("SELECT business_name FROM businesses WHERE id = ?");
+        $row->execute([$bizId]);
+        $name = (string)($row->fetchColumn() ?: '');
+        $norm = ho_norm_name($name);
+        if ($norm !== '') {
+            try {
+                $pdo->prepare("INSERT IGNORE INTO business_exclusions (normalized_name, reason, example_name) VALUES (?, ?, ?)")
+                    ->execute([$norm, $reason, $name]);
+            } catch (Throwable) {}
+        }
+    }
+}
+
+function ho_multi_market_ids(PDO $pdo, array $businesses): array {
+    if (empty($businesses)) return [];
+    $catIds = array_unique(array_map(fn($b) => (int)$b['category_id'], $businesses));
+    $placeholders = implode(',', array_fill(0, count($catIds), '?'));
+    $stmt = $pdo->prepare("
+        SELECT id, category_id, business_name, location_city
+        FROM businesses
+        WHERE category_id IN ($placeholders) AND pipeline_status != 'excluded'
+    ");
+    $stmt->execute($catIds);
+    $allBiz = $stmt->fetchAll();
+
+    // Map: category_id -> normalized_name -> distinct city set
+    $catNormCities = [];
+    foreach ($allBiz as $b) {
+        $catId = (int)$b['category_id'];
+        $norm  = ho_norm_name((string)$b['business_name']);
+        $city  = strtolower(trim((string)$b['location_city']));
+        if ($norm === '' || $city === '') continue;
+        $catNormCities[$catId][$norm][$city] = true;
+    }
+
+    $multiIds = [];
+    foreach ($businesses as $b) {
+        $catId = (int)$b['category_id'];
+        $norm  = ho_norm_name((string)$b['business_name']);
+        if ($norm === '') continue;
+        if (count($catNormCities[$catId][$norm] ?? []) >= 2) {
+            $multiIds[] = (int)$b['id'];
+        }
+    }
+    return $multiIds;
+}
+
 // ─── Pipeline state ───────────────────────────────────────────────────────────
 
 function ho_pipeline_counts(PDO $pdo): array {
@@ -164,7 +226,7 @@ function ho_generate_sourcing_prompt(array $category, string $area, int $count, 
     $cityList = $regions[$area] ?? $area;
 
     return <<<PROMPT
-Find {$count} {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint}
+Find {$count} {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint} Do NOT include national franchises, corporate chains, or multi-territory platforms (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, TruGreen, ServiceMaster, Junk King, MaidPro, Lawn Love).
 
 Return ONLY valid JSON, no explanation, no markdown:
 
@@ -203,6 +265,7 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
+    $blocklistNorms = ho_get_blocklist_norms($pdo);
     $imported = 0;
     $skipped  = 0;
 
@@ -212,6 +275,7 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
         if ($name === '') { $skipped++; continue; }
         $state = strtoupper(trim((string)($c['state'] ?? 'IN')));
         if ($state !== 'IN') { $skipped++; continue; }
+        if ($blocklistNorms !== [] && in_array(ho_norm_name($name), $blocklistNorms, true)) { $skipped++; continue; }
 
         try {
             $insert->execute([
@@ -262,12 +326,19 @@ function ho_promote_candidates(PDO $pdo, int $runId): int {
             $existingNorms[$ck][] = ho_norm_name((string)$e['business_name']);
         }
     }
+    $blocklistNorms = ho_get_blocklist_norms($pdo);
 
     $promoted = 0;
 
     foreach ($candidates as $c) {
-        // Block normalized-name duplicates (catches LLC/Inc/The variants and casing)
+        // Block franchises/corporate chains from the permanent blocklist
         $normName = ho_norm_name((string)$c['raw_name']);
+        if ($blocklistNorms !== [] && in_array($normName, $blocklistNorms, true)) {
+            $pdo->prepare("UPDATE source_candidates SET candidate_status = 'excluded' WHERE id = ?")
+                ->execute([(int)$c['id']]);
+            continue;
+        }
+        // Block normalized-name duplicates (catches LLC/Inc/The variants and casing)
         $cityKey  = strtolower(trim((string)$c['city']));
         if ($normName !== '' && isset($existingNorms[$cityKey]) && in_array($normName, $existingNorms[$cityKey], true)) {
             $pdo->prepare("UPDATE source_candidates SET candidate_status = 'duplicate' WHERE id = ?")
@@ -437,7 +508,8 @@ For each business return exactly this JSON structure (one entry per business):
       "opportunity_summary": "One sentence: why this business needs a front door.",
       "strengths": ["thing working in their favor"],
       "gaps": ["thing missing or broken"],
-      "recommended_package": "standard"
+      "recommended_package": "standard",
+      "is_franchise": false
     }
   ]
 }
@@ -446,6 +518,7 @@ Rules:
 - website_quality: "none" (no site), "poor" (barely works/outdated), "basic" (functional but simple), "decent" (reasonably complete)
 - facebook_activity / instagram_activity: "none" (no account), "dormant" (no posts in 3+ months), "active" (posting regularly)
 - recommended_package: "standard" ($499, most businesses) or "managed" ($999, businesses with more content to work with)
+- is_franchise: true if this is a national franchise, corporate chain, multi-location platform, or territory-licensed model (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, ServiceMaster, Junk King, MaidPro, TruGreen, Lawn Love). false for independent local owner-operators.
 - Return ONLY valid JSON, no explanation, no markdown fences.
 PROMPT;
 }
@@ -472,6 +545,12 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
         }
 
         $bizId = (int)$bizRow['id'];
+
+        // Auto-exclude franchises flagged by GPT, add to permanent blocklist
+        if ((bool)($r['is_franchise'] ?? false)) {
+            ho_mark_excluded($pdo, $bizId, 'franchise', true);
+            continue;
+        }
 
         $services  = json_encode(array_values((array)($r['services_list']  ?? [])), JSON_UNESCAPED_SLASHES);
         $strengths = json_encode(array_values((array)($r['strengths']       ?? [])), JSON_UNESCAPED_SLASHES);
