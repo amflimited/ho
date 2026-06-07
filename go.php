@@ -265,6 +265,7 @@ $stripeErr  = $errCode !== '';
   <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
   <section class="fd-card fd-trust fd-reveal" id="about">
     <p class="fd-kicker">Who&rsquo;s behind this</p>
+    <div class="fd-trust-avatar" aria-hidden="true">A</div>
     <h2>Adam F.</h2>
     <p>Web developer from New Castle, Indiana. I find local service businesses that are doing good work but flying under the radar online &mdash; and I build them a real front door. No sales team, no cold-call scripts, no mystery pricing.</p>
     <ul class="fd-trust-signals">
