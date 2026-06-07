@@ -104,9 +104,9 @@ $stripeErr  = $errCode !== '';
   <section class="fd-card" style="border-left:4px solid var(--fd-red);margin-bottom:12px">
     <p class="fd-kicker" style="color:var(--fd-red)">Checkout error</p>
     <?php if ($errCode === 'stripe'): ?>
-      <p style="margin:0;font-size:15px">Online checkout isn&rsquo;t configured yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+      <p style="margin:0;font-size:15px">Online checkout isn&rsquo;t configured yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
     <?php else: ?>
-      <p style="margin:0;font-size:15px">Something went wrong<?= ($errCode !== 'checkout_failed' && $errCode !== '1') ? ': <strong>' . ho_h(urldecode($errCode)) . '</strong>' : '' ?> &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+      <p style="margin:0;font-size:15px">Something went wrong<?= ($errCode !== 'checkout_failed' && $errCode !== '1') ? ': <strong>' . ho_h(urldecode($errCode)) . '</strong>' : '' ?> &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
     <?php endif; ?>
   </section>
   <?php endif; ?>
@@ -116,7 +116,7 @@ $stripeErr  = $errCode !== '';
     <p class="fd-kicker">Payment received</p>
     <h2>You&rsquo;re in.</h2>
     <p>Adam will review your order and reach out within 24 hours to kick things off. Check your email for a receipt from Stripe.</p>
-    <p class="fd-muted">Questions in the meantime? <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+    <p class="fd-muted">Questions in the meantime? <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
   </section>
   <?php endif; ?>
 
@@ -266,14 +266,14 @@ $stripeErr  = $errCode !== '';
   <section class="fd-card fd-trust fd-reveal" id="about">
     <p class="fd-kicker">Who&rsquo;s behind this</p>
     <h2>Adam F.</h2>
-    <p>Web developer from Newcastle, Indiana. I find local service businesses that are doing good work but flying under the radar online &mdash; and I build them a real front door. No sales team, no cold-call scripts, no mystery pricing.</p>
+    <p>Web developer from New Castle, Indiana. I find local service businesses that are doing good work but flying under the radar online &mdash; and I build them a real front door. No sales team, no cold-call scripts, no mystery pricing.</p>
     <ul class="fd-trust-signals">
-      <li>Originally from Newcastle, Indiana</li>
+      <li>Originally from New Castle, Indiana</li>
       <li>Every preview researched and built personally</li>
       <li>Plain pricing. No surprise fees.</li>
     </ul>
     <div class="fd-trust-contact">
-      <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a>
+      <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
       <?php if ($adamPhone !== ''): ?>
         <span class="fd-trust-sep">&middot;</span>
         <a href="tel:<?= ho_h(preg_replace('/\D/', '', $adamPhone)) ?>"><?= ho_h($adamPhone) ?></a>
@@ -444,7 +444,7 @@ $stripeErr  = $errCode !== '';
     </form>
     <p class="fd-secure-note">Stripe secure checkout &middot; 256-bit SSL &middot; 30-day money-back guarantee</p>
     <a class="fd-btn fd-btn-secondary"
-       href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
+       href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
       Have Questions?
     </a>
 
@@ -527,7 +527,7 @@ $stripeErr  = $errCode !== '';
   <footer class="fd-footer">
     <strong><a href="/">Hoosier Online</a></strong><br>
     Front doors for Indiana&rsquo;s hardest-working businesses.<br>
-    <span class="fd-footer-by">Built by Adam F. &middot; <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></span>
+    <span class="fd-footer-by">Built by Adam F. &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></span>
   </footer>
 
   <script>

@@ -815,7 +815,7 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     $firstName = trim((string)($biz['owner_first_name'] ?? ''));
     $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\nTake a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosiersonline.com";
+    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\nTake a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
 
     return 'mailto:' . rawurlencode($email)
         . '?subject=' . rawurlencode($subject)
