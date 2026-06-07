@@ -411,6 +411,16 @@ a { color: inherit; }
 /* ── Contact research section ────────────────────────────────────────────────── */
 .cp-section-contact { border-top: 2px solid var(--gold); }
 
+.cp-nc-progress {
+  height: 6px; border-radius: 3px;
+  background: var(--border); overflow: hidden;
+  margin: 0 0 12px;
+}
+.cp-nc-bar {
+  height: 100%; border-radius: 3px;
+  background: var(--gold); transition: width .3s;
+}
+
 /* ── Dashboard modal ─────────────────────────────────────────────────────────── */
 .cp-telemetry { cursor: pointer; }
 .cp-telemetry:active { opacity: .8; }

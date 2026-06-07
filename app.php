@@ -460,10 +460,22 @@ if (!empty($unresearched)) {
   <?php endif; ?>
 
   <?php if (!empty($needsContactBatch)): ?>
+  <?php $ncTotal = $counts['needs_contact']; $ncBatch = count($needsContactBatch); ?>
   <section class="cp-section cp-section-contact">
     <div class="cp-step">Contact Research</div>
     <h2 class="cp-sh">Find contact info</h2>
-    <p class="cp-hint"><?= count($needsContactBatch) ?> businesses with no email or website on file — GPT can find them.</p>
+    <p class="cp-hint">
+      <?php if ($ncBatch < $ncTotal): ?>
+        Showing <strong><?= $ncBatch ?></strong> of <strong><?= $ncTotal ?></strong> remaining &mdash; import these results, then reload to continue the next batch.
+      <?php else: ?>
+        <strong><?= $ncTotal ?></strong> business<?= $ncTotal !== 1 ? 'es' : '' ?> remaining &mdash; this is the full list.
+      <?php endif; ?>
+    </p>
+    <?php if ($ncBatch < $ncTotal): ?>
+    <div class="cp-nc-progress">
+      <div class="cp-nc-bar" style="width:<?= round($ncBatch / $ncTotal * 100) ?>%"></div>
+    </div>
+    <?php endif; ?>
     <div class="cp-prompt-box">
       <pre id="contactPrompt" class="cp-prompt"><?= ho_h($needsContactPrompt) ?></pre>
       <button class="cp-copy" onclick="doCopy('contactPrompt',this)">Copy</button>
