@@ -39,7 +39,8 @@ $hasGoogle    = (bool)($row['has_google_business'] ?? false);
 $serviceArea  = (string)($row['service_area_text'] ?? ($city !== '' ? $city . ' & surrounding area' : 'Indiana'));
 $isManaged    = $package === 'managed';
 
-$design       = $row ? ho_design_direction((string)($row['category_slug'] ?? '')) : ['name' => '', 'feel' => ''];
+$catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
+$design       = $row ? ho_design_direction($catSlug) : ['key' => 'default', 'name' => '', 'feel' => ''];
 $subdomain    = $row ? ho_suggest_subdomain($name) : '';
 $modules      = ho_product_modules();
 $features     = ho_product_features();
@@ -84,47 +85,14 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <p class="fd-intro-line">Hoosier Online built you a preview &mdash; here&rsquo;s what your front door could look like.</p>
 
   <!-- ══ THE MOCKUP — their actual front door ═══════════════════════════════ -->
-  <section class="fd-mock">
-    <div class="fd-mock-badge">Preview<?= $design['name'] !== '' ? ' &middot; ' . ho_h($design['name']) : '' ?></div>
-
-    <div class="fd-mock-hero">
-      <p class="fd-mock-eyebrow"><?= ho_h($catName) ?><?= $city !== '' ? ' &middot; ' . ho_h($city) . ', IN' : '' ?></p>
-      <h1 class="fd-mock-name"><?= ho_h($name) ?></h1>
-
-      <?php if ($hasGoogle && $googleRating > 0): ?>
-        <div class="fd-mock-stars">
-          <span class="fd-stars"><?= str_repeat('★', (int)round($googleRating)) . str_repeat('☆', 5 - (int)round($googleRating)) ?></span>
-          <span class="fd-mock-rating"><?= number_format($googleRating, 1) ?><?= $googleCount > 0 ? ' &middot; ' . $googleCount . ' reviews' : '' ?></span>
-        </div>
-      <?php endif; ?>
-
-      <p class="fd-mock-area">Serving <?= ho_h($serviceArea) ?></p>
-
-      <?php if ($telRaw !== ''): ?>
-        <a class="fd-mock-cta" href="tel:<?= ho_h($telRaw) ?>">Call for a Free Quote</a>
-        <p class="fd-mock-phone"><?= ho_h($telDisplay) ?></p>
-      <?php else: ?>
-        <a class="fd-mock-cta" href="#">Request a Free Quote</a>
-      <?php endif; ?>
-    </div>
-
-    <?php if (!empty($services)): ?>
-    <div class="fd-mock-services">
-      <h2 class="fd-mock-h2">What We Do</h2>
-      <div class="fd-mock-service-grid">
-        <?php foreach (array_slice($services, 0, 6) as $svc): ?>
-          <div class="fd-mock-service"><?= ho_h((string)$svc) ?></div>
-        <?php endforeach; ?>
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <div class="fd-mock-trust">
-      <span>Locally Owned</span>
-      <span>Indiana Based</span>
-      <span>Free Quotes</span>
-    </div>
-  </section>
+  <?php
+  $templateKey  = $design['key'] ?? 'default';
+  $templateFile = __DIR__ . '/templates/previews/' . $templateKey . '.php';
+  if (!is_file($templateFile)) {
+      $templateFile = __DIR__ . '/templates/previews/default.php';
+  }
+  include $templateFile;
+  ?>
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">

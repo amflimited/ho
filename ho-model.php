@@ -641,7 +641,7 @@ function ho_design_direction(string $slug): array {
     ];
 
     $key = $map[$slug] ?? 'clean_local_pro';
-    return $families[$key];
+    return array_merge(['key' => $key], $families[$key]);
 }
 
 /** Suggest a clean Hoosier Online subdomain from the business name. */

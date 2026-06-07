@@ -334,3 +334,91 @@ body.front-door-preview-page{
 @media(max-width:420px){
   .fd-feature-list{grid-template-columns:1fr}
 }
+
+/* ══ Template modifier skins ═══════════════════════════════════════════════ */
+
+/* ── Bold Work Truck (dark charcoal + amber) ── */
+.fd-mock--bwt{
+  background:linear-gradient(180deg,#1a1f20 0%,#222a2b 100%);
+}
+.fd-mock--bwt .fd-mock-hero{
+  background:
+    radial-gradient(circle at 80% -10%,rgba(224,123,18,.20),transparent 55%),
+    linear-gradient(165deg,#1c2828 0%,#0f1415 100%);
+}
+.fd-mock--bwt .fd-mock-cta{
+  background:#e07b12;color:#fff;
+}
+.fd-mock--bwt .fd-mock-service{
+  background:rgba(224,123,18,.10);
+  border-color:rgba(224,123,18,.20);
+  color:#fff;
+}
+.fd-mock--bwt .fd-mock-h2{color:#fff}
+.fd-mock--bwt .fd-mock-trust span{
+  background:rgba(224,123,18,.14);color:#e07b12;
+}
+
+/* ── Clean Local Pro (navy + white) ── */
+.fd-mock--clp{
+  background:linear-gradient(180deg,#ffffff 0%,#f0f4f8 100%);
+}
+.fd-mock--clp .fd-mock-hero{
+  background:
+    radial-gradient(circle at 80% -10%,rgba(30,58,95,.22),transparent 55%),
+    linear-gradient(165deg,#1e3a5f 0%,#122440 100%);
+}
+.fd-mock--clp .fd-mock-cta{
+  background:#fff;color:#1e3a5f;
+}
+.fd-mock--clp .fd-mock-service{
+  background:rgba(30,58,95,.07);
+  border-color:rgba(30,58,95,.14);
+  color:#1a2a3a;
+}
+.fd-mock--clp .fd-mock-trust span{
+  background:rgba(30,58,95,.09);color:#1e3a5f;
+}
+
+/* ── Warm Neighborhood (terracotta + cream) ── */
+.fd-mock--wn{
+  background:linear-gradient(180deg,#fdf6ef 0%,#f5ebe0 100%);
+}
+.fd-mock--wn .fd-mock-hero{
+  background:
+    radial-gradient(circle at 80% -10%,rgba(196,98,58,.22),transparent 55%),
+    linear-gradient(165deg,#6b3a2a 0%,#4d2c20 100%);
+}
+.fd-mock--wn .fd-mock-cta{
+  background:#fff;color:#6b3a2a;
+}
+.fd-mock--wn .fd-mock-service{
+  background:rgba(107,58,42,.08);
+  border-color:rgba(107,58,42,.15);
+  color:#3a1f14;
+}
+.fd-mock--wn .fd-mock-trust span{
+  background:rgba(196,98,58,.11);color:#6b3a2a;
+}
+
+/* ── Sharp Modern (deep navy + electric blue) ── */
+.fd-mock--sm{
+  background:linear-gradient(180deg,#0d1117 0%,#161b27 100%);
+}
+.fd-mock--sm .fd-mock-hero{
+  background:
+    radial-gradient(circle at 80% -10%,rgba(37,99,235,.24),transparent 55%),
+    linear-gradient(165deg,#0a0f1e 0%,#131a2e 100%);
+}
+.fd-mock--sm .fd-mock-cta{
+  background:#2563eb;color:#fff;
+}
+.fd-mock--sm .fd-mock-service{
+  background:rgba(37,99,235,.12);
+  border-color:rgba(37,99,235,.20);
+  color:#fff;
+}
+.fd-mock--sm .fd-mock-h2{color:#fff}
+.fd-mock--sm .fd-mock-trust span{
+  background:rgba(37,99,235,.14);color:#6ba4f8;
+}
