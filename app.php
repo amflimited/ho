@@ -78,7 +78,7 @@ if ($tab === '') $tab = $job;
 
 $categories    = $pdo ? ho_get_categories($pdo) : [];
 $resCatId      = (int)($_GET['research_cat_id'] ?? 0);
-$unresearched  = $pdo ? ho_get_unresearched_businesses($pdo, 10, $resCatId) : [];
+$unresearched  = $pdo ? ho_get_unresearched_businesses($pdo, 25, $resCatId) : [];
 $resCatCounts  = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
 
