@@ -1,7 +1,12 @@
 [
-  {"key": "light_green",  "label": "Light Green", "color": "#2f7a35"},
-  {"key": "teal_pro",     "label": "Teal",        "color": "#0d6e6e"},
-  {"key": "dark_bold",    "label": "Dark Bold",   "color": "#1a1a1a"},
-  {"key": "orange_bold",  "label": "Orange",      "color": "#e07b12"},
-  {"key": "eco_green",    "label": "Eco",         "color": "#2d5a27"}
+  {"key": "light_green",  "label": "Light Green",  "color": "#2f7a35"},
+  {"key": "teal_pro",     "label": "Teal",         "color": "#0d6e6e"},
+  {"key": "dark_bold",    "label": "Dark Bold",    "color": "#1a1a1a"},
+  {"key": "orange_bold",  "label": "Orange Bold",  "color": "#e07b12"},
+  {"key": "eco_green",    "label": "Eco",          "color": "#2d5a27"},
+  {"key": "red_local",    "label": "Red Local",    "color": "#cc2222"},
+  {"key": "gold_premium", "label": "Gold",         "color": "#c8a020"},
+  {"key": "blue_clean",   "label": "Blue",         "color": "#1e5fa0"},
+  {"key": "dark_orange",  "label": "Dark Orange",  "color": "#e07b12"},
+  {"key": "green_clean",  "label": "Green Clean",  "color": "#1a5c2a"}
 ]
