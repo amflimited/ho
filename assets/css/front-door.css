@@ -511,124 +511,48 @@ body.front-door-preview-page{
   background:rgba(37,99,235,.14);color:#6ba4f8;
 }
 
-/* ══ Junk Removal — Green Work Truck ══════════════════════════════════════ */
-.fd-jrt{background:#0d120d}
-
-/* Hero */
-.fd-jrt-hero{
-  position:relative;overflow:hidden;
-  background:
-    linear-gradient(to right,#0d120d 28%,rgba(13,18,13,.82) 50%,rgba(13,18,13,.22) 100%),
-    url('https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=700&fit=crop&auto=format&q=80') right center / cover no-repeat;
-  color:#fff;
+/* ══ Junk Removal — Work Truck (image + overlay) ══════════════════════════ */
+.fd-jrt{background:#0d1210}
+.fd-jrt-wrap{position:relative;display:block;line-height:0}
+.fd-jrt-img{width:100%;display:block}
+.fd-jrt-ov{
+  position:absolute;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.1;
+  pointer-events:none;
 }
-.fd-jrt-topbar{
-  position:relative;z-index:2;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 14px 0;
-  gap:8px;
-}
-.fd-jrt-menu{color:rgba(255,255,255,.80);flex-shrink:0}
-.fd-jrt-loc{
-  display:flex;align-items:center;gap:4px;flex:1;
-  font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:rgba(255,255,255,.65);
-}
-.fd-jrt-phone-btn{
-  display:flex;align-items:center;justify-content:center;
-  width:30px;height:30px;border-radius:50%;
-  background:rgba(255,255,255,.14);
-  color:#fff;text-decoration:none;flex-shrink:0;
-}
-.fd-jrt-content{
-  position:relative;z-index:2;
-  padding:12px 14px 26px;
-  max-width:65%;
-}
-.fd-jrt-hero-btns{display:flex;align-items:center;gap:10px}
-.fd-jrt-call-btn{
-  display:flex;align-items:center;justify-content:center;
-  width:36px;height:36px;border-radius:50%;
-  background:rgba(255,255,255,.16);
-  color:#fff;text-decoration:none;flex-shrink:0;
+.fd-jrt-city{
+  top:15.8%;left:12.5%;
+  font-size:2.8vw;font-weight:700;letter-spacing:.06em;
+  color:rgba(255,255,255,.75);text-transform:uppercase;
 }
 .fd-jrt-name{
-  margin:0 0 7px;
-  font-size:clamp(24px,8vw,34px);line-height:1.05;
-  letter-spacing:-.025em;font-weight:900;color:#fff;
-  min-height:28px;
-}
-.fd-jrt-tagline{
-  margin:0 0 10px;
-  font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
-  color:rgba(255,255,255,.50);line-height:1.45;
+  top:22%;left:4.5%;width:55%;
+  font-size:5.4vw;font-weight:900;letter-spacing:-.02em;
+  color:#fff;line-height:1.05;
 }
 .fd-jrt-rating{
-  display:flex;align-items:center;gap:5px;
-  margin:0 0 14px;
+  top:40.5%;left:19%;
+  font-size:2.8vw;font-weight:700;
+  color:rgba(255,255,255,.85);
 }
-.fd-jrt-rating .fd-stars{color:#ffd700;font-size:13px;letter-spacing:1px}
-.fd-jrt-rnum{font-size:12px;font-weight:700;color:rgba(255,255,255,.75)}
-.fd-jrt-cta{
-  display:inline-flex;align-items:center;
-  padding:9px 16px;
-  background:#2e7d32;color:#fff;
-  border-radius:999px;text-decoration:none;
-  font-size:12px;font-weight:800;white-space:nowrap;
+.fd-jrt-tel{
+  top:47.5%;left:13%;
+  font-size:2.5vw;font-weight:700;
+  color:rgba(255,255,255,.80);
+  text-decoration:none;pointer-events:auto;
 }
-
-/* Services */
-.fd-jrt-body{background:#fff;padding:18px 12px 0}
-.fd-jrt-h2{
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  margin:0 0 14px;
-  font-size:15px;font-weight:900;color:#111;letter-spacing:-.01em;
+.fd-jrt-svc{
+  font-size:2.4vw;font-weight:800;color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,.7);
+  line-height:1.2;width:44%;
 }
-.fd-jrt-h2::before,.fd-jrt-h2::after{
-  content:'';flex:1;height:1px;background:rgba(0,0,0,.12);
-}
-.fd-jrt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fd-jrt-card{
-  position:relative;border-radius:12px;height:110px;overflow:hidden;
-  background:#1a2e1a;background-size:cover;background-position:center;
-  display:flex;align-items:flex-end;
-}
-.fd-jrt-card::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(to bottom,rgba(0,0,0,.08) 0%,rgba(0,0,0,.72) 100%);
-}
-.fd-jrt-badge{
-  position:absolute;top:8px;left:8px;z-index:1;
-  width:28px;height:28px;border-radius:8px;
-  background:#2e7d32;
-  display:flex;align-items:center;justify-content:center;
-  font-size:14px;line-height:1;
-}
-.fd-jrt-card-name{
-  position:relative;z-index:1;
-  padding:6px 8px;
-  font-size:11px;font-weight:800;color:#fff;
-  line-height:1.2;text-shadow:0 1px 4px rgba(0,0,0,.55);
-}
-
-/* Trust bar */
-.fd-jrt-trust{
-  display:flex;justify-content:space-around;align-items:center;
-  padding:14px 8px 16px;
-  background:#111;
-  margin-top:12px;
-}
-.fd-jrt-trust-item{
-  display:flex;flex-direction:column;align-items:center;gap:5px;
-  font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
-  color:#fff;text-align:center;line-height:1.3;
-}
-.fd-jrt-trust-icon{
-  width:26px;height:26px;border-radius:50%;
-  background:#2e7d32;
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;
-}
+.fd-jrt-svc-0{top:63.2%;left:3%}
+.fd-jrt-svc-1{top:63.2%;left:51%}
+.fd-jrt-svc-2{top:74.2%;left:3%}
+.fd-jrt-svc-3{top:74.2%;left:51%}
+.fd-jrt-svc-4{top:85.2%;left:3%}
+.fd-jrt-svc-5{top:85.2%;left:51%}
 .fd-wtd{background:#fff}
 .fd-wtd-hero{
   background:
