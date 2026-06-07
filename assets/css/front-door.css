@@ -512,7 +512,7 @@ body.front-door-preview-page{
 }
 
 /* ══ Junk Removal — Work Truck (image + overlay) ══════════════════════════ */
-.fd-jrt{background:#0d1210}
+.fd-jrt{background:#f8f8f8}
 .fd-jrt-wrap{position:relative;display:block;line-height:0}
 .fd-jrt-img{width:100%;display:block}
 .fd-jrt-ov{
@@ -521,38 +521,12 @@ body.front-door-preview-page{
   line-height:1.1;
   pointer-events:none;
 }
-.fd-jrt-city{
-  top:15.8%;left:12.5%;
-  font-size:2.8vw;font-weight:700;letter-spacing:.06em;
-  color:rgba(255,255,255,.75);text-transform:uppercase;
-}
 .fd-jrt-name{
-  top:22%;left:4.5%;width:55%;
-  font-size:5.4vw;font-weight:900;letter-spacing:-.02em;
-  color:#fff;line-height:1.05;
+  top:1.2%;left:10%;width:80%;
+  text-align:center;
+  font-size:2.6vw;font-weight:700;letter-spacing:-.01em;
+  color:#1a2e1a;
 }
-.fd-jrt-rating{
-  top:40.5%;left:19%;
-  font-size:2.8vw;font-weight:700;
-  color:rgba(255,255,255,.85);
-}
-.fd-jrt-tel{
-  top:47.5%;left:13%;
-  font-size:2.5vw;font-weight:700;
-  color:rgba(255,255,255,.80);
-  text-decoration:none;pointer-events:auto;
-}
-.fd-jrt-svc{
-  font-size:2.4vw;font-weight:800;color:#fff;
-  text-shadow:0 1px 3px rgba(0,0,0,.7);
-  line-height:1.2;width:44%;
-}
-.fd-jrt-svc-0{top:63.2%;left:3%}
-.fd-jrt-svc-1{top:63.2%;left:51%}
-.fd-jrt-svc-2{top:74.2%;left:3%}
-.fd-jrt-svc-3{top:74.2%;left:51%}
-.fd-jrt-svc-4{top:85.2%;left:3%}
-.fd-jrt-svc-5{top:85.2%;left:51%}
 .fd-wtd{background:#fff}
 .fd-wtd-hero{
   background:
