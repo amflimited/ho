@@ -1193,7 +1193,7 @@ function ho_addon_catalog(): array {
         'ongoing' => [
             'label' => 'Ongoing',
             'items' => [
-                'care_yr'     => ['label' => 'Annual care plan',            'price' => 149, 'note' => '/yr', 'desc' => 'Hosting renewal + up to 2 small content updates per year — hands-off for you.'],
+                'care_yr'     => ['label' => 'Annual care plan',            'price' => 149, 'note' => '/yr', 'desc' => 'Hosting renewal + small content updates as needed — just reach out and it gets done.'],
                 'updates_6mo' => ['label' => '6 months of content updates', 'price' => 199, 'note' => '',    'desc' => 'Text changes, new photos, seasonal offers, and small additions for 6 months.'],
             ],
         ],
