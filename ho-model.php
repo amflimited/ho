@@ -207,7 +207,7 @@ function ho_get_known_business_names(PDO $pdo, int $categoryId, string $area): a
         SELECT business_name FROM businesses
         WHERE category_id = ? AND location_city IN ($placeholders)
         ORDER BY business_name
-        LIMIT 300
+        LIMIT 2000
     ");
     $s->execute($params);
     return array_column($s->fetchAll(), 'business_name');
