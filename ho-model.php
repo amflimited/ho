@@ -251,9 +251,29 @@ function ho_promote_candidates(PDO $pdo, int $runId): int {
     $s->execute([$runId]);
     $candidates = $s->fetchAll();
 
+    // Pre-load normalized names by city so we can block true duplicates
+    $catId = !empty($candidates) ? (int)$candidates[0]['category_id'] : 0;
+    $existingNorms = [];
+    if ($catId > 0) {
+        $ex = $pdo->prepare("SELECT location_city, business_name FROM businesses WHERE category_id = ?");
+        $ex->execute([$catId]);
+        foreach ($ex->fetchAll() as $e) {
+            $ck = strtolower(trim((string)$e['location_city']));
+            $existingNorms[$ck][] = ho_norm_name((string)$e['business_name']);
+        }
+    }
+
     $promoted = 0;
 
     foreach ($candidates as $c) {
+        // Block normalized-name duplicates (catches LLC/Inc/The variants and casing)
+        $normName = ho_norm_name((string)$c['raw_name']);
+        $cityKey  = strtolower(trim((string)$c['city']));
+        if ($normName !== '' && isset($existingNorms[$cityKey]) && in_array($normName, $existingNorms[$cityKey], true)) {
+            $pdo->prepare("UPDATE source_candidates SET candidate_status = 'duplicate' WHERE id = ?")
+                ->execute([(int)$c['id']]);
+            continue;
+        }
         $slug = ho_slugify($c['raw_name'], $c['city']);
         $i = 2;
         $finalSlug = $slug;
@@ -294,9 +314,11 @@ function ho_promote_candidates(PDO $pdo, int $runId): int {
             $pdo->prepare("UPDATE source_candidates SET candidate_status = 'promoted', promoted_business_id = ? WHERE id = ?")
                 ->execute([$bizId, (int)$c['id']]);
 
+            // Register in dedup map so within-batch duplicates are caught too
+            $existingNorms[$cityKey][] = $normName;
             $promoted++;
         } catch (Throwable) {
-            // slug collision or duplicate — skip
+            // slug collision — skip
         }
     }
 
@@ -746,6 +768,28 @@ function ho_sales_angle(array $row): string {
 }
 
 // ─── Recent activity ──────────────────────────────────────────────────────────
+
+function ho_source_coverage(PDO $pdo): array {
+    return $pdo->query("
+        SELECT
+            c.name  AS category_name,
+            sr.area_query,
+            COUNT(sr.id)                         AS run_count,
+            COALESCE(SUM(sr.businesses_found), 0) AS total_found,
+            MAX(sr.created_at)                   AS last_run,
+            (SELECT sr2.businesses_found
+             FROM source_runs sr2
+             WHERE sr2.category_id = sr.category_id
+               AND sr2.area_query  = sr.area_query
+               AND sr2.status IN ('sourced','imported')
+             ORDER BY sr2.created_at DESC LIMIT 1) AS last_yield
+        FROM source_runs sr
+        JOIN categories c ON c.id = sr.category_id
+        WHERE sr.status IN ('sourced','imported')
+        GROUP BY sr.category_id, sr.area_query
+        ORDER BY c.name, last_run DESC
+    ")->fetchAll();
+}
 
 function ho_recent_source_runs(PDO $pdo, int $limit = 5): array {
     return $pdo->query("

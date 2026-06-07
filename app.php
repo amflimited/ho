@@ -82,6 +82,8 @@ $unresearched  = $pdo ? ho_get_unresearched_businesses($pdo, 10, $resCatId) : []
 $resCatCounts  = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
 
+$coverage = $pdo ? ho_source_coverage($pdo) : [];
+
 $templatedCategories = array_values(array_filter($categories, function($cat) {
     $dir = ho_template_dir_for_slug((string)($cat['slug'] ?? ''));
     return $dir !== '';
@@ -232,6 +234,38 @@ if (!empty($unresearched)) {
       </form>
     </section>
 
+  <?php endif; ?>
+
+  <?php if (!empty($coverage)): ?>
+  <section class="cp-section">
+    <h2 class="cp-sh" style="font-size:14px;margin-bottom:10px;">Coverage &amp; saturation</h2>
+    <div class="cp-coverage-table">
+      <div class="cp-cov-head">
+        <span>Category &amp; Region</span>
+        <span>Runs</span>
+        <span>Total found</span>
+        <span>Last yield</span>
+        <span>Last run</span>
+      </div>
+      <?php foreach ($coverage as $row):
+        $lastYield = (int)$row['last_yield'];
+        $totalFound = (int)$row['total_found'];
+        $runCount   = (int)$row['run_count'];
+        $satClass   = $lastYield <= 3 ? ' cp-cov-dry' : ($lastYield <= 7 ? ' cp-cov-low' : '');
+        $daysAgo    = $row['last_run'] ? (int)floor((time() - strtotime($row['last_run'])) / 86400) : null;
+        $when       = $daysAgo === null ? '—' : ($daysAgo === 0 ? 'Today' : ($daysAgo === 1 ? 'Yesterday' : $daysAgo . 'd ago'));
+      ?>
+      <div class="cp-cov-row<?= $satClass ?>">
+        <span><strong><?= ho_h((string)$row['category_name']) ?></strong> &middot; <?= ho_h((string)$row['area_query']) ?></span>
+        <span><?= $runCount ?></span>
+        <span><?= $totalFound ?></span>
+        <span class="cp-cov-yield"><?= $lastYield ?><?= $satClass === ' cp-cov-dry' ? ' ⚠' : '' ?></span>
+        <span><?= ho_h($when) ?></span>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <p class="cp-hint" style="margin-top:8px;">Last yield ≤ 3 <span style="color:#b06212">⚠</span> = likely saturated. Consider a different region or expanding search terms.</p>
+  </section>
   <?php endif; ?>
 
 <!-- ═══ RESEARCH ════════════════════════════════════════════════════════════ -->

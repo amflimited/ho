@@ -269,3 +269,29 @@ a { color: inherit; }
   text-align: center; padding: 36px 16px;
   font-size: 14px; color: var(--ink2); line-height: 1.6;
 }
+
+/* ── COVERAGE TABLE ──────────────────────────────────────────────────────── */
+.cp-coverage-table { border: 1.5px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.cp-cov-head, .cp-cov-row {
+  display: grid;
+  grid-template-columns: 1fr 44px 80px 72px 76px;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.cp-cov-head {
+  background: var(--bg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink2);
+  font-size: 11px;
+}
+.cp-cov-row { border-top: 1px solid var(--border); background: var(--white); color: var(--ink); }
+.cp-cov-row strong { font-size: 13px; }
+.cp-cov-row.cp-cov-low  { background: #fffbe8; }
+.cp-cov-row.cp-cov-dry  { background: #fff3e0; }
+.cp-cov-yield { font-weight: 700; }
+.cp-cov-dry .cp-cov-yield { color: #b06212; }
+.cp-cov-low .cp-cov-yield { color: #8a6a00; }
