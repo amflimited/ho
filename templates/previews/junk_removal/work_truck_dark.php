@@ -39,9 +39,9 @@ function jrt_photo(string $name): string {
 <section class="fd-mock fd-jrt">
 
   <div class="fd-jrt-hero">
-    <div class="fd-jrt-hero-photo"></div>
 
     <div class="fd-jrt-topbar">
+      <svg class="fd-jrt-menu" width="18" height="14" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true"><rect y="0" width="18" height="2" rx="1"/><rect y="6" width="18" height="2" rx="1"/><rect y="12" width="18" height="2" rx="1"/></svg>
       <span class="fd-jrt-loc">
         <svg width="9" height="12" viewBox="0 0 10 13" fill="currentColor"><path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 8 5 8s5-4.25 5-8C10 2.24 7.76 0 5 0zm0 6.5C4.17 6.5 3.5 5.83 3.5 5S4.17 3.5 5 3.5 6.5 4.17 6.5 5 5.83 6.5 5 6.5z"/></svg>
         JUNK REMOVAL<?= $city !== '' ? ', ' . ho_h(strtoupper($city)) : ', IN' ?>
@@ -66,11 +66,16 @@ function jrt_photo(string $name): string {
           <span class="fd-jrt-rnum"><?= number_format($googleRating, 1) ?></span>
         </p>
       <?php endif; ?>
-      <?php if ($telRaw !== ''): ?>
-        <a class="fd-jrt-cta" href="tel:<?= ho_h($telRaw) ?>">Get a Free Estimate &rarr;</a>
-      <?php else: ?>
-        <a class="fd-jrt-cta" href="#">Get a Free Estimate &rarr;</a>
-      <?php endif; ?>
+      <div class="fd-jrt-hero-btns">
+        <?php if ($telRaw !== ''): ?>
+          <a class="fd-jrt-cta" href="tel:<?= ho_h($telRaw) ?>">Get a Free Estimate &rarr;</a>
+          <a class="fd-jrt-call-btn" href="tel:<?= ho_h($telRaw) ?>" aria-label="Call">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.58.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.61 21 3 13.39 3 4c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.23 1.01L6.6 10.8z"/></svg>
+          </a>
+        <?php else: ?>
+          <a class="fd-jrt-cta" href="#">Get a Free Estimate &rarr;</a>
+        <?php endif; ?>
+      </div>
     </div>
   </div>
 
