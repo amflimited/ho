@@ -1,4 +1,30 @@
 <?php /* Junk Removal — Work Truck Dark */ ?>
+<?php
+function jrt_svc_style(string $name): array {
+    $n = strtolower($name);
+    if (preg_match('/furni|sofa|couch|chair|table|desk|loveseat/', $n))
+        return ['icon'=>'🛋','bg'=>'linear-gradient(150deg,#3d2a14 0%,#1e1408 100%)','glow'=>'rgba(200,100,10,.28)'];
+    if (preg_match('/applian|washer|dryer|fridge|refrig|stove|oven|dishwash|microwave/', $n))
+        return ['icon'=>'🔌','bg'=>'linear-gradient(150deg,#18253a 0%,#0e1620 100%)','glow'=>'rgba(40,100,220,.24)'];
+    if (preg_match('/yard|garden|brush|lawn|tree|shrub|limb|branch|green waste/', $n))
+        return ['icon'=>'🌿','bg'=>'linear-gradient(150deg,#1a2e14 0%,#0e1c09 100%)','glow'=>'rgba(40,150,40,.22)'];
+    if (preg_match('/demo|destruct|construct|drywall|brick|concrete|tear/', $n))
+        return ['icon'=>'🏗','bg'=>'linear-gradient(150deg,#2e2018 0%,#1a130a 100%)','glow'=>'rgba(200,120,20,.24)'];
+    if (preg_match('/recycl|metal|scrap|copper|iron|steel|aluminum/', $n))
+        return ['icon'=>'♻️','bg'=>'linear-gradient(150deg,#182828 0%,#0e1a1a 100%)','glow'=>'rgba(20,160,110,.20)'];
+    if (preg_match('/electron|tv|computer|monitor|tech|phone|e-waste/', $n))
+        return ['icon'=>'📺','bg'=>'linear-gradient(150deg,#182035 0%,#0f1525 100%)','glow'=>'rgba(50,90,220,.22)'];
+    if (preg_match('/mattress|bed|sleep|box spring/', $n))
+        return ['icon'=>'🛏','bg'=>'linear-gradient(150deg,#2e2520 0%,#1b1710 100%)','glow'=>'rgba(160,90,20,.22)'];
+    if (preg_match('/estate|cleanout|clean|hoard/', $n))
+        return ['icon'=>'🏠','bg'=>'linear-gradient(150deg,#1c2820 0%,#111a14 100%)','glow'=>'rgba(30,140,70,.20)'];
+    if (preg_match('/haul|pickup|truck|transport/', $n))
+        return ['icon'=>'🚛','bg'=>'linear-gradient(150deg,#28201a 0%,#181410 100%)','glow'=>'rgba(220,110,10,.22)'];
+    if (preg_match('/hot tub|spa|pool/', $n))
+        return ['icon'=>'🛁','bg'=>'linear-gradient(150deg,#182030 0%,#0f151e 100%)','glow'=>'rgba(20,120,200,.20)'];
+    return ['icon'=>'🗑','bg'=>'linear-gradient(150deg,#2a2520 0%,#181510 100%)','glow'=>'rgba(224,123,18,.18)'];
+}
+?>
 <section class="fd-mock fd-jrt">
 
   <div class="fd-jrt-hero">
@@ -36,14 +62,12 @@
   <div class="fd-jrt-body">
     <h2 class="fd-jrt-h2">What We Do</h2>
     <div class="fd-jrt-grid">
-      <?php
-      $seeds = ['junk-pile','couch-sofa','laundry-appliance','garden-yard','demolition-house','trash-bin'];
-      $icons = ['🗑','🛋','🔌','🌿','🏠','♻'];
-      foreach (array_slice($services, 0, 6) as $i => $svc):
-        $seed = $seeds[$i % 6];
+      <?php foreach (array_slice($services, 0, 6) as $svc):
+        $s = jrt_svc_style((string)$svc);
       ?>
-        <div class="fd-jrt-card" style="background-image:url('https://picsum.photos/seed/<?= $seed ?>/300/200?grayscale');background-size:cover;background-position:center">
-          <span class="fd-jrt-icon"><?= $icons[$i % 6] ?></span>
+        <div class="fd-jrt-card" style="background:<?= $s['bg'] ?>">
+          <div class="fd-jrt-card-glow" style="background:<?= $s['glow'] ?>"></div>
+          <span class="fd-jrt-icon"><?= $s['icon'] ?></span>
           <span class="fd-jrt-card-name"><?= ho_h((string)$svc) ?></span>
         </div>
       <?php endforeach; ?>
