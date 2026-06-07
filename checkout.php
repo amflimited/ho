@@ -10,19 +10,19 @@ require_once __DIR__ . '/stripe-config.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/ho-model.php';
 
-$slug   = trim((string)($_POST['slug'] ?? ''));
-$pkg    = trim((string)($_POST['pkg']  ?? ''));
-$domain = !empty($_POST['addon_domain']);
-$google = !empty($_POST['addon_google']);
-$logo   = !empty($_POST['addon_logo']);
-$social = !empty($_POST['addon_social']);
+$slug    = trim((string)($_POST['slug'] ?? ''));
+$pkg     = trim((string)($_POST['pkg']  ?? ''));
+$addons  = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
 
-if ($slug === '' || !in_array($pkg, ['standard', 'managed'], true)) {
+$packages = ho_package_catalog();
+$priceMap = ho_addon_price_map();
+
+if ($slug === '' || !isset($packages[$pkg])) {
     header('Location: /');
     exit;
 }
 
-// Fetch business name for Stripe receipt line
+// Fetch business name for Stripe receipt (graceful fallback to slug)
 $bizName = $slug;
 try {
     $pdo = ho_db();
@@ -30,29 +30,38 @@ try {
     if ($row) $bizName = (string)$row['business_name'];
 } catch (Throwable) {}
 
-// Build line items — all one-time payments
+// Build line items — prices come from catalog, never from POST
 $items = [];
-if ($pkg === 'managed') {
-    $items[] = ['name' => "Managed Front Door \u{2014} {$bizName}", 'amount' => 99900];
-} else {
-    $items[] = ['name' => "Front Door \u{2014} {$bizName}", 'amount' => 49900];
+$pkgData = $packages[$pkg];
+$items[] = ['name' => $pkgData['label'] . " \u{2014} {$bizName}", 'amount' => $pkgData['price'] * 100];
+
+foreach ($addons as $addonKey) {
+    $key = (string)$addonKey;
+    if (!isset($priceMap[$key])) continue; // ignore unknown keys
+    $catalog = ho_addon_catalog();
+    // Find label
+    $addonLabel = $key;
+    foreach ($catalog as $cat) {
+        if (isset($cat['items'][$key])) {
+            $addonLabel = $cat['items'][$key]['label'];
+            break;
+        }
+    }
+    $items[] = ['name' => $addonLabel, 'amount' => $priceMap[$key] * 100];
 }
-if ($domain) $items[] = ['name' => 'Custom Domain (1 year)',                 'amount' => 7500];
-if ($google) $items[] = ['name' => 'Google Business Setup & Optimization',   'amount' => 7500];
-if ($logo)   $items[] = ['name' => 'Logo / Wordmark Design',                 'amount' => 15000];
-if ($social) $items[] = ['name' => 'Social Profile Setup (FB + Instagram)',  'amount' => 7500];
 
 $host       = 'https://' . $_SERVER['HTTP_HOST'];
 $successUrl = $host . '/go.php?slug=' . rawurlencode($slug) . '&paid=1';
 $cancelUrl  = $host . '/go.php?slug=' . rawurlencode($slug);
 
-// Build Stripe Checkout Session request (flat key encoding, no SDK needed)
+// Build Stripe Checkout Session request
 $params = [
     'mode'               => 'payment',
     'success_url'        => $successUrl,
     'cancel_url'         => $cancelUrl,
     'metadata[slug]'     => $slug,
     'metadata[business]' => $bizName,
+    'metadata[pkg]'      => $pkg,
 ];
 foreach ($items as $i => $item) {
     $params["line_items[{$i}][price_data][currency]"]            = 'usd';

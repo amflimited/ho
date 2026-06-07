@@ -1092,7 +1092,99 @@ function ho_product_features(): array {
     ];
 }
 
-/** Pick a sales-doctrine angle headline based on the research data. */
+/** Package options with prices — single source of truth for display + checkout. */
+function ho_package_catalog(): array {
+    return [
+        'standard' => [
+            'label' => 'Front Door',
+            'price' => 149,
+            'desc'  => 'Built and launched. Your page, live on hoosieronline.com within a week. 1 year of hosting included.',
+        ],
+        'managed' => [
+            'label' => 'Managed Front Door',
+            'price' => 299,
+            'desc'  => 'Everything in Front Door, plus 3 months of content updates and ongoing management included.',
+        ],
+    ];
+}
+
+/** Add-on catalog organized by subcategory — single source of truth for display + checkout. */
+function ho_addon_catalog(): array {
+    return [
+        'identity' => [
+            'label' => 'Identity & Brand',
+            'items' => [
+                'domain'    => ['label' => 'Custom .com domain',              'price' => 75,  'note' => '/yr',     'desc' => 'Your own .com address instead of .hoosieronline.com — we register it for you.'],
+                'logo'      => ['label' => 'Logo & wordmark design',          'price' => 150, 'note' => '',        'desc' => 'A clean, simple logo you own. Delivered as SVG, PNG, and print-ready PDF.'],
+                'bizcard'   => ['label' => 'Business card design',            'price' => 75,  'note' => '',        'desc' => 'Print-ready file sized for standard cards — full bleed, ready to upload to any printer.'],
+                'email_sig' => ['label' => 'Email signature design',          'price' => 35,  'note' => '',        'desc' => 'Branded HTML email signature — name, title, logo, phone, and site link.'],
+            ],
+        ],
+        'presence' => [
+            'label' => 'Local Presence',
+            'items' => [
+                'google'    => ['label' => 'Google Business setup & optimization', 'price' => 75,  'note' => '',   'desc' => 'Full profile build: categories, hours, service area, photos, and Q&A — done right, once.'],
+                'facebook'  => ['label' => 'Facebook business page',               'price' => 50,  'note' => '',   'desc' => 'Branded page with cover photo, bio, contact info, and linked to your site.'],
+                'instagram' => ['label' => 'Instagram profile setup',              'price' => 50,  'note' => '',   'desc' => 'Professional bio, highlights template, and site link — ready to post from day one.'],
+                'gmb_photos'=> ['label' => 'Google photo upload (20 photos)',      'price' => 50,  'note' => '',   'desc' => 'We upload and title 20 of your best photos to Google Business — visibility boost.'],
+            ],
+        ],
+        'content' => [
+            'label' => 'Content & Copy',
+            'items' => [
+                'services_copy'  => ['label' => 'Written service descriptions',   'price' => 99,  'note' => '',   'desc' => 'SEO-friendly descriptions for every service you offer — we write them from your input.'],
+                'about_section'  => ['label' => 'About / founder story',          'price' => 75,  'note' => '',   'desc' => "A short, human story about you and why you do this work — written from a quick call or Q&A."],
+                'photo_gallery'  => ['label' => 'Photo gallery & work showcase',  'price' => 50,  'note' => '',   'desc' => 'Organized before/after or work gallery — you send us photos, we build the display.'],
+                'seasonal_promo' => ['label' => 'Seasonal promo section',         'price' => 50,  'note' => '',   'desc' => 'A dedicated spot for a current deal, seasonal offer, or limited-time service.'],
+            ],
+        ],
+        'leads' => [
+            'label' => 'Lead Generation',
+            'items' => [
+                'quote_form'  => ['label' => 'Quote request form',          'price' => 75,  'note' => '',   'desc' => 'Visitors enter their details and you get an email notification instantly — no app needed.'],
+                'booking'     => ['label' => 'Online booking / scheduling', 'price' => 75,  'note' => '',   'desc' => 'A link or embedded calendar so customers can book directly — syncs with your calendar.'],
+                'sms_button'  => ['label' => 'Click-to-text button',        'price' => 35,  'note' => '',   'desc' => 'One tap opens a pre-filled text to your number — easiest contact path on mobile.'],
+                'deposit_link'=> ['label' => 'Deposit / payment link',      'price' => 50,  'note' => '',   'desc' => 'Stripe or Square link on your page so customers can pay a deposit to hold the job.'],
+            ],
+        ],
+        'credibility' => [
+            'label' => 'Credibility & Trust',
+            'items' => [
+                'reviews_widget' => ['label' => 'Live Google reviews display',         'price' => 50,  'note' => '',   'desc' => 'Your latest Google reviews displayed on your page — live social proof, auto-updating.'],
+                'license_badge'  => ['label' => 'License & insurance badge section',   'price' => 35,  'note' => '',   'desc' => 'Showcase your license number, insurance carrier, or trade certifications prominently.'],
+                'faq_section'    => ['label' => 'FAQ section',                         'price' => 50,  'note' => '',   'desc' => 'Answers to the 5–8 questions customers ask before hiring — reduces friction on the call.'],
+                'guarantee_badge'=> ['label' => 'Service guarantee badge',             'price' => 35,  'note' => '',   'desc' => 'A custom "satisfaction guaranteed" or "free estimate" badge designed for your page.'],
+            ],
+        ],
+        'print' => [
+            'label' => 'Print & Physical',
+            'items' => [
+                'qr_sticker'  => ['label' => 'QR code & sticker design',            'price' => 35,  'note' => '',   'desc' => 'Custom QR linking to your site — sized for truck windows, yard signs, or door hangers.'],
+                'door_hanger' => ['label' => 'Door hanger design',                  'price' => 75,  'note' => '',   'desc' => 'Print-ready door hanger layout — great for neighborhood canvassing or post-job follow-up.'],
+                'yard_sign'   => ['label' => 'Yard sign design',                    'price' => 75,  'note' => '',   'desc' => "18\"×24\" yard sign layout — leave-behind marketing after every job."],
+            ],
+        ],
+        'ongoing' => [
+            'label' => 'Ongoing Management',
+            'items' => [
+                'updates_3mo' => ['label' => '3 months of content updates',         'price' => 149, 'note' => '',   'desc' => 'We handle text changes, new photos, seasonal offers, and small additions for 3 months.'],
+                'updates_6mo' => ['label' => '6 months of content updates',         'price' => 249, 'note' => '',   'desc' => 'Same as 3-month package — better value if you expect ongoing changes.'],
+                'yearly_care' => ['label' => 'Annual care plan',                    'price' => 349, 'note' => '/yr','desc' => 'Unlimited small updates, annual redesign touchup, hosting renewal handled — hands-off for you.'],
+            ],
+        ],
+    ];
+}
+
+/** Flatten addon catalog to key → price map for checkout validation. */
+function ho_addon_price_map(): array {
+    $map = [];
+    foreach (ho_addon_catalog() as $cat) {
+        foreach ($cat['items'] as $key => $item) {
+            $map[$key] = (int)$item['price'];
+        }
+    }
+    return $map;
+}
 function ho_sales_angle(array $row): string {
     $hasWebsite = (bool)($row['has_website'] ?? false);
     $hasGoogle  = (bool)($row['has_google_business'] ?? false);

@@ -295,6 +295,12 @@ $paid = isset($_GET['paid']);
   </section>
 
   <!-- ── PACKAGE CONFIGURATOR ────────────────────────────────────────────── -->
+  <?php
+  $pkgCatalog   = ho_package_catalog();
+  $addonCatalog = ho_addon_catalog();
+  $defaultPkg   = $isManaged ? 'managed' : 'standard';
+  $defaultPrice = $pkgCatalog[$defaultPkg]['price'];
+  ?>
   <section class="fd-card fd-offer" id="pricing">
     <p class="fd-kicker">Build Your Package</p>
     <h2>Pick what you need.</h2>
@@ -303,75 +309,59 @@ $paid = isset($_GET['paid']);
 
       <!-- Base options -->
       <div class="fd-pkg-options">
-        <label class="fd-pkg-option<?= !$isManaged ? ' is-selected' : '' ?>">
-          <input type="radio" name="pkg" value="499"<?= !$isManaged ? ' checked' : '' ?> onchange="fdUpdatePkg()">
+        <?php foreach ($pkgCatalog as $pkgKey => $pkgData): ?>
+        <label class="fd-pkg-option<?= $pkgKey === $defaultPkg ? ' is-selected' : '' ?>">
+          <input type="radio" name="pkg_display" value="<?= ho_h($pkgKey) ?>"
+                 data-price="<?= (int)$pkgData['price'] ?>"
+                 <?= $pkgKey === $defaultPkg ? 'checked' : '' ?> onchange="fdUpdatePkg()">
           <div class="fd-pkg-option-body">
             <div class="fd-pkg-option-head">
-              <strong>Front Door</strong>
-              <span class="fd-pkg-price-tag">$499</span>
+              <strong><?= ho_h($pkgData['label']) ?></strong>
+              <span class="fd-pkg-price-tag">$<?= number_format($pkgData['price']) ?></span>
             </div>
-            <p>Built and launched. Your site goes live within a week. 1 year of hosting included.</p>
+            <p><?= ho_h($pkgData['desc']) ?></p>
           </div>
         </label>
-        <label class="fd-pkg-option<?= $isManaged ? ' is-selected' : '' ?>">
-          <input type="radio" name="pkg" value="999"<?= $isManaged ? ' checked' : '' ?> onchange="fdUpdatePkg()">
-          <div class="fd-pkg-option-body">
-            <div class="fd-pkg-option-head">
-              <strong>Managed Front Door</strong>
-              <span class="fd-pkg-price-tag">$999</span>
-            </div>
-            <p>Everything in Front Door, plus we keep it current &mdash; 3 months of updates included, then $250/quarter.</p>
-          </div>
-        </label>
+        <?php endforeach; ?>
       </div>
 
-      <!-- Add-ons -->
+      <!-- Add-ons by subcategory -->
       <p class="fd-addon-label">Add-ons &mdash; bolt on what you want:</p>
       <div class="fd-addon-list">
+        <?php foreach ($addonCatalog as $catKey => $cat): ?>
+        <p class="fd-addon-cat"><?= ho_h($cat['label']) ?></p>
+        <?php foreach ($cat['items'] as $addonKey => $addon):
+          $desc = $addon['desc'];
+          if ($addonKey === 'domain') {
+              $ownDomain = str_replace('.hoosieronline.com', '.com', $subdomain);
+              $desc = "Your own .com (e.g., " . ho_h($ownDomain) . ") instead of .hoosieronline.com — we register it for you.";
+          }
+        ?>
         <label class="fd-addon-item">
-          <input type="checkbox" data-price="75" data-addon="domain" onchange="fdUpdatePkg()">
+          <input type="checkbox" data-price="<?= (int)$addon['price'] ?>" data-addon="<?= ho_h($addonKey) ?>" onchange="fdUpdatePkg()">
           <div class="fd-addon-body">
-            <strong>Custom Domain</strong> <span class="fd-addon-price">+$75/yr</span>
-            <p>Your own .com (e.g., <?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?>) instead of .hoosieronline.com</p>
+            <strong><?= ho_h($addon['label']) ?></strong>
+            <span class="fd-addon-price">+$<?= number_format($addon['price']) ?><?= ho_h($addon['note']) ?></span>
+            <p><?= $desc ?></p>
           </div>
         </label>
-        <label class="fd-addon-item">
-          <input type="checkbox" data-price="75" data-addon="google" onchange="fdUpdatePkg()">
-          <div class="fd-addon-body">
-            <strong>Google Business Setup</strong> <span class="fd-addon-price">+$75</span>
-            <p>Full profile optimization &amp; verification &mdash; done right, once.</p>
-          </div>
-        </label>
-        <label class="fd-addon-item">
-          <input type="checkbox" data-price="150" data-addon="logo" onchange="fdUpdatePkg()">
-          <div class="fd-addon-body">
-            <strong>Logo / Wordmark</strong> <span class="fd-addon-price">+$150</span>
-            <p>Simple, clean logo design. Yours to keep forever.</p>
-          </div>
-        </label>
-        <label class="fd-addon-item">
-          <input type="checkbox" data-price="75" data-addon="social" onchange="fdUpdatePkg()">
-          <div class="fd-addon-body">
-            <strong>Social Profile Setup</strong> <span class="fd-addon-price">+$75</span>
-            <p>Facebook &amp; Instagram &mdash; properly branded and linked to your site.</p>
-          </div>
-        </label>
+        <?php endforeach; ?>
+        <?php endforeach; ?>
       </div>
 
       <!-- Running total -->
       <div class="fd-total-row">
         <span>Your total:</span>
-        <strong id="fd-pkg-total"><?= $isManaged ? '$999' : '$499' ?></strong>
+        <strong id="fd-pkg-total">$<?= number_format($defaultPrice) ?></strong>
       </div>
 
-      <!-- CTAs -->
-      <form method="POST" action="/checkout.php" class="fd-checkout-form">
-        <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
-        <input type="hidden" name="pkg"          id="fd-h-pkg"    value="<?= $isManaged ? 'managed' : 'standard' ?>">
-        <input type="hidden" name="addon_domain" id="fd-h-domain" value="0">
-        <input type="hidden" name="addon_google" id="fd-h-google" value="0">
-        <input type="hidden" name="addon_logo"   id="fd-h-logo"   value="0">
-        <input type="hidden" name="addon_social" id="fd-h-social" value="0">
+      <!-- CTAs — hidden inputs carry selected options to checkout.php -->
+      <form method="POST" action="/checkout.php" class="fd-checkout-form" id="fd-checkout-form">
+        <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
+        <input type="hidden" name="pkg"  id="fd-h-pkg" value="<?= ho_h($defaultPkg) ?>">
+        <?php foreach ($addonCatalog as $cat): foreach ($cat['items'] as $addonKey => $addon): ?>
+        <input type="hidden" name="addons[]" id="fd-h-<?= ho_h($addonKey) ?>" value="" disabled>
+        <?php endforeach; endforeach; ?>
         <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
           Get Started &mdash; Pay Now &rarr;
         </button>
@@ -388,17 +378,20 @@ $paid = isset($_GET['paid']);
 
   <script>
   function fdUpdatePkg() {
-    var pkg = document.querySelector('input[name="pkg"]:checked');
-    var base = pkg ? parseInt(pkg.value, 10) : 499;
+    var pkg = document.querySelector('input[name="pkg_display"]:checked');
+    var base = pkg ? parseInt(pkg.dataset.price, 10) : <?= $defaultPrice ?>;
     var addons = 0;
     document.querySelectorAll('.fd-addon-list input[type="checkbox"]').forEach(function(cb) {
       if (cb.checked) addons += parseInt(cb.dataset.price || '0', 10);
       var hid = document.getElementById('fd-h-' + (cb.dataset.addon || ''));
-      if (hid) hid.value = cb.checked ? '1' : '0';
+      if (hid) {
+        hid.disabled = !cb.checked;
+        if (cb.checked) hid.value = cb.dataset.addon;
+      }
     });
     document.getElementById('fd-pkg-total').textContent = '$' + (base + addons).toLocaleString();
     var pkgHid = document.getElementById('fd-h-pkg');
-    if (pkgHid) pkgHid.value = base >= 999 ? 'managed' : 'standard';
+    if (pkgHid && pkg) pkgHid.value = pkg.value;
     document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
       var r = el.querySelector('input[type="radio"]');
       el.classList.toggle('is-selected', !!(r && r.checked));
