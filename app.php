@@ -77,17 +77,21 @@ $job    = ho_current_job($counts);
 if ($tab === '') $tab = $job;
 
 $categories    = $pdo ? ho_get_categories($pdo) : [];
-$unresearched  = $pdo ? ho_get_unresearched_businesses($pdo, 10) : [];
+$resCatId      = (int)($_GET['research_cat_id'] ?? 0);
+$unresearched  = $pdo ? ho_get_unresearched_businesses($pdo, 10, $resCatId) : [];
+$resCatCounts  = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
 
 $templatedCategories = array_values(array_filter($categories, function($cat) {
-    $slug = (string)($cat['slug'] ?? '');
-    return $slug !== '' && is_file(__DIR__ . '/templates/previews/' . $slug . '/index.json');
+    $dir = ho_template_dir_for_slug((string)($cat['slug'] ?? ''));
+    return $dir !== '';
 }));
 
 $cityToRegion = [];
 foreach (ho_indiana_regions() as $region => $cities) {
-    foreach ($cities as $city) { $cityToRegion[$city] = $region; }
+    foreach (explode(',', $cities) as $city) {
+        $cityToRegion[trim($city)] = $region;
+    }
 }
 
 // Rebuild source prompt from active run
@@ -233,8 +237,18 @@ if (!empty($unresearched)) {
 <!-- ═══ RESEARCH ════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'research'): ?>
 
+  <?php if (!empty($resCatCounts)): ?>
+  <div class="cp-cat-toggle">
+    <?php $totalUnres = array_sum(array_column($resCatCounts, 'cnt')); ?>
+    <a href="?tab=research" class="cp-cat-btn<?= $resCatId === 0 ? ' is-active' : '' ?>">All <span class="cp-badge"><?= $totalUnres ?></span></a>
+    <?php foreach ($resCatCounts as $rc): ?>
+    <a href="?tab=research&research_cat_id=<?= (int)$rc['id'] ?>" class="cp-cat-btn<?= $resCatId === (int)$rc['id'] ? ' is-active' : '' ?>"><?= ho_h((string)$rc['name']) ?> <span class="cp-badge"><?= (int)$rc['cnt'] ?></span></a>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
   <?php if (empty($unresearched)): ?>
-    <div class="cp-empty">No leads waiting for research. Source some first.</div>
+    <div class="cp-empty">No leads waiting for research<?= $resCatId > 0 ? ' in this category' : '' ?>. Source some first.</div>
   <?php else: ?>
 
     <section class="cp-section">

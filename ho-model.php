@@ -310,7 +310,8 @@ function ho_promote_candidates(PDO $pdo, int $runId): int {
 
 // ─── Research ─────────────────────────────────────────────────────────────────
 
-function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10): array {
+function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10, int $categoryId = 0): array {
+    $catClause = $categoryId > 0 ? 'AND b.category_id = ' . $categoryId : '';
     $s = $pdo->prepare("
         SELECT b.*, c.name AS category_name
         FROM businesses b
@@ -318,11 +319,61 @@ function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10): array {
         LEFT JOIN research_records r ON r.business_id = b.id
         WHERE b.pipeline_status = 'identified'
           AND r.id IS NULL
+          {$catClause}
         ORDER BY b.created_at ASC
         LIMIT " . (int)$limit . "
     ");
     $s->execute([]);
     return $s->fetchAll();
+}
+
+function ho_unresearched_category_counts(PDO $pdo): array {
+    return $pdo->query("
+        SELECT c.id, c.name, c.slug, COUNT(b.id) AS cnt
+        FROM businesses b
+        JOIN categories c ON c.id = b.category_id
+        LEFT JOIN research_records r ON r.business_id = b.id
+        WHERE b.pipeline_status = 'identified' AND r.id IS NULL
+        GROUP BY c.id
+        ORDER BY cnt DESC
+    ")->fetchAll();
+}
+
+/**
+ * Maps a category DB slug to the matching templates/previews directory name.
+ * Handles cases where the DB slug and the template directory name differ.
+ */
+function ho_template_dir_for_slug(string $slug): string {
+    static $aliases = [
+        'home_cleaning' => 'house_cleaning',
+        'lawn_care'     => 'lawn_mowing',
+        'lawn'          => 'lawn_mowing',
+        'cleaning'      => 'house_cleaning',
+    ];
+    if (isset($aliases[$slug])) return $aliases[$slug];
+
+    // Scan filesystem as fallback — match by stripping common suffixes
+    static $dirs = null;
+    if ($dirs === null) {
+        $base = __DIR__ . '/templates/previews/';
+        $dirs = [];
+        foreach ((array)@scandir($base) as $e) {
+            if ($e[0] !== '.' && is_dir($base . $e) && is_file($base . $e . '/index.json')) {
+                $dirs[] = $e;
+            }
+        }
+    }
+
+    if (in_array($slug, $dirs, true)) return $slug;
+
+    // Normalised comparison: collapse underscores, strip trailing _service/_care/_removal/_mowing
+    $norm = preg_replace('/_?(service|care|removal|mowing|cleaning)$/', '', str_replace('_', '', $slug)) ?? $slug;
+    foreach ($dirs as $d) {
+        $dn = preg_replace('/_?(service|care|removal|mowing|cleaning)$/', '', str_replace('_', '', $d)) ?? $d;
+        if ($norm === $dn) return $d;
+    }
+
+    return '';
 }
 
 function ho_generate_research_prompt(array $businesses): string {
