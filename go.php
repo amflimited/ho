@@ -59,7 +59,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 $stripeStandard = 'https://buy.stripe.com/REPLACE_ME_STANDARD';
 $stripeManaged  = 'https://buy.stripe.com/REPLACE_ME_MANAGED';
 // ── Your contact info ─────────────────────────────────────────────────────
-$adamPhone = ''; // e.g. '(765) 555-0100' — set this to show on the preview page
+$adamPhone = '(765) 443-4321'; // e.g. '(765) 555-0100' — set this to show on the preview page
 
 ?><!doctype html>
 <html lang="en">
