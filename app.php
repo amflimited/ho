@@ -695,7 +695,7 @@ if (!empty($unresearched)) {
             'Sent'        => $counts['pitched'],
             'Won'         => $counts['converted'],
           ];
-          $funnelMax = max(1, ...$funnel);
+          $funnelMax = max(1, ...array_values($funnel));
         ?>
         <div class="cp-dash-funnel">
           <?php foreach ($funnel as $label => $val): if ($val === 0) continue; ?>
