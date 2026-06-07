@@ -511,7 +511,80 @@ body.front-door-preview-page{
   background:rgba(37,99,235,.14);color:#6ba4f8;
 }
 
-/* ══ Lawn Mowing — Work Truck Dark ═════════════════════════════════════════ */
+/* ══ Junk Removal — Work Truck Dark ════════════════════════════════════════ */
+.fd-jrt{background:#fff}
+.fd-jrt-hero{
+  background:
+    radial-gradient(ellipse at 90% 50%,rgba(180,100,5,.18),transparent 50%),
+    radial-gradient(ellipse at 10% 80%,rgba(224,123,18,.08),transparent 40%),
+    linear-gradient(160deg,#1c2526 0%,#0d1314 100%);
+  padding:36px 24px 34px;
+  text-align:center;
+  position:relative;overflow:hidden;
+}
+.fd-jrt-eyebrow{
+  margin:0 0 10px;
+  font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:#e07b12;
+}
+.fd-jrt-name{
+  margin:0 0 10px;
+  font-size:clamp(30px,9vw,46px);line-height:.96;letter-spacing:-.02em;font-weight:900;
+  color:#fff;
+}
+.fd-jrt-rating{
+  margin:0 0 16px;font-size:14px;font-weight:700;
+  color:rgba(255,255,255,.88);
+}
+.fd-jrt-rating .fd-stars{color:#ffd24a;font-size:15px}
+.fd-jrt-cta{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:50px;padding:0 28px;
+  background:#e07b12;color:#fff;
+  border-radius:999px;text-decoration:none;
+  font-size:16px;font-weight:900;
+  box-shadow:0 8px 24px rgba(224,123,18,.40);
+}
+.fd-jrt-phone{
+  margin:10px 0 0;font-size:15px;font-weight:700;
+  color:rgba(255,255,255,.85);
+}
+.fd-jrt-body{padding:22px 14px 0;background:#fff}
+.fd-jrt-h2{
+  margin:0 0 14px;
+  font-size:20px;font-weight:900;letter-spacing:-.02em;color:#1a1a1a;
+}
+.fd-jrt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fd-jrt-card{
+  position:relative;border-radius:12px;height:92px;overflow:hidden;
+  display:flex;align-items:flex-end;
+}
+.fd-jrt-card::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(transparent 25%,rgba(0,0,0,.72) 100%);
+}
+.fd-jrt-icon{
+  position:absolute;top:8px;left:8px;z-index:1;
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(255,255,255,.18);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;line-height:1;
+}
+.fd-jrt-card-name{
+  position:relative;z-index:1;
+  padding:8px 10px;
+  font-size:12px;font-weight:800;color:#fff;line-height:1.2;
+}
+.fd-jrt-trust{
+  display:flex;justify-content:space-around;align-items:center;
+  flex-wrap:wrap;gap:4px;
+  padding:13px 10px;
+  background:#e07b12;
+}
+.fd-jrt-trust span{
+  font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
+  color:#1a0f00;
+}
 .fd-wtd{background:#fff}
 .fd-wtd-hero{
   background:
