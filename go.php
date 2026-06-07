@@ -55,6 +55,12 @@ if (strlen($telRaw) === 10) {
 
 $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : 'Hoosier Online';
 
+// ── Stripe Payment Links ── replace these with your actual Stripe URLs ────
+$stripeStandard = 'https://buy.stripe.com/REPLACE_ME_STANDARD';
+$stripeManaged  = 'https://buy.stripe.com/REPLACE_ME_MANAGED';
+// ── Your contact info ─────────────────────────────────────────────────────
+$adamPhone = ''; // e.g. '(765) 555-0100' — set this to show on the preview page
+
 ?><!doctype html>
 <html lang="en">
 <head>
@@ -66,6 +72,18 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <meta name="robots" content="noindex">
 </head>
 <body class="front-door-preview-page">
+
+<nav class="fd-nav">
+  <a class="fd-nav-brand" href="/">Hoosier Online</a>
+  <div class="fd-nav-links">
+    <a href="#preview">Preview</a>
+    <a href="#about">About</a>
+    <a href="#services">Services</a>
+    <a href="#pricing">Pricing</a>
+    <a class="fd-nav-cta" href="#pricing">Get Started</a>
+  </div>
+</nav>
+
 <main class="fd-shell">
 
 <?php if ($err !== null): ?>
@@ -89,6 +107,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   </section>
 
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
+  <div id="preview"></div>
   <?php
   $templateKey = $design['key'] ?? 'default';
 
@@ -212,20 +231,26 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
 
   <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
-  <section class="fd-card fd-trust">
+  <section class="fd-card fd-trust" id="about">
     <p class="fd-kicker">Who&rsquo;s behind this</p>
-    <h2>Adam Ferree</h2>
-    <p>Indiana web developer. I research local service businesses personally &mdash; no sales team, no cold-call scripts. If I built a preview for you, it&rsquo;s because I think there&rsquo;s a real opportunity worth showing you.</p>
+    <h2>Adam F.</h2>
+    <p>Web developer from Newcastle, Indiana. I find local service businesses that are doing good work but flying under the radar online &mdash; and I build them a real front door. No sales team, no cold-call scripts, no mystery pricing.</p>
     <ul class="fd-trust-signals">
-      <li>Based in Indiana</li>
-      <li>Every preview researched and built by hand</li>
+      <li>Originally from Newcastle, Indiana</li>
+      <li>Every preview researched and built personally</li>
       <li>Plain pricing. No surprise fees.</li>
     </ul>
-    <p class="fd-muted" style="margin-top:14px;">Questions? Reply directly: <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+    <div class="fd-trust-contact">
+      <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a>
+      <?php if ($adamPhone !== ''): ?>
+        <span class="fd-trust-sep">&middot;</span>
+        <a href="tel:<?= ho_h(preg_replace('/\D/', '', $adamPhone)) ?>"><?= ho_h($adamPhone) ?></a>
+      <?php endif; ?>
+    </div>
   </section>
 
   <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
-  <section class="fd-section">
+  <section class="fd-section" id="services">
     <div class="fd-section-head">
       <p class="fd-kicker">What We Build</p>
       <h2>Five things, done right.</h2>
@@ -245,8 +270,8 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
   <section class="fd-card">
-    <p class="fd-kicker">What&rsquo;s Included</p>
-    <h2>Everything. No add-ons.</h2>
+    <p class="fd-kicker">Every Front Door Includes</p>
+    <h2>The full build. Nothing held back.</h2>
     <ul class="fd-feature-list">
       <?php foreach ($features as $f): ?>
         <li><?= ho_h($f) ?></li>
@@ -262,55 +287,117 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
     <p class="fd-muted">Included with your Front Door. Want your own domain &mdash; like <strong><?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?></strong>? We handle that too.</p>
   </section>
 
-  <!-- ── OFFER ────────────────────────────────────────────────────────────── -->
-  <section class="fd-card fd-offer">
-    <?php if ($isManaged): ?>
-      <p class="fd-kicker">The Offer</p>
-      <h2>Managed Front Door</h2>
-      <p class="fd-price">$999<span> &mdash; we handle everything</span></p>
-      <ul class="fd-offer-list">
-        <li>Built and launched for you, start to finish</li>
-        <li>Your services, reviews, and contact path &mdash; in one clean place</li>
-        <li>We keep it current &mdash; 3 months included, then $250/quarter</li>
-        <li>You run the business. We run the online side.</li>
-      </ul>
-    <?php else: ?>
-      <p class="fd-kicker">The Offer</p>
-      <h2>Standard Front Door</h2>
-      <p class="fd-price">$499<span> &mdash; yours in days, not weeks</span></p>
-      <ul class="fd-offer-list">
-        <li>Built and launched for you, start to finish</li>
-        <li>Your services, reviews, and contact path &mdash; clean and clear</li>
-        <li>1 year of hosting included. Renews at $250/year or $25/month.</li>
-        <li>No contracts. No surprises.</li>
-      </ul>
-    <?php endif; ?>
+  <!-- ── PACKAGE CONFIGURATOR ────────────────────────────────────────────── -->
+  <section class="fd-card fd-offer" id="pricing">
+    <p class="fd-kicker">Build Your Package</p>
+    <h2>Pick what you need.</h2>
 
-    <ol class="fd-offer-steps">
-      <li><strong>You say yes</strong> &mdash; reply to this email or tap the button below</li>
-      <li><strong>Quick call or back-and-forth</strong> &mdash; ~20 minutes to confirm your details</li>
-      <li><strong>You launch</strong> &mdash; your site goes live within a week</li>
-    </ol>
+    <div class="fd-pkg-builder">
 
-    <div class="fd-actions">
-      <a class="fd-btn fd-btn-primary"
-         href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Front Door for ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI saw the preview for {$name} and I'd like to move forward.\n\n") ?>">
-        Yes, Let&rsquo;s Build It
+      <!-- Base options -->
+      <div class="fd-pkg-options">
+        <label class="fd-pkg-option<?= !$isManaged ? ' is-selected' : '' ?>">
+          <input type="radio" name="pkg" value="499"<?= !$isManaged ? ' checked' : '' ?> onchange="fdUpdatePkg()">
+          <div class="fd-pkg-option-body">
+            <div class="fd-pkg-option-head">
+              <strong>Front Door</strong>
+              <span class="fd-pkg-price-tag">$499</span>
+            </div>
+            <p>Built and launched. Your site goes live within a week. 1 year of hosting included.</p>
+          </div>
+        </label>
+        <label class="fd-pkg-option<?= $isManaged ? ' is-selected' : '' ?>">
+          <input type="radio" name="pkg" value="999"<?= $isManaged ? ' checked' : '' ?> onchange="fdUpdatePkg()">
+          <div class="fd-pkg-option-body">
+            <div class="fd-pkg-option-head">
+              <strong>Managed Front Door</strong>
+              <span class="fd-pkg-price-tag">$999</span>
+            </div>
+            <p>Everything in Front Door, plus we keep it current &mdash; 3 months of updates included, then $250/quarter.</p>
+          </div>
+        </label>
+      </div>
+
+      <!-- Add-ons -->
+      <p class="fd-addon-label">Add-ons &mdash; bolt on what you want:</p>
+      <div class="fd-addon-list">
+        <label class="fd-addon-item">
+          <input type="checkbox" data-price="75" onchange="fdUpdatePkg()">
+          <div class="fd-addon-body">
+            <strong>Custom Domain</strong> <span class="fd-addon-price">+$75/yr</span>
+            <p>Your own .com (e.g., <?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?>) instead of .hoosieronline.com</p>
+          </div>
+        </label>
+        <label class="fd-addon-item">
+          <input type="checkbox" data-price="75" onchange="fdUpdatePkg()">
+          <div class="fd-addon-body">
+            <strong>Google Business Setup</strong> <span class="fd-addon-price">+$75</span>
+            <p>Full profile optimization &amp; verification &mdash; done right, once.</p>
+          </div>
+        </label>
+        <label class="fd-addon-item">
+          <input type="checkbox" data-price="150" onchange="fdUpdatePkg()">
+          <div class="fd-addon-body">
+            <strong>Logo / Wordmark</strong> <span class="fd-addon-price">+$150</span>
+            <p>Simple, clean logo design. Yours to keep forever.</p>
+          </div>
+        </label>
+        <label class="fd-addon-item">
+          <input type="checkbox" data-price="75" onchange="fdUpdatePkg()">
+          <div class="fd-addon-body">
+            <strong>Social Profile Setup</strong> <span class="fd-addon-price">+$75</span>
+            <p>Facebook &amp; Instagram &mdash; properly branded and linked to your site.</p>
+          </div>
+        </label>
+      </div>
+
+      <!-- Running total -->
+      <div class="fd-total-row">
+        <span>Your total:</span>
+        <strong id="fd-pkg-total"><?= $isManaged ? '$999' : '$499' ?></strong>
+      </div>
+      <p class="fd-total-note" id="fd-addon-note" style="display:none">Add-ons are invoiced separately after your Front Door launches.</p>
+
+      <!-- CTAs -->
+      <a class="fd-btn fd-btn-primary fd-stripe-btn" id="fd-buy-btn"
+         href="<?= ho_h($isManaged ? $stripeManaged : $stripeStandard) ?>">
+        Get Started &mdash; Pay Now &rarr;
       </a>
       <a class="fd-btn fd-btn-secondary"
          href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
-        I Have Questions
+        Have Questions?
       </a>
+
     </div>
 
-    <p class="fd-offer-guarantee">Not happy? Full refund within 30 days &mdash; no questions.</p>
-    <p class="fd-muted">Take it. Share it. Sleep on it &mdash; it&rsquo;ll still make sense in the morning.</p>
+    <p class="fd-offer-guarantee">Not happy after we launch? Full refund within 30 days &mdash; no questions.</p>
   </section>
+
+  <script>
+  var FD_STRIPE_STANDARD = <?= json_encode($stripeStandard) ?>;
+  var FD_STRIPE_MANAGED  = <?= json_encode($stripeManaged) ?>;
+  function fdUpdatePkg() {
+    var pkg = document.querySelector('input[name="pkg"]:checked');
+    var base = pkg ? parseInt(pkg.value, 10) : 499;
+    var addons = 0;
+    document.querySelectorAll('.fd-addon-list input[type="checkbox"]').forEach(function(cb) {
+      if (cb.checked) addons += parseInt(cb.dataset.price || '0', 10);
+    });
+    document.getElementById('fd-pkg-total').textContent = '$' + (base + addons).toLocaleString();
+    document.getElementById('fd-buy-btn').href = base >= 999 ? FD_STRIPE_MANAGED : FD_STRIPE_STANDARD;
+    var note = document.getElementById('fd-addon-note');
+    if (note) note.style.display = addons > 0 ? '' : 'none';
+    document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
+      var r = el.querySelector('input[type="radio"]');
+      el.classList.toggle('is-selected', !!(r && r.checked));
+    });
+  }
+  </script>
 
   <footer class="fd-footer">
     <strong><a href="/">Hoosier Online</a></strong><br>
     Front doors for Indiana&rsquo;s hardest-working businesses.<br>
-    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></span>
+    <span class="fd-footer-by">Built by Adam F. &middot; <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></span>
   </footer>
 
 <?php endif; ?>

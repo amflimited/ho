@@ -18,6 +18,33 @@ body.front-door-preview-page{
   color:var(--fd-ink);
   font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 }
+/* ── TOP NAV ─────────────────────────────────────────────────────────────── */
+.fd-nav{
+  position:sticky;top:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 18px;
+  background:rgba(255,250,241,.96);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--fd-line);
+}
+.fd-nav-brand{
+  font-size:14px;font-weight:900;color:var(--fd-green);
+  text-decoration:none;letter-spacing:-.01em;white-space:nowrap;flex-shrink:0;
+}
+.fd-nav-links{
+  display:flex;align-items:center;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+.fd-nav-links::-webkit-scrollbar{display:none}
+.fd-nav-links a{
+  font-size:12px;font-weight:600;color:var(--fd-ink);
+  text-decoration:none;padding:6px 10px;border-radius:20px;white-space:nowrap;
+}
+.fd-nav-links a:hover{background:rgba(47,94,54,.08)}
+.fd-nav-cta{
+  background:var(--fd-green) !important;color:#fff !important;
+  font-weight:700 !important;padding:6px 14px !important;
+}
+
 .fd-shell{
   width:min(960px,100%);
   margin:0 auto;
@@ -678,5 +705,87 @@ body.front-door-preview-page{
 }
 .fd-offer-guarantee {
   font-size: 13px; font-style: italic;
-  color: var(--fd-green); margin-top: 14px; margin-bottom: 4px;
+  color: var(--fd-green); margin-top: 20px; margin-bottom: 0;
+}
+
+/* ── Trust contact line ──────────────────────────────────────────────────── */
+.fd-trust-contact{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-top:14px;font-size:14px;font-weight:600;
+}
+.fd-trust-contact a{color:var(--fd-green);text-decoration:none}
+.fd-trust-sep{color:var(--fd-muted)}
+
+/* ── Package configurator ────────────────────────────────────────────────── */
+.fd-pkg-builder{display:flex;flex-direction:column;gap:0;}
+
+.fd-pkg-options{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+
+.fd-pkg-option{
+  display:flex;align-items:flex-start;gap:14px;
+  border:2px solid var(--fd-line);border-radius:16px;padding:16px;
+  cursor:pointer;transition:border-color .15s,background .15s;
+}
+.fd-pkg-option input[type="radio"]{
+  margin-top:3px;flex-shrink:0;
+  accent-color:var(--fd-green);width:18px;height:18px;cursor:pointer;
+}
+.fd-pkg-option.is-selected{
+  border-color:var(--fd-green);
+  background:rgba(47,94,54,.06);
+}
+.fd-pkg-option-body{flex:1;}
+.fd-pkg-option-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  margin-bottom:4px;
+}
+.fd-pkg-option-head strong{font-size:16px;font-weight:700;color:var(--fd-ink);}
+.fd-pkg-price-tag{
+  font-size:18px;font-weight:800;color:var(--fd-green);white-space:nowrap;
+}
+.fd-pkg-option-body > p{
+  font-size:13px;color:var(--fd-muted);margin:0;line-height:1.5;
+}
+
+.fd-addon-label{
+  font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--fd-muted);
+  margin:0 0 10px;
+}
+.fd-addon-list{display:flex;flex-direction:column;gap:2px;margin-bottom:20px;}
+
+.fd-addon-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 14px;border-radius:12px;cursor:pointer;
+  transition:background .12s;
+}
+.fd-addon-item:hover{background:rgba(47,94,54,.05);}
+.fd-addon-item input[type="checkbox"]{
+  margin-top:3px;flex-shrink:0;
+  accent-color:var(--fd-green);width:17px;height:17px;cursor:pointer;
+}
+.fd-addon-body{flex:1;}
+.fd-addon-body strong{font-size:14px;font-weight:700;color:var(--fd-ink);}
+.fd-addon-price{
+  font-size:13px;font-weight:700;color:var(--fd-green);margin-left:6px;
+}
+.fd-addon-body > p{
+  font-size:12px;color:var(--fd-muted);margin:2px 0 0;line-height:1.4;
+}
+
+.fd-total-row{
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--fd-line);
+  padding:14px 0 4px;margin-bottom:4px;
+}
+.fd-total-row span{font-size:14px;font-weight:600;color:var(--fd-muted);}
+.fd-total-row strong{font-size:24px;font-weight:800;color:var(--fd-ink);}
+
+.fd-total-note{
+  font-size:12px;color:var(--fd-muted);margin-bottom:18px;
+}
+
+.fd-stripe-btn{
+  font-size:17px !important;padding:16px 20px !important;
+  letter-spacing:.01em;
 }
