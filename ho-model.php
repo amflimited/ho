@@ -582,7 +582,7 @@ function ho_mark_sent(PDO $pdo, int $businessId, string $sentVia, string $sentTo
 
 function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
     $s = $pdo->prepare("
-        SELECT b.*, c.name AS category_name, c.typical_services,
+        SELECT b.*, c.name AS category_name, c.slug AS category_slug, c.typical_services,
                p.id AS preview_id, p.headline, p.subheadline,
                p.services_display, p.opportunity_statement, p.package_recommendation,
                p.preview_status, p.view_count,
@@ -606,6 +606,92 @@ function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
     }
 
     return $row;
+}
+
+// ─── Product content (preview deliverables) ────────────────────────────────────
+
+/**
+ * Map a category slug to its recommended design direction.
+ * Families from buildsystem.php: Clean Local Pro, Bold Work Truck,
+ * Warm Neighborhood, Sharp Modern, Simple Menu Board.
+ */
+function ho_design_direction(string $slug): array {
+    $families = [
+        'clean_local_pro' => ['name' => 'Clean Local Pro',   'feel' => 'Clean, trustworthy, and simple — built to make customers feel confident the moment they land.'],
+        'bold_work_truck' => ['name' => 'Bold Work Truck',    'feel' => 'Strong, direct, and practical — work-ready styling that matches how you actually get the job done.'],
+        'warm_neighborhood' => ['name' => 'Warm Neighborhood','feel' => 'Warm, personal, and local — the feel of a trusted name your neighbors already know.'],
+        'sharp_modern'    => ['name' => 'Sharp Modern',       'feel' => 'Sleek, visual, and polished — a premium look that lets your work speak for itself.'],
+    ];
+
+    $map = [
+        'lawn_care' => 'bold_work_truck', 'handyman' => 'bold_work_truck',
+        'pressure_washing' => 'bold_work_truck', 'junk_removal' => 'bold_work_truck',
+        'snow_removal' => 'bold_work_truck', 'tree_service' => 'bold_work_truck',
+        'gutter_cleaning' => 'bold_work_truck', 'deck_fence' => 'bold_work_truck',
+        'concrete_work' => 'bold_work_truck', 'small_engine' => 'bold_work_truck',
+        'moving' => 'bold_work_truck', 'landscaping' => 'bold_work_truck',
+        'garage_door' => 'bold_work_truck', 'roof_cleaning' => 'bold_work_truck',
+        'house_cleaning' => 'clean_local_pro', 'painting' => 'clean_local_pro',
+        'carpet_cleaning' => 'clean_local_pro', 'window_cleaning' => 'clean_local_pro',
+        'chimney_sweep' => 'clean_local_pro', 'appliance_repair' => 'clean_local_pro',
+        'pool_service' => 'clean_local_pro', 'pest_control' => 'clean_local_pro',
+        'flooring' => 'clean_local_pro',
+        'pet_grooming' => 'warm_neighborhood', 'pet_care' => 'warm_neighborhood',
+        'mobile_detailing' => 'sharp_modern', 'carpentry' => 'sharp_modern',
+    ];
+
+    $key = $map[$slug] ?? 'clean_local_pro';
+    return $families[$key];
+}
+
+/** Suggest a clean Hoosier Online subdomain from the business name. */
+function ho_suggest_subdomain(string $name): string {
+    $s = strtolower(trim($name));
+    $s = preg_replace('/&/', 'and', $s) ?? $s;
+    $s = preg_replace('/\b(llc|inc|co|company|the|services|service)\b/', '', $s) ?? $s;
+    $s = preg_replace('/[^a-z0-9]+/', '', $s) ?? $s;
+    $s = substr($s, 0, 24);
+    return ($s !== '' ? $s : 'yourbusiness') . '.hoosieronline.com';
+}
+
+/** The five Front Door modules every build includes (from product.php). */
+function ho_product_modules(): array {
+    return [
+        ['title' => 'Your Front Page',     'desc' => 'Your name, what you do, where you work, and one clear button to reach you — understood in seconds.'],
+        ['title' => 'Services & Offers',   'desc' => 'Everything customers can hire you for, laid out clean so nothing gets missed.'],
+        ['title' => 'Proof & Photos',      'desc' => 'Your work, before-and-afters, and reviews — so new customers trust you before they call.'],
+        ['title' => 'Contact & Requests',  'desc' => 'A simple form that sends jobs straight to you. No app, no login, no friction for the customer.'],
+        ['title' => 'Booking & Payment',   'desc' => 'Let customers request a time and pay a deposit when it makes sense — only when you want it.'],
+    ];
+}
+
+/** Everything included in a Front Door (from product.php). */
+function ho_product_features(): array {
+    return [
+        'Hosted business page, built for phones',
+        'Click-to-call and contact form',
+        'Google, Facebook & social links',
+        'Photo gallery / work display',
+        'Booking or request path',
+        'Payment / deposit link when needed',
+        'Cleanup of old or broken info',
+        'Your own web address',
+    ];
+}
+
+/** Pick a sales-doctrine angle headline based on the research data. */
+function ho_sales_angle(array $row): string {
+    $hasWebsite = (bool)($row['has_website'] ?? false);
+    $hasGoogle  = (bool)($row['has_google_business'] ?? false);
+    $reviews    = (int)($row['google_review_count'] ?? 0);
+    $websiteQ   = (string)($row['website_quality'] ?? 'none');
+
+    if (!$hasWebsite && !$hasGoogle)                       return 'Customers may have a hard time finding one clear place for your business online.';
+    if ($hasGoogle && $reviews > 0 && in_array($websiteQ, ['none','poor'], true))
+                                                            return 'Your business looks active and well-reviewed — but the online presentation doesn’t match the quality of your work.';
+    if ($hasWebsite && $websiteQ === 'poor')              return 'People can find you, but the path to actually reaching you is harder than it should be.';
+    if (!$hasWebsite)                                      return 'You have work worth showing, but customers don’t have one clean place to see it.';
+    return 'The pieces are out there, but the online path is scattered and could use a cleanup.';
 }
 
 // ─── Recent activity ──────────────────────────────────────────────────────────

@@ -39,6 +39,12 @@ $hasGoogle    = (bool)($row['has_google_business'] ?? false);
 $serviceArea  = (string)($row['service_area_text'] ?? ($city !== '' ? $city . ' & surrounding area' : 'Indiana'));
 $isManaged    = $package === 'managed';
 
+$design       = $row ? ho_design_direction((string)($row['category_slug'] ?? '')) : ['name' => '', 'feel' => ''];
+$subdomain    = $row ? ho_suggest_subdomain($name) : '';
+$modules      = ho_product_modules();
+$features     = ho_product_features();
+$angle        = $row ? ho_sales_angle($row) : '';
+
 // Phone display + tel link
 $telRaw = preg_replace('/\D/', '', $phone) ?? '';
 $telDisplay = $phone;
@@ -79,7 +85,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <!-- ══ THE MOCKUP — their actual front door ═══════════════════════════════ -->
   <section class="fd-mock">
-    <div class="fd-mock-badge">Preview</div>
+    <div class="fd-mock-badge">Preview<?= $design['name'] !== '' ? ' &middot; ' . ho_h($design['name']) : '' ?></div>
 
     <div class="fd-mock-hero">
       <p class="fd-mock-eyebrow"><?= ho_h($catName) ?><?= $city !== '' ? ' &middot; ' . ho_h($city) . ', IN' : '' ?></p>
@@ -127,10 +133,12 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
     <p>Clean, fast, and built for a phone &mdash; because that&rsquo;s where your customers are looking. No clutter. Just your name, your services, and an easy way to reach you.</p>
   </section>
 
-  <!-- ── WHY NOW (gaps, light) ────────────────────────────────────────────── -->
-  <?php if (!empty($opp) || !empty($gaps)): ?>
+  <!-- ── WHY WE REACHED OUT (doctrine angle + gaps) ───────────────────────── -->
   <section class="fd-card">
     <p class="fd-kicker">Why We Reached Out</p>
+    <?php if ($angle !== ''): ?>
+      <p class="fd-why"><?= ho_h($angle) ?></p>
+    <?php endif; ?>
     <?php if (!empty($opp)): ?>
       <p class="fd-why"><?= ho_h($opp) ?></p>
     <?php endif; ?>
@@ -142,7 +150,54 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
       </ul>
     <?php endif; ?>
   </section>
+
+  <!-- ── RECOMMENDED DESIGN ───────────────────────────────────────────────── -->
+  <?php if ($design['name'] !== ''): ?>
+  <section class="fd-card fd-design">
+    <p class="fd-kicker">Recommended Design</p>
+    <h2><?= ho_h($design['name']) ?></h2>
+    <p class="fd-design-feel"><?= ho_h($design['feel']) ?></p>
+    <p class="fd-muted">Picked to fit a <?= ho_h(strtolower($catName)) ?> business. We can adjust the look to your taste before launch.</p>
+  </section>
   <?php endif; ?>
+
+  <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
+  <section class="fd-section">
+    <div class="fd-section-head">
+      <p class="fd-kicker">What You Get</p>
+      <h2>Your Front Door, module by module</h2>
+    </div>
+    <div class="fd-module-list">
+      <?php foreach ($modules as $i => $m): ?>
+        <div class="fd-module">
+          <span class="fd-module-num"><?= $i + 1 ?></span>
+          <div>
+            <strong><?= ho_h($m['title']) ?></strong>
+            <p><?= ho_h($m['desc']) ?></p>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
+  <section class="fd-card">
+    <p class="fd-kicker">Everything Included</p>
+    <h2>No add-ons, no surprises</h2>
+    <ul class="fd-feature-list">
+      <?php foreach ($features as $f): ?>
+        <li><?= ho_h($f) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </section>
+
+  <!-- ── YOUR WEB ADDRESS ─────────────────────────────────────────────────── -->
+  <section class="fd-card fd-domain">
+    <p class="fd-kicker">Your Web Address</p>
+    <h2>Live the day we launch</h2>
+    <p class="fd-domain-name"><?= ho_h($subdomain) ?></p>
+    <p class="fd-muted">Comes free with your Front Door. Want your own custom domain like <strong><?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?></strong>? We&rsquo;ll set that up for you too.</p>
+  </section>
 
   <!-- ── OFFER ────────────────────────────────────────────────────────────── -->
   <section class="fd-card fd-offer">
