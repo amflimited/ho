@@ -841,11 +841,11 @@ function ho_generate_contact_prompt(array $businesses): string {
     $list = '';
     foreach ($businesses as $i => $b) {
         $n = $i + 1;
-        $list .= "{$n}. {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN\n";
+        $list .= "{$n}. [ID:{$b['id']}] {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN\n";
     }
 
     return <<<PROMPT
-Find contact information for these Indiana local service businesses. For each, find an email address and/or website URL. A website with a contact form counts.
+Find contact information for these Indiana local service businesses. For each, find an email address and/or website URL. A website with a contact form counts. Return a result for EVERY business listed, even if you find nothing.
 
 Businesses:
 {$list}
@@ -854,6 +854,7 @@ Return ONLY valid JSON:
 {
   "contacts": [
     {
+      "business_id": 0,
       "raw_name": "Exact business name from the list above",
       "email": "owner@example.com or empty string",
       "website_url": "https://example.com or empty string",
@@ -864,8 +865,9 @@ Return ONLY valid JSON:
 }
 
 Rules:
+- business_id: copy the [ID:N] number exactly from the list above for each business
+- Return an entry for every business — use empty strings if nothing is found
 - Only include information you are confident is current and accurate
-- Leave fields as empty strings if not found
 - Return ONLY valid JSON, no explanation, no markdown fences.
 PROMPT;
 }
@@ -879,33 +881,51 @@ function ho_import_contact_json(PDO $pdo, string $rawJson): array {
 
     foreach ($contacts as $c) {
         if (!is_array($c)) continue;
-        $name = trim((string)($c['raw_name'] ?? ''));
-        if ($name === '') continue;
+        $name  = trim((string)($c['raw_name']    ?? ''));
+        $bizId = (int)($c['business_id'] ?? 0);
+
+        if ($name === '' && $bizId === 0) continue;
 
         $email   = strtolower(trim((string)($c['email']       ?? '')));
         $website = trim((string)($c['website_url'] ?? ''));
         $phone   = ho_norm_phone((string)($c['phone'] ?? ''));
 
-        if ($email === '' && $website === '' && $phone === '') continue;
+        $bizRow = null;
 
-        $biz = $pdo->prepare("SELECT id FROM businesses WHERE business_name = ? AND pipeline_status = 'needs_contact' LIMIT 1");
-        $biz->execute([$name]);
-        $bizRow = $biz->fetch();
+        // 1. Match by database ID echoed back from prompt
+        if ($bizId > 0) {
+            $s = $pdo->prepare("SELECT id FROM businesses WHERE id = ? AND pipeline_status = 'needs_contact' LIMIT 1");
+            $s->execute([$bizId]);
+            $bizRow = $s->fetch() ?: null;
+        }
+
+        // 2. Case-insensitive name fallback
+        if (!$bizRow && $name !== '') {
+            $s = $pdo->prepare("SELECT id FROM businesses WHERE LOWER(business_name) = LOWER(?) AND pipeline_status = 'needs_contact' LIMIT 1");
+            $s->execute([$name]);
+            $bizRow = $s->fetch() ?: null;
+        }
 
         if (!$bizRow) {
-            $errors[] = "Not found: {$name}";
+            if ($name !== '' || $bizId > 0) {
+                $errors[] = "Not found: {$name}" . ($bizId > 0 ? " (ID:{$bizId})" : '');
+            }
             continue;
         }
 
-        $bizId  = (int)$bizRow['id'];
+        $resolvedId = (int)$bizRow['id'];
         $fields = [];
         $params = [];
         if ($email   !== '') { $fields[] = 'email_address = ?'; $params[] = $email; }
         if ($website !== '') { $fields[] = 'website_url = ?';   $params[] = $website; }
         if ($phone   !== '') { $fields[] = 'phone_number = ?';  $params[] = $phone; }
+
+        // Always advance out of needs_contact — even with no contact found.
+        // Looping forever on unfindable businesses is worse than surfacing
+        // them once in the send queue where they can be manually excluded.
         $fields[] = "pipeline_status = 'preview_ready'";
         $fields[] = 'updated_at = NOW()';
-        $params[] = $bizId;
+        $params[] = $resolvedId;
 
         $pdo->prepare("UPDATE businesses SET " . implode(', ', $fields) . " WHERE id = ?")
             ->execute($params);
