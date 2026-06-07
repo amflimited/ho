@@ -1,0 +1,6 @@
+<?php /* House Cleaning — eco_clean */ ?>
+<section class="fd-mock fd-hc-eco-clean">
+  <div class="fd-jrt-wrap">
+    <img src="/assets/img/tpl/hc-eco-clean.png" class="fd-jrt-img" alt="House cleaning website preview">
+  </div>
+</section>

@@ -1,0 +1,12 @@
+[
+  {"key": "luxury_gold",     "label": "Luxury Gold",   "color": "#8a6a20"},
+  {"key": "neighbors_trust", "label": "Neighbors",     "color": "#1e5fa0"},
+  {"key": "exhale_pink",     "label": "Exhale",        "color": "#d4507a"},
+  {"key": "city_spotless",   "label": "City",          "color": "#2a3a4a"},
+  {"key": "eco_clean",       "label": "Eco",           "color": "#2d6a2d"},
+  {"key": "feel_good",       "label": "Feel Good",     "color": "#d45060"},
+  {"key": "fit_life",        "label": "Fit Life",      "color": "#1e5fa0"},
+  {"key": "fast_clean",      "label": "Fast",          "color": "#c8a020"},
+  {"key": "white_glove",     "label": "White Glove",   "color": "#b8960a"},
+  {"key": "starts_here",     "label": "Starts Here",   "color": "#1e6080"}
+]
