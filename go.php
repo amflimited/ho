@@ -115,7 +115,7 @@ $stripeErr  = $errCode !== '';
   <section class="fd-card fd-paid-banner">
     <p class="fd-kicker">Payment received</p>
     <h2>You&rsquo;re in.</h2>
-    <p>Adam will review your order and reach out within 24 hours to kick things off. Check your email for a receipt from Stripe.</p>
+    <p>Your site will be live within 24 hours. Watch your email for your URL. Check your Stripe receipt for a payment confirmation.</p>
     <p class="fd-muted">Questions in the meantime? <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
   </section>
   <?php endif; ?>
@@ -425,9 +425,9 @@ $stripeErr  = $errCode !== '';
 
     <p class="fd-kicker" style="margin-top:20px;margin-bottom:10px">What happens next</p>
     <ol class="fd-offer-steps">
-      <li>Click below &mdash; takes 2 minutes to confirm your order</li>
-      <li>Adam reaches out within 24 hours to nail down the details</li>
-      <li>Your site goes live within a week, ready to take calls</li>
+      <li>Click below &mdash; payment takes 2 minutes</li>
+      <li>Your site is built and live within 24 hours</li>
+      <li>You get your URL &mdash; ready to take calls</li>
     </ol>
 
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
