@@ -236,35 +236,80 @@ if (!empty($unresearched)) {
 
   <?php endif; ?>
 
-  <?php if (!empty($coverage)): ?>
+  <?php
+  // ── Coverage map ────────────────────────────────────────────────────────
+  $covMap = [];
+  foreach ($coverage as $row) {
+      $covMap[(string)$row['category_name']][(string)$row['area_query']] = $row;
+  }
+  $allRegions  = array_keys(ho_indiana_regions());
+  $regionAbbr  = [
+      'Indianapolis Metro'         => 'Indianapolis',
+      'Fort Wayne Area'            => 'Fort Wayne',
+      'South Bend / Mishawaka'     => 'South Bend',
+      'Northwest Indiana'          => 'NW Indiana',
+      'Evansville Area'            => 'Evansville',
+      'Lafayette / West Lafayette' => 'Lafayette',
+      'Bloomington Area'           => 'Bloomington',
+      'Muncie / Anderson'          => 'Muncie',
+      'Terre Haute Area'           => 'Terre Haute',
+      'Kokomo / Logansport'        => 'Kokomo',
+      'Columbus / Bartholomew'     => 'Columbus',
+      'Richmond / East Central'    => 'Richmond',
+      'Southern Indiana'           => 'Southern IN',
+  ];
+  $tplCatNames = array_column($templatedCategories, 'name');
+  $showCats    = array_unique(array_merge(array_keys($covMap), $tplCatNames));
+  sort($showCats);
+  ?>
+  <?php if (!empty($showCats)): ?>
   <section class="cp-section">
-    <h2 class="cp-sh" style="font-size:14px;margin-bottom:10px;">Coverage &amp; saturation</h2>
-    <div class="cp-coverage-table">
-      <div class="cp-cov-head">
-        <span>Category &amp; Region</span>
-        <span>Runs</span>
-        <span>Total found</span>
-        <span>Last yield</span>
-        <span>Last run</span>
+    <h2 class="cp-sh" style="font-size:13px;margin-bottom:10px;letter-spacing:.08em;">Region coverage</h2>
+
+    <?php foreach ($showCats as $catName):
+      $regMap    = $covMap[$catName] ?? [];
+      $totRuns   = array_sum(array_column($regMap, 'run_count'));
+      $totFound  = array_sum(array_column($regMap, 'total_found'));
+      $sourced   = count($regMap);
+      $remaining = count($allRegions) - $sourced;
+    ?>
+    <div class="cp-cov-card">
+      <div class="cp-cov-card-head">
+        <strong><?= ho_h($catName) ?></strong>
+        <?php if ($totRuns > 0): ?>
+          <span><?= $totRuns ?> run<?= $totRuns !== 1 ? 's' : '' ?> &middot; <?= $totFound ?> leads &middot; <?= $sourced ?>/<?= count($allRegions) ?> regions</span>
+        <?php else: ?>
+          <span class="cp-cov-unsourced">not yet sourced</span>
+        <?php endif; ?>
       </div>
-      <?php foreach ($coverage as $row):
-        $lastYield = (int)$row['last_yield'];
-        $totalFound = (int)$row['total_found'];
-        $runCount   = (int)$row['run_count'];
-        $satClass   = $lastYield <= 3 ? ' cp-cov-dry' : ($lastYield <= 7 ? ' cp-cov-low' : '');
-        $daysAgo    = $row['last_run'] ? (int)floor((time() - strtotime($row['last_run'])) / 86400) : null;
-        $when       = $daysAgo === null ? '—' : ($daysAgo === 0 ? 'Today' : ($daysAgo === 1 ? 'Yesterday' : $daysAgo . 'd ago'));
-      ?>
-      <div class="cp-cov-row<?= $satClass ?>">
-        <span><strong><?= ho_h((string)$row['category_name']) ?></strong> &middot; <?= ho_h((string)$row['area_query']) ?></span>
-        <span><?= $runCount ?></span>
-        <span><?= $totalFound ?></span>
-        <span class="cp-cov-yield"><?= $lastYield ?><?= $satClass === ' cp-cov-dry' ? ' ⚠' : '' ?></span>
-        <span><?= ho_h($when) ?></span>
+      <div class="cp-cov-regions">
+        <?php foreach ($allRegions as $region):
+          $row = $regMap[$region] ?? null;
+          if ($row) {
+              $ly = (int)$row['last_yield'];
+              if     ($ly >= 10) $st = 'active';
+              elseif ($ly >= 5)  $st = 'slowing';
+              elseif ($ly >= 1)  $st = 'low';
+              else               $st = 'dry';
+          } else { $ly = null; $st = 'new'; }
+          $abbr = $regionAbbr[$region] ?? $region;
+        ?>
+          <span class="cp-cov-pill cp-cov-<?= $st ?>" title="<?= ho_h($region) ?><?= $row ? ' — last yield: ' . $ly : '' ?>">
+            <?= ho_h($abbr) ?><?php if ($ly !== null): ?><em><?= $ly ?></em><?php endif; ?>
+          </span>
+        <?php endforeach; ?>
       </div>
-      <?php endforeach; ?>
     </div>
-    <p class="cp-hint" style="margin-top:8px;">Last yield ≤ 3 <span style="color:#b06212">⚠</span> = likely saturated. Consider a different region or expanding search terms.</p>
+    <?php endforeach; ?>
+
+    <div class="cp-cov-legend">
+      <span class="cp-cov-pill cp-cov-active">Active</span>
+      <span class="cp-cov-pill cp-cov-slowing">Slowing</span>
+      <span class="cp-cov-pill cp-cov-low">Low</span>
+      <span class="cp-cov-pill cp-cov-dry">Dry</span>
+      <span class="cp-cov-pill cp-cov-new">Untouched</span>
+      <span class="cp-cov-legend-note">pill number = last run yield</span>
+    </div>
   </section>
   <?php endif; ?>
 
