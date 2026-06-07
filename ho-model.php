@@ -140,8 +140,9 @@ function ho_pipeline_counts(PDO $pdo): array {
           SUM(pipeline_status = 'preview_ready') AS preview_ready,
           SUM(pipeline_status = 'pitched')       AS pitched,
           SUM(pipeline_status = 'converted')     AS converted,
+          SUM(pipeline_status = 'needs_contact') AS needs_contact,
           SUM(pipeline_status = 'excluded')      AS excluded,
-          SUM(pipeline_status != 'excluded')     AS total
+          SUM(pipeline_status NOT IN ('excluded')) AS total
         FROM businesses
     ")->fetch();
     return [
@@ -149,9 +150,10 @@ function ho_pipeline_counts(PDO $pdo): array {
         'researched'   => (int)($row['researched']   ?? 0),
         'preview_ready'=> (int)($row['preview_ready']?? 0),
         'pitched'      => (int)($row['pitched']      ?? 0),
-        'converted'    => (int)($row['converted']    ?? 0),
-        'excluded'     => (int)($row['excluded']     ?? 0),
-        'total'        => (int)($row['total']        ?? 0),
+        'converted'     => (int)($row['converted']     ?? 0),
+        'needs_contact' => (int)($row['needs_contact'] ?? 0),
+        'excluded'      => (int)($row['excluded']      ?? 0),
+        'total'         => (int)($row['total']         ?? 0),
     ];
 }
 
@@ -698,8 +700,17 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
         $package,
     ]);
 
-    $pdo->prepare("UPDATE businesses SET pipeline_status = 'preview_ready', updated_at = NOW() WHERE id = ?")
-        ->execute([$businessId]);
+    // Route: no email and no website → needs one more research pass for contact info
+    $hasOnlineContact = (string)$row['email_address'] !== ''
+        || (string)$row['website_url']  !== '';
+    $hasAnyContact    = $hasOnlineContact
+        || (string)$row['facebook_url'] !== ''
+        || (string)$row['phone_number'] !== '';
+
+    $newStatus = $hasAnyContact ? 'preview_ready' : 'needs_contact';
+
+    $pdo->prepare("UPDATE businesses SET pipeline_status = ?, updated_at = NOW() WHERE id = ?")
+        ->execute([$newStatus, $businessId]);
 
     return true;
 }
@@ -765,6 +776,135 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
         . '?subject=' . rawurlencode($subject)
         . '&body='    . rawurlencode($body);
 }
+
+// ─── Needs-contact channel ────────────────────────────────────────────────────
+
+function ho_get_needs_contact_businesses(PDO $pdo, int $limit = 20): array {
+    $s = $pdo->prepare("
+        SELECT b.*, c.name AS category_name
+        FROM businesses b
+        JOIN categories c ON c.id = b.category_id
+        WHERE b.pipeline_status = 'needs_contact'
+        ORDER BY b.created_at ASC
+        LIMIT " . (int)$limit . "
+    ");
+    $s->execute([]);
+    return $s->fetchAll();
+}
+
+function ho_generate_contact_prompt(array $businesses): string {
+    $list = '';
+    foreach ($businesses as $i => $b) {
+        $n = $i + 1;
+        $list .= "{$n}. {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN\n";
+    }
+
+    return <<<PROMPT
+Find contact information for these Indiana local service businesses. For each, find an email address and/or website URL. A website with a contact form counts.
+
+Businesses:
+{$list}
+Return ONLY valid JSON:
+
+{
+  "contacts": [
+    {
+      "raw_name": "Exact business name from the list above",
+      "email": "owner@example.com or empty string",
+      "website_url": "https://example.com or empty string",
+      "phone": "10 digits or empty string",
+      "notes": "where you found this, or empty string"
+    }
+  ]
+}
+
+Rules:
+- Only include information you are confident is current and accurate
+- Leave fields as empty strings if not found
+- Return ONLY valid JSON, no explanation, no markdown fences.
+PROMPT;
+}
+
+function ho_import_contact_json(PDO $pdo, string $rawJson): array {
+    $data     = json_decode(ho_clean_json($rawJson), true, 512, JSON_THROW_ON_ERROR);
+    $contacts = $data['contacts'] ?? (array_is_list($data) ? $data : []);
+
+    $updated = 0;
+    $errors  = [];
+
+    foreach ($contacts as $c) {
+        if (!is_array($c)) continue;
+        $name = trim((string)($c['raw_name'] ?? ''));
+        if ($name === '') continue;
+
+        $email   = strtolower(trim((string)($c['email']       ?? '')));
+        $website = trim((string)($c['website_url'] ?? ''));
+        $phone   = ho_norm_phone((string)($c['phone'] ?? ''));
+
+        if ($email === '' && $website === '' && $phone === '') continue;
+
+        $biz = $pdo->prepare("SELECT id FROM businesses WHERE business_name = ? AND pipeline_status = 'needs_contact' LIMIT 1");
+        $biz->execute([$name]);
+        $bizRow = $biz->fetch();
+
+        if (!$bizRow) {
+            $errors[] = "Not found: {$name}";
+            continue;
+        }
+
+        $bizId  = (int)$bizRow['id'];
+        $fields = [];
+        $params = [];
+        if ($email   !== '') { $fields[] = 'email_address = ?'; $params[] = $email; }
+        if ($website !== '') { $fields[] = 'website_url = ?';   $params[] = $website; }
+        if ($phone   !== '') { $fields[] = 'phone_number = ?';  $params[] = $phone; }
+        $fields[] = "pipeline_status = 'preview_ready'";
+        $fields[] = 'updated_at = NOW()';
+        $params[] = $bizId;
+
+        $pdo->prepare("UPDATE businesses SET " . implode(', ', $fields) . " WHERE id = ?")
+            ->execute($params);
+
+        $updated++;
+    }
+
+    return ['updated' => $updated, 'errors' => $errors];
+}
+
+// ─── Dashboard data ───────────────────────────────────────────────────────────
+
+function ho_dashboard_data(PDO $pdo): array {
+    try {
+        $cats = $pdo->query("
+            SELECT c.name,
+                SUM(b.pipeline_status IN ('identified','needs_contact','researched')) AS queue,
+                SUM(b.pipeline_status = 'preview_ready')                              AS ready,
+                SUM(b.pipeline_status = 'pitched')                                   AS sent,
+                SUM(b.pipeline_status = 'converted')                                 AS won,
+                COUNT(*)                                                              AS total
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            WHERE b.pipeline_status != 'excluded'
+            GROUP BY c.id ORDER BY total DESC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $regionLeads = $pdo->query("
+            SELECT location_city, COUNT(*) AS total,
+                SUM(pipeline_status = 'preview_ready') AS ready,
+                SUM(pipeline_status = 'pitched') AS sent,
+                SUM(pipeline_status = 'converted') AS won
+            FROM businesses
+            WHERE pipeline_status NOT IN ('excluded','needs_contact')
+            GROUP BY location_city
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        return ['categories' => $cats, 'region_leads' => $regionLeads];
+    } catch (Throwable) {
+        return ['categories' => [], 'region_leads' => []];
+    }
+}
+
+// ─── Send queue ───────────────────────────────────────────────────────────────
 
 function ho_mark_sent(PDO $pdo, int $businessId, string $sentVia, string $sentTo): void {
     $previewId = null;

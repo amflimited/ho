@@ -60,6 +60,15 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=send&flash=' . urlencode('Marked as sent.'));
                 exit;
 
+            case 'import_contact_research':
+                $rawJson = trim((string)($_POST['result_json'] ?? ''));
+                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
+                $result = ho_import_contact_json($pdo, $rawJson);
+                $msg    = "Updated {$result['updated']} businesses.";
+                if (!empty($result['errors'])) $msg .= ' Issues: ' . implode('; ', $result['errors']);
+                header('Location: ?tab=research&flash=' . urlencode($msg));
+                exit;
+
             case 'exclude_business':
                 $bizId  = (int)($_POST['business_id'] ?? 0);
                 $reason = trim((string)($_POST['reason'] ?? 'franchise'));
@@ -81,7 +90,7 @@ $runId    = (int)($_GET['run_id']           ?? 0);
 $flashMsg = trim((string)($_GET['flash']   ?? ''));
 $errorMsg = trim((string)($_GET['error']   ?? ''));
 
-$counts = $pdo ? ho_pipeline_counts($pdo) : ['identified'=>0,'researched'=>0,'preview_ready'=>0,'pitched'=>0,'converted'=>0,'total'=>0];
+$counts = $pdo ? ho_pipeline_counts($pdo) : ['identified'=>0,'researched'=>0,'preview_ready'=>0,'pitched'=>0,'converted'=>0,'needs_contact'=>0,'excluded'=>0,'total'=>0];
 $job    = ho_current_job($counts);
 if ($tab === '') $tab = $job;
 
@@ -90,6 +99,9 @@ $resCatId      = (int)($_GET['research_cat_id'] ?? 0);
 $unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 25, $resCatId) : [];
 $resCatCounts     = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $unresearched) : [];
+$needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 20) : [];
+$needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
+$dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
 
 $coverage = $pdo ? ho_source_coverage($pdo) : [];
@@ -145,7 +157,7 @@ if (!empty($unresearched)) {
 
 <header class="cp-topbar">
   <div class="cp-brand">HO</div>
-  <div class="cp-telemetry">
+  <div class="cp-telemetry" onclick="openDash()" title="View dashboard">
     <span class="cp-stat<?= $counts['identified']    > 0 ? ' cp-hi' : '' ?>"><em><?= $counts['identified']    ?></em>LEADS</span>
     <span class="cp-stat<?= $counts['preview_ready'] > 0 ? ' cp-hot' : '' ?>"><em><?= $counts['preview_ready'] ?></em>READY</span>
     <span class="cp-stat"><em><?= $counts['pitched']    ?></em>SENT</span>
@@ -438,6 +450,37 @@ if (!empty($unresearched)) {
 
   <?php endif; ?>
 
+  <?php if (!empty($needsContactBatch)): ?>
+  <section class="cp-section cp-section-contact">
+    <div class="cp-step">Contact Research</div>
+    <h2 class="cp-sh">Find contact info</h2>
+    <p class="cp-hint"><?= count($needsContactBatch) ?> businesses with no email or website on file — GPT can find them.</p>
+    <div class="cp-prompt-box">
+      <pre id="contactPrompt" class="cp-prompt"><?= ho_h($needsContactPrompt) ?></pre>
+      <button class="cp-copy" onclick="doCopy('contactPrompt',this)">Copy</button>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="action" value="import_contact_research">
+      <input type="hidden" name="tab" value="research">
+      <textarea class="cp-textarea" name="result_json" rows="5" placeholder='{"contacts":[{"raw_name":"…","email":"…","website_url":"…"}]}'></textarea>
+      <button class="cp-btn-primary" type="submit">Import Contact Info</button>
+    </form>
+    <details style="margin-top:10px">
+      <summary class="cp-hint" style="cursor:pointer">Show <?= count($needsContactBatch) ?> businesses</summary>
+      <ul class="cp-biz-list" style="margin-top:8px">
+        <?php foreach ($needsContactBatch as $b): ?>
+          <li class="cp-biz-row">
+            <div class="cp-biz-info">
+              <strong><?= ho_h((string)$b['business_name']) ?></strong>
+              <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+            </div>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    </details>
+  </section>
+  <?php endif; ?>
+
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'send'): ?>
 
@@ -469,8 +512,20 @@ if (!empty($unresearched)) {
         </select>
       </div>
       <h2 class="cp-sh" id="sendCount"><?= count($sendQueue) ?> ready to send</h2>
+      <?php
+        // Partition: email/website first, phone/FB-only second
+        $sendPrimary   = [];
+        $sendSecondary = [];
+        foreach ($sendQueue as $b) {
+            if ((string)$b['email_address'] !== '' || (string)$b['website_url'] !== '') {
+                $sendPrimary[] = $b;
+            } else {
+                $sendSecondary[] = $b;
+            }
+        }
+      ?>
       <div class="cp-send-list" id="sendList">
-        <?php foreach ($sendQueue as $b):
+        <?php foreach ($sendPrimary as $b):
           $region     = $cityToRegion[(string)$b['location_city']] ?? '';
           $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
           $hasEmail   = (string)$b['email_address'] !== '';
@@ -541,6 +596,59 @@ if (!empty($unresearched)) {
 
           </div>
         <?php endforeach; ?>
+
+        <?php if (!empty($sendSecondary)): ?>
+        <details class="cp-send-later">
+          <summary>
+            <?= count($sendSecondary) ?> more lead<?= count($sendSecondary) !== 1 ? 's' : '' ?> — phone &amp; social only
+          </summary>
+          <?php foreach ($sendSecondary as $b):
+            $region     = $cityToRegion[(string)$b['location_city']] ?? '';
+            $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
+            $hasFb      = (string)$b['facebook_url'] !== '';
+            $hasPhone   = (string)$b['phone_number'] !== '';
+            $method     = (string)$b['best_contact_method'];
+          ?>
+            <div class="cp-send-card" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+              <div class="cp-send-head">
+                <div>
+                  <strong><?= ho_h((string)$b['business_name']) ?></strong>
+                  <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+                </div>
+                <div class="cp-send-meta">
+                  <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
+                </div>
+              </div>
+              <div class="cp-send-primary">
+                <?php if ($hasFb): ?>
+                  <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">Message on Facebook →</a>
+                <?php elseif ($hasPhone): ?>
+                  <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">Call <?= ho_h((string)$b['phone_number']) ?></a>
+                <?php endif; ?>
+              </div>
+              <div class="cp-send-secondary">
+                <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+                <details class="cp-sent-wrap">
+                  <summary class="cp-btn-outline">Mark Sent</summary>
+                  <form method="POST" class="cp-sent-form">
+                    <input type="hidden" name="action" value="mark_sent">
+                    <input type="hidden" name="tab" value="send">
+                    <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+                    <select class="cp-select" name="sent_via">
+                      <option value="facebook_dm"<?= $method === 'facebook' ? ' selected' : '' ?>>Facebook DM</option>
+                      <option value="phone"<?= $method === 'phone' ? ' selected' : '' ?>>Phone</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <input class="cp-input" type="text" name="sent_to" placeholder="handle / number" value="<?= ho_h((string)($b['facebook_url'] ?: $b['phone_number'] ?: '')) ?>">
+                    <button class="cp-btn-primary" type="submit">Confirm Sent</button>
+                  </form>
+                </details>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </details>
+        <?php endif; ?>
+
       </div>
     </section>
 
@@ -549,6 +657,157 @@ if (!empty($unresearched)) {
 <?php endif; ?>
 
 </main>
+
+<!-- ═══ DASHBOARD MODAL ══════════════════════════════════════════════════════ -->
+<div id="cpDash" class="cp-dash" hidden aria-modal="true">
+  <div class="cp-dash-backdrop" onclick="closeDash()"></div>
+  <div class="cp-dash-panel">
+    <div class="cp-dash-hd">
+      <span class="cp-dash-title">Pipeline Dashboard</span>
+      <button class="cp-dash-close" onclick="closeDash()">✕</button>
+    </div>
+    <div class="cp-dash-tabs" role="tablist">
+      <button class="cp-dash-tab is-active" onclick="dashTab('overview',this)">Overview</button>
+      <button class="cp-dash-tab" onclick="dashTab('map',this)">Map</button>
+      <button class="cp-dash-tab" onclick="dashTab('cats',this)">Categories</button>
+    </div>
+    <div class="cp-dash-body">
+
+      <!-- Overview -->
+      <div id="dashOverview" class="cp-dash-pane">
+        <div class="cp-dash-kpis">
+          <div class="cp-kpi"><em><?= $counts['total'] ?></em><span>Total leads</span></div>
+          <div class="cp-kpi cp-kpi-hot"><em><?= $counts['preview_ready'] ?></em><span>Ready to send</span></div>
+          <div class="cp-kpi"><em><?= $counts['pitched'] ?></em><span>Sent</span></div>
+          <div class="cp-kpi cp-kpi-win"><em><?= $counts['converted'] ?></em><span>Won</span></div>
+          <?php if ($counts['needs_contact'] > 0): ?>
+          <div class="cp-kpi cp-kpi-warn"><em><?= $counts['needs_contact'] ?></em><span>Need contact</span></div>
+          <?php endif; ?>
+          <?php if ($counts['excluded'] > 0): ?>
+          <div class="cp-kpi cp-kpi-mute"><em><?= $counts['excluded'] ?></em><span>Excluded</span></div>
+          <?php endif; ?>
+        </div>
+        <?php if ($counts['total'] > 0):
+          $funnel = [
+            'Identified'  => $counts['identified'],
+            'Need Contact'=> $counts['needs_contact'],
+            'Ready'       => $counts['preview_ready'],
+            'Sent'        => $counts['pitched'],
+            'Won'         => $counts['converted'],
+          ];
+          $funnelMax = max(1, ...$funnel);
+        ?>
+        <div class="cp-dash-funnel">
+          <?php foreach ($funnel as $label => $val): if ($val === 0) continue; ?>
+          <div class="cp-funnel-row">
+            <span class="cp-funnel-label"><?= $label ?></span>
+            <div class="cp-funnel-track">
+              <div class="cp-funnel-bar cp-funnel-<?= strtolower(str_replace(' ','_',$label)) ?>"
+                   style="width:<?= round($val/$funnelMax*100) ?>%"></div>
+            </div>
+            <span class="cp-funnel-val"><?= $val ?></span>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Map -->
+      <div id="dashMap" class="cp-dash-pane" hidden>
+        <p class="cp-dash-maplabel">Lead density by region</p>
+        <?php
+          // Build city → lead count map
+          $cityLeads = [];
+          foreach ($dashboardData['region_leads'] as $r) {
+              $cityLeads[trim((string)$r['location_city'])] = (int)$r['total'];
+          }
+          // Build region → total leads
+          $regionLeads = [];
+          foreach (ho_indiana_regions() as $region => $cityStr) {
+              $tot = 0;
+              foreach (array_map('trim', explode(',', $cityStr)) as $city) {
+                  $tot += $cityLeads[$city] ?? 0;
+              }
+              $regionLeads[$region] = $tot;
+          }
+          $maxRegionLeads = max(1, ...array_values($regionLeads));
+          $regionCoords = [
+              'Indianapolis Metro'         => [140,128],
+              'Fort Wayne Area'            => [170, 50],
+              'South Bend / Mishawaka'     => [ 94, 14],
+              'Northwest Indiana'          => [ 28, 26],
+              'Evansville Area'            => [ 18,230],
+              'Lafayette / West Lafayette' => [ 58, 90],
+              'Bloomington Area'           => [ 82,162],
+              'Muncie / Anderson'          => [149,103],
+              'Terre Haute Area'           => [ 28,144],
+              'Kokomo / Logansport'        => [107, 84],
+              'Columbus / Bartholomew'     => [120,162],
+              'Richmond / East Central'    => [179,127],
+              'Southern Indiana'           => [ 94,218],
+          ];
+        ?>
+        <svg viewBox="0 0 200 248" class="cp-in-map" xmlns="http://www.w3.org/2000/svg">
+          <path class="cp-in-outline" d="M14,6 L8,18 L8,205 L20,216 L38,224 L56,234 L80,246 L108,244 L132,248 L158,245 L178,240 L192,230 L192,14 L192,6 Z"/>
+          <?php foreach ($regionCoords as $region => [$rx,$ry]):
+            $leads  = $regionLeads[$region] ?? 0;
+            $r      = $leads > 0 ? max(6, min(22, 6 + round($leads/$maxRegionLeads*16))) : 5;
+            $abbr   = preg_replace('/\s*\/.*/', '', $region);
+            $abbr   = preg_replace('/ (Metro|Area|Area|Region)$/', '', $abbr);
+            $color  = $leads > 20 ? '#2a7a35' : ($leads > 5 ? '#c49000' : ($leads > 0 ? '#c06010' : '#ccc'));
+          ?>
+          <circle cx="<?= $rx ?>" cy="<?= $ry ?>" r="<?= $r ?>" fill="<?= $color ?>" opacity=".85"/>
+          <?php if ($leads > 0): ?>
+          <text x="<?= $rx ?>" y="<?= $ry+1 ?>" class="cp-in-dot-label"><?= $leads ?></text>
+          <?php endif; ?>
+          <?php endforeach; ?>
+        </svg>
+        <div class="cp-map-legend">
+          <span class="cp-ml cp-ml-hi">20+</span>
+          <span class="cp-ml cp-ml-mid">6–20</span>
+          <span class="cp-ml cp-ml-lo">1–5</span>
+          <span class="cp-ml cp-ml-none">0</span>
+          <span style="font-size:11px;color:var(--ink2)">leads per region</span>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div id="dashCats" class="cp-dash-pane" hidden>
+        <?php if (empty($dashboardData['categories'])): ?>
+          <p class="cp-empty">No data yet.</p>
+        <?php else:
+          $catMax = max(1, ...array_map(fn($c)=>(int)$c['total'], $dashboardData['categories']));
+        ?>
+        <div class="cp-cat-chart">
+          <?php foreach ($dashboardData['categories'] as $cat): ?>
+          <div class="cp-cat-row">
+            <span class="cp-cat-name"><?= ho_h((string)$cat['name']) ?></span>
+            <div class="cp-cat-stack" title="<?= (int)$cat['total'] ?> leads">
+              <?php
+                $parts = ['queue'=>'#6aad7a','ready'=>'#f2b01e','sent'=>'#4a90d9','won'=>'#2f5e36'];
+                foreach ($parts as $key => $col):
+                  $w = round((int)$cat[$key]/$catMax*100);
+                  if ($w < 1) continue;
+              ?>
+              <div style="width:<?= $w ?>%;background:<?= $col ?>;height:100%"></div>
+              <?php endforeach; ?>
+            </div>
+            <span class="cp-cat-total"><?= (int)$cat['total'] ?></span>
+          </div>
+          <?php endforeach; ?>
+          <div class="cp-cat-legend">
+            <span style="background:#6aad7a">Queue</span>
+            <span style="background:#f2b01e">Ready</span>
+            <span style="background:#4a90d9">Sent</span>
+            <span style="background:#2f5e36">Won</span>
+          </div>
+        </div>
+        <?php endif; ?>
+      </div>
+
+    </div><!-- /cp-dash-body -->
+  </div><!-- /cp-dash-panel -->
+</div><!-- /cpDash -->
 
 <script>
 function doCopy(id, btn) {
@@ -573,6 +832,21 @@ function applyFilters() {
   });
   var h = document.getElementById('sendCount');
   if (h) h.textContent = visible + ' ready to send';
+}
+function openDash() {
+  var el = document.getElementById('cpDash');
+  if (el) { el.hidden = false; document.body.style.overflow = 'hidden'; }
+}
+function closeDash() {
+  var el = document.getElementById('cpDash');
+  if (el) { el.hidden = true; document.body.style.overflow = ''; }
+}
+function dashTab(id, btn) {
+  document.querySelectorAll('.cp-dash-pane').forEach(function(p){ p.hidden = true; });
+  document.querySelectorAll('.cp-dash-tab').forEach(function(b){ b.classList.remove('is-active'); });
+  var pane = document.getElementById('dash' + id.charAt(0).toUpperCase() + id.slice(1));
+  if (pane) pane.hidden = false;
+  if (btn)  btn.classList.add('is-active');
 }
 </script>
 
