@@ -297,24 +297,60 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
 
   <!-- ── PACKAGE CONFIGURATOR ────────────────────────────────────────────── -->
   <?php
-  $pkgCatalog   = ho_package_catalog();
-  $addonCatalog = ho_addon_catalog();
-  $defaultPkg   = $isManaged ? 'managed' : 'standard';
-  $defaultPrice = $pkgCatalog[$defaultPkg]['price'];
+  $pkgCatalog    = ho_package_catalog();
+  $addonCatalog  = ho_addon_catalog();
+  $bundles       = ho_bundle_presets();
+  $priceMap      = ho_addon_price_map();
+  $defaultBundle = $isManaged ? 'launch' : 'found';
+  $defaultBData  = $bundles[$defaultBundle];
+  $defaultPrice  = ho_bundle_price($defaultBundle);
   ?>
   <section class="fd-card fd-offer" id="pricing">
     <p class="fd-kicker">Build Your Package</p>
     <h2>Pick what you need.</h2>
 
-    <div class="fd-pkg-builder">
+    <!-- Bundle cards -->
+    <div class="fd-bundle-grid">
+      <?php foreach ($bundles as $bKey => $b):
+        $bPrice   = ho_bundle_price($bKey);
+        $selected = $bKey === $defaultBundle;
+      ?>
+      <label class="fd-bundle-card<?= $selected ? ' is-selected' : '' ?>"
+             data-pkg="<?= ho_h($b['pkg']) ?>"
+             data-addons="<?= ho_h(json_encode($b['addons'])) ?>">
+        <input type="radio" name="bundle_display" value="<?= ho_h($bKey) ?>"
+               <?= $selected ? 'checked' : '' ?> onchange="fdSelectBundle(this.closest('.fd-bundle-card'))">
+        <?php if ($b['badge'] !== ''): ?>
+          <span class="fd-bundle-badge"><?= ho_h($b['badge']) ?></span>
+        <?php endif; ?>
+        <div class="fd-bundle-head">
+          <strong class="fd-bundle-name"><?= ho_h($b['label']) ?></strong>
+          <span class="fd-bundle-price">$<?= number_format($bPrice) ?></span>
+        </div>
+        <ul class="fd-bundle-items">
+          <?php foreach ($b['items'] as $item): ?>
+            <li><?= ho_h($item) ?></li>
+          <?php endforeach; ?>
+        </ul>
+      </label>
+      <?php endforeach; ?>
+    </div>
 
-      <!-- Base options -->
+    <!-- Customize toggle -->
+    <button type="button" class="fd-customize-btn" id="fd-customize-btn"
+            onclick="fdToggleCustomize()">+ Customize or add more items</button>
+
+    <!-- Full add-on list — hidden by default -->
+    <div id="fd-addon-area" hidden>
+      <p class="fd-addon-label" style="margin-top:4px">Base package:</p>
       <div class="fd-pkg-options">
-        <?php foreach ($pkgCatalog as $pkgKey => $pkgData): ?>
-        <label class="fd-pkg-option<?= $pkgKey === $defaultPkg ? ' is-selected' : '' ?>">
+        <?php foreach ($pkgCatalog as $pkgKey => $pkgData):
+          $pkgSel = $pkgKey === $defaultBData['pkg'];
+        ?>
+        <label class="fd-pkg-option<?= $pkgSel ? ' is-selected' : '' ?>">
           <input type="radio" name="pkg_display" value="<?= ho_h($pkgKey) ?>"
                  data-price="<?= (int)$pkgData['price'] ?>"
-                 <?= $pkgKey === $defaultPkg ? 'checked' : '' ?> onchange="fdUpdatePkg()">
+                 <?= $pkgSel ? 'checked' : '' ?> onchange="fdUpdateTotal()">
           <div class="fd-pkg-option-body">
             <div class="fd-pkg-option-head">
               <strong><?= ho_h($pkgData['label']) ?></strong>
@@ -326,20 +362,22 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
         <?php endforeach; ?>
       </div>
 
-      <!-- Add-ons by subcategory -->
-      <p class="fd-addon-label">Add-ons &mdash; bolt on what you want:</p>
+      <p class="fd-addon-label" style="margin-top:16px">Add-ons:</p>
       <div class="fd-addon-list">
-        <?php foreach ($addonCatalog as $catKey => $cat): ?>
+        <?php foreach ($addonCatalog as $cat): ?>
         <p class="fd-addon-cat"><?= ho_h($cat['label']) ?></p>
         <?php foreach ($cat['items'] as $addonKey => $addon):
+          $isChecked = in_array($addonKey, $defaultBData['addons'], true);
           $desc = $addon['desc'];
           if ($addonKey === 'domain') {
               $ownDomain = str_replace('.hoosieronline.com', '.com', $subdomain);
-              $desc = "Your own .com (e.g., " . ho_h($ownDomain) . ") instead of .hoosieronline.com — we register it for you.";
+              $desc = 'Your own .com (e.g., ' . ho_h($ownDomain) . ') instead of .hoosieronline.com — we register it for you.';
           }
         ?>
         <label class="fd-addon-item">
-          <input type="checkbox" data-price="<?= (int)$addon['price'] ?>" data-addon="<?= ho_h($addonKey) ?>" onchange="fdUpdatePkg()">
+          <input type="checkbox" data-price="<?= (int)$addon['price'] ?>"
+                 data-addon="<?= ho_h($addonKey) ?>"
+                 <?= $isChecked ? 'checked' : '' ?> onchange="fdUpdateTotal()">
           <div class="fd-addon-body">
             <strong><?= ho_h($addon['label']) ?></strong>
             <span class="fd-addon-price">+$<?= number_format($addon['price']) ?><?= ho_h($addon['note']) ?></span>
@@ -349,56 +387,86 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
         <?php endforeach; ?>
         <?php endforeach; ?>
       </div>
-
-      <!-- Running total -->
-      <div class="fd-total-row">
-        <span>Your total:</span>
-        <strong id="fd-pkg-total">$<?= number_format($defaultPrice) ?></strong>
-      </div>
-
-      <!-- CTAs — hidden inputs carry selected options to checkout.php -->
-      <form method="POST" action="/checkout.php" class="fd-checkout-form" id="fd-checkout-form">
-        <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
-        <input type="hidden" name="pkg"  id="fd-h-pkg" value="<?= ho_h($defaultPkg) ?>">
-        <?php foreach ($addonCatalog as $cat): foreach ($cat['items'] as $addonKey => $addon): ?>
-        <input type="hidden" name="addons[]" id="fd-h-<?= ho_h($addonKey) ?>" value="" disabled>
-        <?php endforeach; endforeach; ?>
-        <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
-          Get Started &mdash; Pay Now &rarr;
-        </button>
-      </form>
-      <?php if ($stripeErr): ?>
-        <p class="fd-stripe-err">Online checkout isn&rsquo;t set up yet &mdash; reach out directly and we&rsquo;ll get you started: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
-      <?php endif; ?>
-      <a class="fd-btn fd-btn-secondary"
-         href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
-        Have Questions?
-      </a>
-
     </div>
+
+    <!-- Total + form -->
+    <div class="fd-total-row">
+      <span>Your total:</span>
+      <strong id="fd-pkg-total">$<?= number_format($defaultPrice) ?></strong>
+    </div>
+
+    <form method="POST" action="/checkout.php" class="fd-checkout-form">
+      <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
+      <input type="hidden" name="pkg"  id="fd-h-pkg" value="<?= ho_h($defaultBData['pkg']) ?>">
+      <?php foreach ($addonCatalog as $cat): foreach ($cat['items'] as $addonKey => $addon):
+        $isChecked = in_array($addonKey, $defaultBData['addons'], true);
+      ?>
+      <input type="hidden" name="addons[]" id="fd-h-<?= ho_h($addonKey) ?>"
+             value="<?= ho_h($addonKey) ?>"<?= !$isChecked ? ' disabled' : '' ?>>
+      <?php endforeach; endforeach; ?>
+      <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
+        Get Started &mdash; Pay Now &rarr;
+      </button>
+    </form>
+    <?php if ($stripeErr): ?>
+      <p class="fd-stripe-err">Online checkout isn&rsquo;t set up yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+    <?php endif; ?>
+    <a class="fd-btn fd-btn-secondary"
+       href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
+      Have Questions?
+    </a>
 
     <p class="fd-offer-guarantee">Not happy after we launch? Full refund within 30 days &mdash; no questions.</p>
   </section>
 
   <script>
-  function fdUpdatePkg() {
-    var pkg = document.querySelector('input[name="pkg_display"]:checked');
-    var base = pkg ? parseInt(pkg.dataset.price, 10) : <?= $defaultPrice ?>;
+  function fdSelectBundle(card) {
+    var addons = JSON.parse(card.dataset.addons || '[]');
+    var pkg    = card.dataset.pkg || 'standard';
+
+    document.querySelectorAll('.fd-bundle-card').forEach(function(c) { c.classList.remove('is-selected'); });
+    card.classList.add('is-selected');
+
+    var pkgRadio = document.querySelector('input[name="pkg_display"][value="' + pkg + '"]');
+    if (pkgRadio) pkgRadio.checked = true;
+    var pkgHid = document.getElementById('fd-h-pkg');
+    if (pkgHid) pkgHid.value = pkg;
+
+    document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
+      var r = el.querySelector('input[type="radio"]'); el.classList.toggle('is-selected', !!(r && r.checked));
+    });
+    document.querySelectorAll('.fd-addon-list input[type="checkbox"]').forEach(function(cb) {
+      var key = cb.dataset.addon;
+      cb.checked = addons.indexOf(key) !== -1;
+      var hid = document.getElementById('fd-h-' + key);
+      if (hid) { hid.disabled = !cb.checked; if (cb.checked) hid.value = key; }
+    });
+
+    fdUpdateTotal();
+  }
+
+  function fdToggleCustomize() {
+    var area = document.getElementById('fd-addon-area');
+    var btn  = document.getElementById('fd-customize-btn');
+    if (!area) return;
+    area.hidden = !area.hidden;
+    btn.textContent = area.hidden ? '+ Customize or add more items' : '− Hide customization';
+  }
+
+  function fdUpdateTotal() {
+    var pkg  = document.querySelector('input[name="pkg_display"]:checked');
+    var base = pkg ? parseInt(pkg.dataset.price, 10) : <?= $pkgCatalog[$defaultBData['pkg']]['price'] ?>;
     var addons = 0;
     document.querySelectorAll('.fd-addon-list input[type="checkbox"]').forEach(function(cb) {
       if (cb.checked) addons += parseInt(cb.dataset.price || '0', 10);
       var hid = document.getElementById('fd-h-' + (cb.dataset.addon || ''));
-      if (hid) {
-        hid.disabled = !cb.checked;
-        if (cb.checked) hid.value = cb.dataset.addon;
-      }
+      if (hid) { hid.disabled = !cb.checked; if (cb.checked) hid.value = cb.dataset.addon; }
     });
     document.getElementById('fd-pkg-total').textContent = '$' + (base + addons).toLocaleString();
     var pkgHid = document.getElementById('fd-h-pkg');
     if (pkgHid && pkg) pkgHid.value = pkg.value;
     document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
-      var r = el.querySelector('input[type="radio"]');
-      el.classList.toggle('is-selected', !!(r && r.checked));
+      var r = el.querySelector('input[type="radio"]'); el.classList.toggle('is-selected', !!(r && r.checked));
     });
   }
   </script>

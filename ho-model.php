@@ -1185,6 +1185,45 @@ function ho_addon_price_map(): array {
     }
     return $map;
 }
+
+/** Pre-built bundles — selectable cards that pre-populate the configurator. */
+function ho_bundle_presets(): array {
+    return [
+        'starter' => [
+            'label'  => 'Starter',
+            'badge'  => '',
+            'pkg'    => 'standard',
+            'addons' => [],
+            'items'  => ['Front Door website', '1 year of hosting', 'hoosieronline.com address'],
+        ],
+        'found' => [
+            'label'  => 'Get Found',
+            'badge'  => 'Most Popular',
+            'pkg'    => 'standard',
+            'addons' => ['domain', 'google'],
+            'items'  => ['Everything in Starter', 'Custom .com domain', 'Google Business setup'],
+        ],
+        'launch' => [
+            'label'  => 'Full Launch',
+            'badge'  => 'Best Value',
+            'pkg'    => 'standard',
+            'addons' => ['domain', 'google', 'logo', 'services_copy', 'updates_3mo'],
+            'items'  => ['Everything in Get Found', 'Logo & wordmark design', 'Written service descriptions', '3 months of content updates'],
+        ],
+    ];
+}
+
+/** Compute total price for a bundle key. */
+function ho_bundle_price(string $key): int {
+    $bundles  = ho_bundle_presets();
+    $packages = ho_package_catalog();
+    $prices   = ho_addon_price_map();
+    if (!isset($bundles[$key])) return 0;
+    $b     = $bundles[$key];
+    $total = $packages[$b['pkg']]['price'];
+    foreach ($b['addons'] as $ak) $total += $prices[$ak] ?? 0;
+    return $total;
+}
 function ho_sales_angle(array $row): string {
     $hasWebsite = (bool)($row['has_website'] ?? false);
     $hasGoogle  = (bool)($row['has_google_business'] ?? false);

@@ -809,3 +809,78 @@ body.front-door-preview-page{
   background:rgba(47,94,54,.07) !important;
 }
 .fd-paid-banner h2{ color:var(--fd-green); }
+
+/* ── Bundle cards ────────────────────────────────────────────────────────── */
+.fd-bundle-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+.fd-bundle-card{
+  position:relative;
+  display:flex;flex-direction:column;
+  padding:16px;
+  border:2px solid var(--fd-line);
+  border-radius:14px;
+  background:var(--fd-card);
+  cursor:pointer;
+  transition:border-color .15s,box-shadow .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.fd-bundle-card input[type="radio"]{ position:absolute;opacity:0;pointer-events:none; }
+.fd-bundle-card:hover{
+  border-color:rgba(47,94,54,.4);
+  box-shadow:0 4px 16px rgba(47,94,54,.10);
+}
+.fd-bundle-card.is-selected{
+  border-color:var(--fd-green);
+  background:rgba(47,94,54,.05);
+  box-shadow:0 4px 20px rgba(47,94,54,.14);
+}
+.fd-bundle-badge{
+  display:inline-block;
+  font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--fd-green);
+  background:rgba(47,94,54,.12);
+  border-radius:20px;padding:3px 9px;
+  margin-bottom:8px;align-self:flex-start;
+}
+.fd-bundle-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  margin-bottom:10px;
+}
+.fd-bundle-name{
+  font-size:16px;font-weight:800;color:var(--fd-ink);
+}
+.fd-bundle-price{
+  font-size:20px;font-weight:800;color:var(--fd-green);white-space:nowrap;
+}
+.fd-bundle-items{
+  margin:0;padding:0;list-style:none;flex:1;
+}
+.fd-bundle-items li{
+  font-size:13px;color:var(--fd-muted);
+  padding:3px 0 3px 18px;
+  position:relative;
+}
+.fd-bundle-items li::before{
+  content:"✓";
+  position:absolute;left:0;
+  color:var(--fd-green);font-weight:700;font-size:11px;
+  top:4px;
+}
+
+/* ── Customize toggle ────────────────────────────────────────────────────── */
+.fd-customize-btn{
+  display:block;width:100%;
+  font-size:13px;font-weight:600;color:var(--fd-green);
+  background:transparent;border:1px dashed rgba(47,94,54,.35);
+  border-radius:10px;padding:10px 16px;
+  cursor:pointer;text-align:center;
+  margin-bottom:14px;
+  transition:background .15s,border-color .15s;
+}
+.fd-customize-btn:hover{
+  background:rgba(47,94,54,.06);border-color:var(--fd-green);
+}
