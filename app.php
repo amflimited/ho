@@ -230,15 +230,31 @@ if (!empty($unresearched)) {
             <?php endforeach; ?>
           </select>
         </label>
+        <?php
+          // Build region run-count across all categories so dropdown shows which are fresh
+          $regionRunCount = [];
+          foreach ($coverage as $row) {
+              $r = (string)$row['area_query'];
+              $regionRunCount[$r] = ($regionRunCount[$r] ?? 0) + (int)$row['run_count'];
+          }
+          $allRegionNames = array_keys(ho_indiana_regions());
+          // Sort: unsourced first, then by run count ascending
+          usort($allRegionNames, fn($a,$b) =>
+              ($regionRunCount[$a] ?? 0) <=> ($regionRunCount[$b] ?? 0)
+          );
+        ?>
         <label class="cp-label">Region
           <select class="cp-select" name="area" required>
-            <?php foreach (ho_indiana_regions() as $region => $cities): ?>
-              <option value="<?= ho_h($region) ?>"><?= ho_h($region) ?></option>
+            <?php foreach ($allRegionNames as $region):
+              $runs = $regionRunCount[$region] ?? 0;
+              $label = $region . ($runs === 0 ? ' — NEW' : ' (' . $runs . ' run' . ($runs !== 1 ? 's' : '') . ')');
+            ?>
+              <option value="<?= ho_h($region) ?>"><?= ho_h($label) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
         <label class="cp-label">Count
-          <input class="cp-input" type="number" name="count" value="15" min="5" max="50">
+          <input class="cp-input" type="number" name="count" value="25" min="5" max="50">
         </label>
         <button class="cp-btn-primary" type="submit">Generate Prompt</button>
       </form>

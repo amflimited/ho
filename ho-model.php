@@ -195,14 +195,21 @@ function ho_get_category(PDO $pdo, int $id): ?array {
 // ─── Sourcing ─────────────────────────────────────────────────────────────────
 
 function ho_get_known_business_names(PDO $pdo, int $categoryId, string $area): array {
+    // Expand region name → city list, then query by exact city names
+    $regions  = ho_indiana_regions();
+    $cityList = $regions[$area] ?? $area;
+    $cities   = array_values(array_filter(array_map('trim', explode(',', $cityList))));
+    if (empty($cities)) return [];
+
+    $placeholders = implode(',', array_fill(0, count($cities), '?'));
+    $params = array_merge([$categoryId], $cities);
     $s = $pdo->prepare("
         SELECT business_name FROM businesses
-        WHERE category_id = ? AND location_city LIKE ?
+        WHERE category_id = ? AND location_city IN ($placeholders)
         ORDER BY business_name
         LIMIT 300
     ");
-    $city = trim(explode(',', $area)[0]);
-    $s->execute([$categoryId, '%' . $city . '%']);
+    $s->execute($params);
     return array_column($s->fetchAll(), 'business_name');
 }
 
