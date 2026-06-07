@@ -1,5 +1,4 @@
 <?php
-declare(strict_types=1);
 /**
  * Place this file at: /home1/spofnkte/stripe-config.php
  * (one level ABOVE public_html — outside the git working directory,
