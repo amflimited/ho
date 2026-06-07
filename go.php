@@ -329,7 +329,7 @@ $stripeErr  = $errCode !== '';
   $addonCatalog  = ho_addon_catalog();
   $bundles       = ho_bundle_presets();
   $priceMap      = ho_addon_price_map();
-  $defaultBundle = $isManaged ? 'launch' : 'found';
+  $defaultBundle = $isManaged ? 'managed' : 'launch';
   $defaultBData  = $bundles[$defaultBundle];
   $defaultPrice  = ho_bundle_price($defaultBundle);
   ?>
