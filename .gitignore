@@ -3,3 +3,6 @@ admin-secrets.php
 private/
 .env
 *.local.php
+error_log
+*.log
+_fix.php
