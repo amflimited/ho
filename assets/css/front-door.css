@@ -789,3 +789,13 @@ body.front-door-preview-page{
   font-size:17px !important;padding:16px 20px !important;
   letter-spacing:.01em;
 }
+
+/* ── Checkout form wrapper ────────────────────────────────────────────────── */
+.fd-checkout-form{ display:contents; }
+
+/* ── Payment success banner ──────────────────────────────────────────────── */
+.fd-paid-banner{
+  border-left:5px solid var(--fd-green);
+  background:rgba(47,94,54,.07) !important;
+}
+.fd-paid-banner h2{ color:var(--fd-green); }

@@ -55,11 +55,9 @@ if (strlen($telRaw) === 10) {
 
 $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : 'Hoosier Online';
 
-// ── Stripe Payment Links ── replace these with your actual Stripe URLs ────
-$stripeStandard = 'https://buy.stripe.com/REPLACE_ME_STANDARD';
-$stripeManaged  = 'https://buy.stripe.com/REPLACE_ME_MANAGED';
 // ── Your contact info ─────────────────────────────────────────────────────
-$adamPhone = '(765) 443-4321'; // e.g. '(765) 555-0100' — set this to show on the preview page
+$adamPhone = '(765) 443-4321';
+$paid = isset($_GET['paid']);
 
 ?><!doctype html>
 <html lang="en">
@@ -98,6 +96,15 @@ $adamPhone = '(765) 443-4321'; // e.g. '(765) 555-0100' — set this to show on 
   </section>
 
 <?php else: ?>
+
+  <?php if ($paid): ?>
+  <section class="fd-card fd-paid-banner">
+    <p class="fd-kicker">Payment received</p>
+    <h2>You&rsquo;re in.</h2>
+    <p>Adam will review your order and reach out within 24 hours to kick things off. Check your email for a receipt from Stripe.</p>
+    <p class="fd-muted">Questions in the meantime? <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+  </section>
+  <?php endif; ?>
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
@@ -322,28 +329,28 @@ $adamPhone = '(765) 443-4321'; // e.g. '(765) 555-0100' — set this to show on 
       <p class="fd-addon-label">Add-ons &mdash; bolt on what you want:</p>
       <div class="fd-addon-list">
         <label class="fd-addon-item">
-          <input type="checkbox" data-price="75" onchange="fdUpdatePkg()">
+          <input type="checkbox" data-price="75" data-addon="domain" onchange="fdUpdatePkg()">
           <div class="fd-addon-body">
             <strong>Custom Domain</strong> <span class="fd-addon-price">+$75/yr</span>
             <p>Your own .com (e.g., <?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?>) instead of .hoosieronline.com</p>
           </div>
         </label>
         <label class="fd-addon-item">
-          <input type="checkbox" data-price="75" onchange="fdUpdatePkg()">
+          <input type="checkbox" data-price="75" data-addon="google" onchange="fdUpdatePkg()">
           <div class="fd-addon-body">
             <strong>Google Business Setup</strong> <span class="fd-addon-price">+$75</span>
             <p>Full profile optimization &amp; verification &mdash; done right, once.</p>
           </div>
         </label>
         <label class="fd-addon-item">
-          <input type="checkbox" data-price="150" onchange="fdUpdatePkg()">
+          <input type="checkbox" data-price="150" data-addon="logo" onchange="fdUpdatePkg()">
           <div class="fd-addon-body">
             <strong>Logo / Wordmark</strong> <span class="fd-addon-price">+$150</span>
             <p>Simple, clean logo design. Yours to keep forever.</p>
           </div>
         </label>
         <label class="fd-addon-item">
-          <input type="checkbox" data-price="75" onchange="fdUpdatePkg()">
+          <input type="checkbox" data-price="75" data-addon="social" onchange="fdUpdatePkg()">
           <div class="fd-addon-body">
             <strong>Social Profile Setup</strong> <span class="fd-addon-price">+$75</span>
             <p>Facebook &amp; Instagram &mdash; properly branded and linked to your site.</p>
@@ -356,13 +363,19 @@ $adamPhone = '(765) 443-4321'; // e.g. '(765) 555-0100' — set this to show on 
         <span>Your total:</span>
         <strong id="fd-pkg-total"><?= $isManaged ? '$999' : '$499' ?></strong>
       </div>
-      <p class="fd-total-note" id="fd-addon-note" style="display:none">Add-ons are invoiced separately after your Front Door launches.</p>
 
       <!-- CTAs -->
-      <a class="fd-btn fd-btn-primary fd-stripe-btn" id="fd-buy-btn"
-         href="<?= ho_h($isManaged ? $stripeManaged : $stripeStandard) ?>">
-        Get Started &mdash; Pay Now &rarr;
-      </a>
+      <form method="POST" action="/checkout.php" class="fd-checkout-form">
+        <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
+        <input type="hidden" name="pkg"          id="fd-h-pkg"    value="<?= $isManaged ? 'managed' : 'standard' ?>">
+        <input type="hidden" name="addon_domain" id="fd-h-domain" value="0">
+        <input type="hidden" name="addon_google" id="fd-h-google" value="0">
+        <input type="hidden" name="addon_logo"   id="fd-h-logo"   value="0">
+        <input type="hidden" name="addon_social" id="fd-h-social" value="0">
+        <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
+          Get Started &mdash; Pay Now &rarr;
+        </button>
+      </form>
       <a class="fd-btn fd-btn-secondary"
          href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
         Have Questions?
@@ -374,19 +387,18 @@ $adamPhone = '(765) 443-4321'; // e.g. '(765) 555-0100' — set this to show on 
   </section>
 
   <script>
-  var FD_STRIPE_STANDARD = <?= json_encode($stripeStandard) ?>;
-  var FD_STRIPE_MANAGED  = <?= json_encode($stripeManaged) ?>;
   function fdUpdatePkg() {
     var pkg = document.querySelector('input[name="pkg"]:checked');
     var base = pkg ? parseInt(pkg.value, 10) : 499;
     var addons = 0;
     document.querySelectorAll('.fd-addon-list input[type="checkbox"]').forEach(function(cb) {
       if (cb.checked) addons += parseInt(cb.dataset.price || '0', 10);
+      var hid = document.getElementById('fd-h-' + (cb.dataset.addon || ''));
+      if (hid) hid.value = cb.checked ? '1' : '0';
     });
     document.getElementById('fd-pkg-total').textContent = '$' + (base + addons).toLocaleString();
-    document.getElementById('fd-buy-btn').href = base >= 999 ? FD_STRIPE_MANAGED : FD_STRIPE_STANDARD;
-    var note = document.getElementById('fd-addon-note');
-    if (note) note.style.display = addons > 0 ? '' : 'none';
+    var pkgHid = document.getElementById('fd-h-pkg');
+    if (pkgHid) pkgHid.value = base >= 999 ? 'managed' : 'standard';
     document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
       var r = el.querySelector('input[type="radio"]');
       el.classList.toggle('is-selected', !!(r && r.checked));

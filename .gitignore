@@ -1,5 +1,6 @@
 database.php
 admin-secrets.php
+stripe-config.php
 private/
 .env
 *.local.php
