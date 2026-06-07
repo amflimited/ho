@@ -90,17 +90,38 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <?php
   $templateKey = $design['key'] ?? 'default';
-  $templateOptions = [
-      'default'           => ['label' => 'Classic',      'color' => '#2f5e36'],
-      'bold_work_truck'   => ['label' => 'Work Truck',   'color' => '#e07b12'],
-      'clean_local_pro'   => ['label' => 'Clean Pro',    'color' => '#1e3a5f'],
-      'warm_neighborhood' => ['label' => 'Neighborhood', 'color' => '#6b3a2a'],
-      'sharp_modern'      => ['label' => 'Sharp Modern', 'color' => '#2563eb'],
-  ];
-  $available = [];
-  foreach ($templateOptions as $k => $opt) {
-      $f = __DIR__ . '/templates/previews/' . $k . '.php';
-      if (is_file($f) && is_readable($f)) $available[$k] = $opt;
+
+  // Check for category-specific templates first
+  $catTemplateDir  = __DIR__ . '/templates/previews/' . $catSlug . '/';
+  $catIndexFile    = $catTemplateDir . 'index.json';
+  $available       = [];
+
+  if ($catSlug !== '' && is_file($catIndexFile)) {
+      $catIndex = json_decode(file_get_contents($catIndexFile), true) ?? [];
+      foreach ($catIndex as $entry) {
+          $k = $entry['key'] ?? '';
+          $f = $catTemplateDir . $k . '.php';
+          if ($k !== '' && is_file($f) && is_readable($f)) {
+              $available[$k] = ['label' => $entry['label'] ?? $k, 'color' => $entry['color'] ?? '#2f5e36'];
+          }
+      }
+      // Default selected = first in list
+      if (!empty($available)) $templateKey = array_key_first($available);
+  }
+
+  // Fall back to generic design-family templates
+  if (empty($available)) {
+      $genericOptions = [
+          'default'           => ['label' => 'Classic',      'color' => '#2f5e36'],
+          'bold_work_truck'   => ['label' => 'Work Truck',   'color' => '#e07b12'],
+          'clean_local_pro'   => ['label' => 'Clean Pro',    'color' => '#1e3a5f'],
+          'warm_neighborhood' => ['label' => 'Neighborhood', 'color' => '#6b3a2a'],
+          'sharp_modern'      => ['label' => 'Sharp Modern', 'color' => '#2563eb'],
+      ];
+      foreach ($genericOptions as $k => $opt) {
+          $f = __DIR__ . '/templates/previews/' . $k . '.php';
+          if (is_file($f) && is_readable($f)) $available[$k] = $opt;
+      }
   }
   ?>
 

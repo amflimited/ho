@@ -510,3 +510,69 @@ body.front-door-preview-page{
 .fd-mock--sm .fd-mock-trust span{
   background:rgba(37,99,235,.14);color:#6ba4f8;
 }
+
+/* ══ Lawn Mowing — Work Truck Dark ═════════════════════════════════════════ */
+.fd-wtd{background:#fff}
+.fd-wtd-hero{
+  background:
+    radial-gradient(ellipse at 75% 35%,rgba(200,120,10,.22),transparent 55%),
+    linear-gradient(160deg,#1c2526 0%,#0d1314 100%);
+  padding:36px 24px 32px;
+  text-align:center;
+}
+.fd-wtd-eyebrow{
+  margin:0 0 10px;
+  font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:#e07b12;
+}
+.fd-wtd-name{
+  margin:0 0 10px;
+  font-size:clamp(30px,9vw,46px);line-height:.96;letter-spacing:-.02em;font-weight:900;
+  color:#fff;
+}
+.fd-wtd-rating{
+  margin:0 0 16px;font-size:14px;font-weight:700;
+  color:rgba(255,255,255,.88);
+}
+.fd-wtd-rating .fd-stars{color:#ffd24a;font-size:15px}
+.fd-wtd-cta{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:50px;padding:0 28px;
+  background:#e07b12;color:#fff;
+  border-radius:999px;text-decoration:none;
+  font-size:16px;font-weight:900;letter-spacing:-.01em;
+  box-shadow:0 8px 24px rgba(224,123,18,.38);
+}
+.fd-wtd-phone{
+  margin:10px 0 0;font-size:15px;font-weight:700;
+  color:rgba(255,255,255,.85);
+}
+.fd-wtd-body{padding:22px 14px 10px;background:#fff}
+.fd-wtd-h2{
+  margin:0 0 14px;
+  font-size:20px;font-weight:900;letter-spacing:-.02em;color:#1a1a1a;
+}
+.fd-wtd-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fd-wtd-card{
+  position:relative;border-radius:12px;height:88px;overflow:hidden;
+  display:flex;align-items:flex-end;
+}
+.fd-wtd-card::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(transparent 30%,rgba(0,0,0,.68) 100%);
+}
+.fd-wtd-card-name{
+  position:relative;z-index:1;
+  padding:8px 10px;
+  font-size:12px;font-weight:800;color:#fff;line-height:1.2;
+}
+.fd-wtd-trust{
+  display:flex;justify-content:center;gap:8px;flex-wrap:wrap;
+  padding:16px 14px 24px;background:#fff;
+}
+.fd-wtd-trust span{
+  display:inline-flex;align-items:center;
+  font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  color:#e07b12;background:rgba(224,123,18,.10);
+  border-radius:999px;padding:7px 12px;
+}
