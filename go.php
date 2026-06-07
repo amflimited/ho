@@ -55,6 +55,20 @@ if (strlen($telRaw) === 10) {
 
 $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : 'Hoosier Online';
 
+// OG / social preview
+$ogTitle = $name !== ''
+    ? $name . ' — See Your Hoosier Online Preview'
+    : 'Hoosier Online — Indiana Web Sites for Local Businesses';
+
+$ogDesc = '';
+if ($opp !== '') {
+    $ogDesc = strlen($opp) > 160 ? substr($opp, 0, 157) . '…' : $opp;
+} elseif ($name !== '') {
+    $ogDesc = "A custom front-door website built for {$name} in {$city}, Indiana.";
+}
+
+$ogUrl = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+
 // ── Your contact info ─────────────────────────────────────────────────────
 $adamPhone  = '(765) 443-4321';
 $paid       = isset($_GET['paid']);
@@ -70,6 +84,14 @@ $stripeErr  = $errCode !== '';
   <link rel="icon" href="/favicon.ico">
 <link rel="stylesheet" href="/assets/css/front-door.css?v=<?= filemtime(__DIR__ . '/assets/css/front-door.css') ?>">
   <meta name="robots" content="noindex">
+  <meta property="og:type"        content="website">
+  <meta property="og:site_name"   content="Hoosier Online">
+  <meta property="og:title"       content="<?= ho_h($ogTitle) ?>">
+  <meta property="og:description" content="<?= ho_h($ogDesc) ?>">
+  <meta property="og:url"         content="<?= ho_h($ogUrl) ?>">
+  <meta name="twitter:card"       content="summary">
+  <meta name="twitter:title"      content="<?= ho_h($ogTitle) ?>">
+  <meta name="twitter:description" content="<?= ho_h($ogDesc) ?>">
   <script>document.documentElement.classList.add('fd-js')</script>
 </head>
 <body class="front-door-preview-page">
