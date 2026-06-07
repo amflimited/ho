@@ -80,6 +80,16 @@ $categories    = $pdo ? ho_get_categories($pdo) : [];
 $unresearched  = $pdo ? ho_get_unresearched_businesses($pdo, 10) : [];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
 
+$templatedCategories = array_values(array_filter($categories, function($cat) {
+    $slug = (string)($cat['slug'] ?? '');
+    return $slug !== '' && is_file(__DIR__ . '/templates/previews/' . $slug . '/index.json');
+}));
+
+$cityToRegion = [];
+foreach (ho_indiana_regions() as $region => $cities) {
+    foreach ($cities as $city) { $cityToRegion[$city] = $region; }
+}
+
 // Rebuild source prompt from active run
 $activeRun    = null;
 $sourcePrompt = '';
@@ -199,7 +209,7 @@ if (!empty($unresearched)) {
         <label class="cp-label">Category
           <select class="cp-select" name="category_id" required>
             <option value="">Choose…</option>
-            <?php foreach ($categories as $cat): ?>
+            <?php foreach ($templatedCategories as $cat): ?>
               <option value="<?= (int)$cat['id'] ?>"><?= ho_h((string)$cat['name']) ?></option>
             <?php endforeach; ?>
           </select>
@@ -270,10 +280,34 @@ if (!empty($unresearched)) {
   <?php else: ?>
 
     <section class="cp-section">
-      <h2 class="cp-sh"><?= count($sendQueue) ?> ready to send</h2>
-      <div class="cp-send-list">
-        <?php foreach ($sendQueue as $b): ?>
-          <div class="cp-send-card">
+      <div class="cp-send-filters">
+        <select class="cp-select" id="filterCat" onchange="applyFilters()">
+          <option value="">All categories</option>
+          <?php
+          $seenCats = [];
+          foreach ($sendQueue as $b) {
+              $cn = (string)$b['category_name'];
+              if (!in_array($cn, $seenCats, true)) { $seenCats[] = $cn; ?>
+          <option value="<?= ho_h($cn) ?>"><?= ho_h($cn) ?></option>
+          <?php }} ?>
+        </select>
+        <select class="cp-select" id="filterRegion" onchange="applyFilters()">
+          <option value="">All regions</option>
+          <?php
+          $seenRegions = [];
+          foreach ($sendQueue as $b) {
+              $reg = $cityToRegion[(string)$b['location_city']] ?? '';
+              if ($reg !== '' && !in_array($reg, $seenRegions, true)) { $seenRegions[] = $reg; ?>
+          <option value="<?= ho_h($reg) ?>"><?= ho_h($reg) ?></option>
+          <?php }} ?>
+        </select>
+      </div>
+      <h2 class="cp-sh" id="sendCount"><?= count($sendQueue) ?> ready to send</h2>
+      <div class="cp-send-list" id="sendList">
+        <?php foreach ($sendQueue as $b):
+          $region = $cityToRegion[(string)$b['location_city']] ?? '';
+        ?>
+          <div class="cp-send-card" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
             <div class="cp-send-head">
               <div>
                 <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -323,6 +357,20 @@ function doCopy(id, btn) {
     btn.textContent = 'Copied!';
     setTimeout(function(){ btn.textContent = orig; }, 2000);
   });
+}
+function applyFilters() {
+  var cat    = document.getElementById('filterCat')    ? document.getElementById('filterCat').value    : '';
+  var region = document.getElementById('filterRegion') ? document.getElementById('filterRegion').value : '';
+  var cards  = document.querySelectorAll('#sendList .cp-send-card');
+  var visible = 0;
+  cards.forEach(function(card) {
+    var show = (!cat    || card.dataset.cat    === cat) &&
+               (!region || card.dataset.region === region);
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  var h = document.getElementById('sendCount');
+  if (h) h.textContent = visible + ' ready to send';
 }
 </script>
 

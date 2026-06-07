@@ -212,6 +212,8 @@ a { color: inherit; }
 .cp-biz-row span { font-size: 12px; color: var(--ink2); }
 
 /* ── SEND LIST ───────────────────────────────────────────────────────────── */
+.cp-send-filters { display: flex; gap: 8px; margin-bottom: 14px; }
+.cp-send-filters .cp-select { flex: 1; }
 .cp-send-list { display: flex; flex-direction: column; gap: 10px; }
 
 .cp-send-card {
