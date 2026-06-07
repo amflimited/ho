@@ -488,7 +488,7 @@ function ho_generate_research_prompt(array $businesses): string {
     $list = '';
     foreach ($businesses as $i => $b) {
         $n = $i + 1;
-        $list .= "{$n}. {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN";
+        $list .= "{$n}. [ID:{$b['id']}] {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN";
         if ($b['website_url']     !== '') $list .= " — website: {$b['website_url']}";
         if ($b['facebook_url']    !== '') $list .= " — facebook: {$b['facebook_url']}";
         if ($b['google_business_url'] !== '') $list .= " — google: {$b['google_business_url']}";
@@ -505,6 +505,7 @@ For each business return exactly this JSON structure (one entry per business):
 {
   "research_results": [
     {
+      "business_id": 0,
       "raw_name": "Exact business name from the list above",
       "has_website": true,
       "website_quality": "none",
@@ -531,6 +532,7 @@ For each business return exactly this JSON structure (one entry per business):
 }
 
 Rules:
+- business_id: copy the [ID:N] number exactly from the list above for each business
 - website_quality: "none" (no site), "poor" (barely works/outdated), "basic" (functional but simple), "decent" (reasonably complete)
 - facebook_activity / instagram_activity: "none" (no account), "dormant" (no posts in 3+ months), "active" (posting regularly)
 - recommended_package: "standard" ($499, most businesses) or "managed" ($999, businesses with more content to work with)
@@ -549,15 +551,29 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
 
     foreach ($results as $r) {
         if (!is_array($r)) continue;
-        $name = trim((string)($r['raw_name'] ?? ''));
-        if ($name === '') continue;
+        $name  = trim((string)($r['raw_name']    ?? ''));
+        $bizId = (int)($r['business_id'] ?? 0);
 
-        $biz = $pdo->prepare("SELECT id FROM businesses WHERE business_name = ? LIMIT 1");
-        $biz->execute([$name]);
-        $bizRow = $biz->fetch();
+        if ($name === '' && $bizId === 0) continue;
+
+        $bizRow = null;
+
+        // 1. Match on the database ID echoed back by GPT — most reliable
+        if ($bizId > 0) {
+            $s = $pdo->prepare("SELECT id FROM businesses WHERE id = ? LIMIT 1");
+            $s->execute([$bizId]);
+            $bizRow = $s->fetch() ?: null;
+        }
+
+        // 2. Case-insensitive name match as fallback (handles GPT name variations)
+        if (!$bizRow && $name !== '') {
+            $s = $pdo->prepare("SELECT id FROM businesses WHERE LOWER(business_name) = LOWER(?) LIMIT 1");
+            $s->execute([$name]);
+            $bizRow = $s->fetch() ?: null;
+        }
 
         if (!$bizRow) {
-            $errors[] = "No business found for: {$name}";
+            $errors[] = "No business found for: {$name}" . ($bizId > 0 ? " (ID:{$bizId})" : '');
             continue;
         }
 
