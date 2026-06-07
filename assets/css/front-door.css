@@ -521,6 +521,7 @@ body.front-door-preview-page{
   padding:36px 24px 34px;
   text-align:center;
   position:relative;overflow:hidden;
+  color:#fff;
 }
 .fd-jrt-eyebrow{
   margin:0 0 10px;
@@ -592,6 +593,7 @@ body.front-door-preview-page{
     linear-gradient(160deg,#1c2526 0%,#0d1314 100%);
   padding:36px 24px 32px;
   text-align:center;
+  color:#fff;
 }
 .fd-wtd-eyebrow{
   margin:0 0 10px;
