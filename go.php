@@ -62,6 +62,9 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title><?= ho_h($pageTitle) ?></title>
   <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Bebas+Neue&family=Inter:wght@600&family=Nunito:wght@600&family=Oswald:wght@700&display=swap">
   <link rel="stylesheet" href="/assets/css/front-door.css?v=<?= filemtime(__DIR__ . '/assets/css/front-door.css') ?>">
   <meta name="robots" content="noindex">
 </head>
