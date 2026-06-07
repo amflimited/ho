@@ -91,9 +91,10 @@ try {
         'mode'               => 'payment',
         'success_url'        => $successUrl,
         'cancel_url'         => $cancelUrl,
-        'metadata[slug]'     => $slug,
-        'metadata[business]' => $bizName,
-        'metadata[pkg]'      => $pkg,
+        'metadata[slug]'       => $slug,
+        'metadata[business]'   => $bizName,
+        'metadata[pkg]'        => $pkg,
+        'metadata[has_domain]' => in_array('domain', $addons, true) ? '1' : '0',
     ];
     foreach ($items as $i => $item) {
         $params["line_items[{$i}][price_data][currency]"]           = 'usd';
