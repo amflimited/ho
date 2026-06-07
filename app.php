@@ -146,11 +146,10 @@ if (!empty($unresearched)) {
 <header class="cp-topbar">
   <div class="cp-brand">HO</div>
   <div class="cp-telemetry">
-    <span class="cp-stat<?= $counts['identified']    > 0 ? ' cp-hi' : '' ?>"><em><?= $counts['identified']    ?></em>ID</span>
-    <span class="cp-stat<?= $counts['researched']    > 0 ? ' cp-hi' : '' ?>"><em><?= $counts['researched']    ?></em>RES</span>
-    <span class="cp-stat<?= $counts['preview_ready'] > 0 ? ' cp-hot' : '' ?>"><em><?= $counts['preview_ready'] ?></em>RDY</span>
+    <span class="cp-stat<?= $counts['identified']    > 0 ? ' cp-hi' : '' ?>"><em><?= $counts['identified']    ?></em>LEADS</span>
+    <span class="cp-stat<?= $counts['preview_ready'] > 0 ? ' cp-hot' : '' ?>"><em><?= $counts['preview_ready'] ?></em>READY</span>
     <span class="cp-stat"><em><?= $counts['pitched']    ?></em>SENT</span>
-    <span class="cp-stat cp-win"><em><?= $counts['converted']  ?></em>WIN</span>
+    <span class="cp-stat cp-win"><em><?= $counts['converted']  ?></em>WON</span>
   </div>
 </header>
 
@@ -472,9 +471,16 @@ if (!empty($unresearched)) {
       <h2 class="cp-sh" id="sendCount"><?= count($sendQueue) ?> ready to send</h2>
       <div class="cp-send-list" id="sendList">
         <?php foreach ($sendQueue as $b):
-          $region = $cityToRegion[(string)$b['location_city']] ?? '';
+          $region     = $cityToRegion[(string)$b['location_city']] ?? '';
+          $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
+          $hasEmail   = (string)$b['email_address'] !== '';
+          $hasSiteUrl = (string)$b['website_url']   !== '';
+          $hasFb      = (string)$b['facebook_url']  !== '';
+          $hasPhone   = (string)$b['phone_number']  !== '';
+          $method     = (string)$b['best_contact_method'];
         ?>
           <div class="cp-send-card" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+
             <div class="cp-send-head">
               <div>
                 <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -487,7 +493,30 @@ if (!empty($unresearched)) {
                 <?php endif; ?>
               </div>
             </div>
-            <div class="cp-send-actions">
+
+            <div class="cp-send-primary">
+              <?php if ($hasEmail): ?>
+                <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto($b, $previewUrl)) ?>">
+                  ✉&thinsp; Email <?= ho_h((string)$b['business_name']) ?>
+                </a>
+              <?php elseif ($hasFb): ?>
+                <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">
+                  Message on Facebook →
+                </a>
+              <?php elseif ($hasSiteUrl): ?>
+                <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">
+                  Contact via Website →
+                </a>
+              <?php elseif ($hasPhone): ?>
+                <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">
+                  Call <?= ho_h((string)$b['phone_number']) ?>
+                </a>
+              <?php else: ?>
+                <span class="cp-send-no-contact">No contact info on file</span>
+              <?php endif; ?>
+            </div>
+
+            <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
               <details class="cp-sent-wrap">
                 <summary class="cp-btn-outline">Mark Sent</summary>
@@ -496,10 +525,10 @@ if (!empty($unresearched)) {
                   <input type="hidden" name="tab" value="send">
                   <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
                   <select class="cp-select" name="sent_via">
-                    <option value="email"<?= (string)$b['best_contact_method'] === 'email'    ? ' selected' : '' ?>>Email</option>
-                    <option value="facebook_dm"<?= (string)$b['best_contact_method'] === 'facebook' ? ' selected' : '' ?>>Facebook DM</option>
-                    <option value="phone"<?= (string)$b['best_contact_method'] === 'phone'    ? ' selected' : '' ?>>Phone</option>
-                    <option value="website_form"<?= (string)$b['best_contact_method'] === 'website_form' ? ' selected' : '' ?>>Website Form</option>
+                    <option value="email"<?=       $method === 'email'        ? ' selected' : '' ?>>Email</option>
+                    <option value="facebook_dm"<?= $method === 'facebook'     ? ' selected' : '' ?>>Facebook DM</option>
+                    <option value="phone"<?=        $method === 'phone'        ? ' selected' : '' ?>>Phone</option>
+                    <option value="website_form"<?= $method === 'website_form' ? ' selected' : '' ?>>Website Form</option>
                     <option value="other">Other</option>
                   </select>
                   <input class="cp-input" type="text" name="sent_to"
@@ -509,6 +538,7 @@ if (!empty($unresearched)) {
                 </form>
               </details>
             </div>
+
           </div>
         <?php endforeach; ?>
       </div>

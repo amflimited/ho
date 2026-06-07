@@ -249,6 +249,31 @@ a { color: inherit; }
 .cp-pkg-standard { background: #E4F0E6; color: var(--green); }
 .cp-pkg-managed  { background: #FEF4D3; color: #7A5300; }
 
+.cp-send-primary {
+  padding: 0 12px 8px;
+}
+
+.cp-btn-send {
+  display: block; width: 100%; text-align: center; text-decoration: none;
+  font-family: var(--fn); font-size: 17px; font-weight: 900; letter-spacing: .04em;
+  padding: 13px 16px; border-radius: var(--r); line-height: 1;
+}
+.cp-btn-send-email  { background: var(--green); color: var(--white); }
+.cp-btn-send-fb     { background: #1877f2;      color: var(--white); }
+.cp-btn-send-web    { background: var(--ink);   color: var(--white); }
+.cp-btn-send-phone  { background: var(--ink);   color: var(--white); }
+.cp-btn-send:active { opacity: .85; }
+
+.cp-send-no-contact {
+  display: block; text-align: center; font-size: 12px;
+  color: var(--ink2); padding: 8px 0;
+}
+
+.cp-send-secondary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px 10px;
+}
+
 .cp-send-actions {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 12px 10px;

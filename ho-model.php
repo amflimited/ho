@@ -140,7 +140,8 @@ function ho_pipeline_counts(PDO $pdo): array {
           SUM(pipeline_status = 'preview_ready') AS preview_ready,
           SUM(pipeline_status = 'pitched')       AS pitched,
           SUM(pipeline_status = 'converted')     AS converted,
-          COUNT(*)                               AS total
+          SUM(pipeline_status = 'excluded')      AS excluded,
+          SUM(pipeline_status != 'excluded')     AS total
         FROM businesses
     ")->fetch();
     return [
@@ -149,6 +150,7 @@ function ho_pipeline_counts(PDO $pdo): array {
         'preview_ready'=> (int)($row['preview_ready']?? 0),
         'pitched'      => (int)($row['pitched']      ?? 0),
         'converted'    => (int)($row['converted']    ?? 0),
+        'excluded'     => (int)($row['excluded']     ?? 0),
         'total'        => (int)($row['total']        ?? 0),
     ];
 }
@@ -707,17 +709,61 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
 function ho_get_preview_ready(PDO $pdo): array {
     return $pdo->query("
         SELECT b.id, b.business_name, b.business_slug, b.location_city,
-               b.email_address, b.facebook_url, b.phone_number, b.best_contact_method,
+               b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
                c.name AS category_name,
-               p.headline, p.package_recommendation, p.view_count
+               p.headline, p.package_recommendation, p.view_count,
+               r.opportunity_summary, r.strengths, r.gaps,
+               r.has_website, r.website_quality, r.google_review_count, r.google_rating
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN previews p ON p.business_id = b.id
+        LEFT JOIN research_records r ON r.business_id = b.id
         WHERE b.pipeline_status = 'preview_ready'
           AND p.preview_status = 'ready'
         ORDER BY b.updated_at DESC
         LIMIT 50
     ")->fetchAll();
+}
+
+function ho_pitch_mailto(array $biz, string $previewUrl): string {
+    $name     = (string)$biz['business_name'];
+    $city     = (string)$biz['location_city'];
+    $catLower = strtolower((string)$biz['category_name']);
+    $email    = (string)($biz['email_address'] ?? '');
+
+    $strengths = json_decode((string)($biz['strengths'] ?? '[]'), true);
+    $gaps      = json_decode((string)($biz['gaps']      ?? '[]'), true);
+    $opSum     = trim((string)($biz['opportunity_summary'] ?? ''));
+    $hasSite   = (bool)($biz['has_website'] ?? false);
+    $siteQual  = (string)($biz['website_quality'] ?? 'none');
+    $reviews   = (int)($biz['google_review_count'] ?? 0);
+
+    $subject = "A quick note for {$name}";
+
+    if ($opSum !== '') {
+        $hook = $opSum;
+    } elseif (!$hasSite || $siteQual === 'none') {
+        $hook = "I noticed you don\u{2019}t have a dedicated website yet \u{2014} which actually means there\u{2019}s a real opportunity here.";
+    } elseif ($siteQual === 'poor') {
+        $hook = "I came across your website and could see the potential for something much more effective.";
+    } elseif ($reviews >= 10) {
+        $hook = "I noticed your {$reviews} Google reviews \u{2014} that\u{2019}s real social proof that deserves a better home online.";
+    } elseif (!empty($strengths)) {
+        $hook = ucfirst(strtolower((string)$strengths[0])) . " \u{2014} that kind of thing deserves better visibility online.";
+    } else {
+        $hook = "I came across your {$catLower} business while researching the {$city} area.";
+    }
+
+    $gapLine = '';
+    if (!empty($gaps)) {
+        $gapLine = "\nThe main thing I think could move the needle: " . strtolower((string)$gaps[0]) . ".\n";
+    }
+
+    $body = "Hi,\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\nTake a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosiersonline.com";
+
+    return 'mailto:' . rawurlencode($email)
+        . '?subject=' . rawurlencode($subject)
+        . '&body='    . rawurlencode($body);
 }
 
 function ho_mark_sent(PDO $pdo, int $businessId, string $sentVia, string $sentTo): void {
