@@ -83,7 +83,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
-    <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN &middot; Hoosier Online Preview</p>
+    <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
     <p class="fd-turn-tag">This is your new front door.</p>
   </section>
@@ -128,9 +128,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   ?>
 
   <?php if (!$usingCatTpls): ?>
-  <p class="fd-tpl-intro">We defaulted to <strong><?= ho_h($design['name'] ?: 'Classic') ?></strong> &mdash; tap any style to preview it on your page.</p>
-  <?php else: ?>
-  <p class="fd-tpl-intro">Tap any style to see it &mdash; we&rsquo;ll build whichever one you choose.</p>
+  <p class="fd-tpl-intro">We defaulted to <strong><?= ho_h($design['name'] ?: 'Classic') ?></strong> &mdash; tap any style to switch.</p>
   <?php endif; ?>
 
   <?php if (!empty($available)): ?>
@@ -159,6 +157,8 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   (function(){
     var tabs   = document.querySelectorAll('.fd-tpl-tab');
     var screen = document.getElementById('fd-phone-screen');
+    var picker = document.querySelector('.fd-tpl-picker');
+    if (picker) picker.scrollLeft = 0;
     tabs.forEach(function(tab){
       tab.addEventListener('click', function(){
         var key = tab.dataset.tpl;
@@ -194,9 +194,9 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <!-- ── WHY THIS BUSINESS ───────────────────────────────────────────────── -->
   <section class="fd-card">
-    <p class="fd-kicker">Why <?= ho_h($name) ?></p>
+    <p class="fd-kicker">What we found</p>
     <?php if ($angle !== ''): ?>
-      <h2><?= ho_h($angle) ?></h2>
+      <p class="fd-why-angle"><?= ho_h($angle) ?></p>
     <?php endif; ?>
     <?php if (!empty($opp)): ?>
       <p class="fd-why"><?= ho_h($opp) ?></p>

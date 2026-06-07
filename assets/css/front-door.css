@@ -243,22 +243,29 @@ body.front-door-preview-page{
 /* ── THE TURN ── */
 .fd-turn{
   text-align:center;
-  padding:36px 18px 18px;
+  padding:20px 16px 10px;
 }
 .fd-turn-eyebrow{
-  margin:0 0 16px;
-  font-size:11px;font-weight:800;letter-spacing:.12em;
+  margin:0 0 10px;
+  font-size:11px;font-weight:800;letter-spacing:.1em;
   text-transform:uppercase;color:var(--fd-muted);
 }
 .fd-turn-name{
-  margin:0 0 14px;
-  font-size:clamp(32px,10vw,60px);
-  line-height:.95;letter-spacing:-.04em;color:var(--fd-ink);
+  margin:0 0 10px;
+  font-size:clamp(24px,7vw,50px);
+  line-height:1.0;letter-spacing:-.035em;color:var(--fd-ink);
 }
 .fd-turn-tag{
   margin:0;
-  font-size:18px;font-weight:700;
+  font-size:16px;font-weight:700;
   color:var(--fd-green);letter-spacing:-.01em;
+}
+
+/* ── WHY ANGLE HEADING (sentence-length, so smaller than card h2) ── */
+.fd-why-angle{
+  font-size:clamp(20px,5.5vw,30px);
+  line-height:1.2;letter-spacing:-.025em;
+  margin:0 0 12px;color:var(--fd-ink);
 }
 
 /* ── GAP ITEMS (why section) ── */
@@ -358,8 +365,8 @@ body.front-door-preview-page{
 
 .fd-tpl-intro{
   text-align:center;
-  font-size:14px;color:var(--fd-muted);
-  margin:0 0 12px;padding:0 8px;
+  font-size:13px;color:var(--fd-muted);
+  margin:6px 0 8px;padding:0 8px;
 }
 .fd-tpl-intro strong{color:var(--fd-ink)}
 
