@@ -211,6 +211,19 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   </section>
 
 
+  <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
+  <section class="fd-card fd-trust">
+    <p class="fd-kicker">Who&rsquo;s behind this</p>
+    <h2>Adam Ferree</h2>
+    <p>Indiana web developer. I research local service businesses personally &mdash; no sales team, no cold-call scripts. If I built a preview for you, it&rsquo;s because I think there&rsquo;s a real opportunity worth showing you.</p>
+    <ul class="fd-trust-signals">
+      <li>Based in Indiana</li>
+      <li>Every preview researched and built by hand</li>
+      <li>Plain pricing. No surprise fees.</li>
+    </ul>
+    <p class="fd-muted" style="margin-top:14px;">Questions? Reply directly: <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+  </section>
+
   <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
   <section class="fd-section">
     <div class="fd-section-head">
@@ -273,6 +286,12 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
       </ul>
     <?php endif; ?>
 
+    <ol class="fd-offer-steps">
+      <li><strong>You say yes</strong> &mdash; reply to this email or tap the button below</li>
+      <li><strong>Quick call or back-and-forth</strong> &mdash; ~20 minutes to confirm your details</li>
+      <li><strong>You launch</strong> &mdash; your site goes live within a week</li>
+    </ol>
+
     <div class="fd-actions">
       <a class="fd-btn fd-btn-primary"
          href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Front Door for ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI saw the preview for {$name} and I'd like to move forward.\n\n") ?>">
@@ -283,6 +302,8 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
         I Have Questions
       </a>
     </div>
+
+    <p class="fd-offer-guarantee">Not happy? Full refund within 30 days &mdash; no questions.</p>
     <p class="fd-muted">Take it. Share it. Sleep on it &mdash; it&rsquo;ll still make sense in the morning.</p>
   </section>
 

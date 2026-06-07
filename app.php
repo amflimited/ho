@@ -77,6 +77,14 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 ho_mark_excluded($pdo, $bizId, $reason, $addBl);
                 header('Location: ?tab=research&research_cat_id=' . (int)($_POST['research_cat_id'] ?? 0) . '&flash=' . urlencode('Business excluded.'));
                 exit;
+
+            case 'mark_outcome':
+                $logId   = (int)($_POST['log_id']  ?? 0);
+                $outcome = trim((string)($_POST['outcome'] ?? ''));
+                if ($logId === 0) throw new RuntimeException('Log ID missing.');
+                ho_mark_outcome($pdo, $logId, $outcome);
+                header('Location: ?tab=send&flash=' . urlencode('Follow-up recorded.'));
+                exit;
         }
     } catch (Throwable $e) {
         header('Location: ?tab=' . urlencode($_POST['tab'] ?? 'source') . '&error=' . urlencode($e->getMessage()));
@@ -103,6 +111,7 @@ $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 20) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
+$followupDue   = $pdo ? ho_get_followup_due($pdo) : [];
 
 $coverage = $pdo ? ho_source_coverage($pdo) : [];
 
@@ -484,6 +493,41 @@ if (!empty($unresearched)) {
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'send'): ?>
 
+  <?php if (!empty($followupDue)): ?>
+    <section class="cp-section">
+      <details class="cp-followup-wrap" open>
+        <summary class="cp-followup-summary">
+          <span class="cp-followup-badge"><?= count($followupDue) ?></span>
+          Follow-up<?= count($followupDue) !== 1 ? 's' : '' ?> due
+        </summary>
+        <?php foreach ($followupDue as $fu):
+          $sentDaysAgo = (int)floor((time() - strtotime((string)$fu['sent_at'])) / 86400);
+          $previewHref = (string)$fu['preview_slug'] !== '' ? '/go/' . ho_h((string)$fu['preview_slug']) : '';
+        ?>
+        <div class="cp-followup-card">
+          <div class="cp-followup-head">
+            <strong><?= ho_h((string)$fu['business_name']) ?></strong>
+            <span><?= ho_h((string)$fu['location_city']) ?> &middot; sent <?= $sentDaysAgo ?> day<?= $sentDaysAgo !== 1 ? 's' : '' ?> ago</span>
+          </div>
+          <div class="cp-followup-actions">
+            <form method="POST" style="display:contents">
+              <input type="hidden" name="action" value="mark_outcome">
+              <input type="hidden" name="tab" value="send">
+              <input type="hidden" name="log_id" value="<?= (int)$fu['log_id'] ?>">
+              <button class="cp-btn-outcome cp-btn-outcome-yes" name="outcome" value="interested" type="submit">Interested</button>
+              <button class="cp-btn-outcome cp-btn-outcome-no" name="outcome" value="no_response" type="submit">No Reply</button>
+              <button class="cp-btn-outcome cp-btn-outcome-pass" name="outcome" value="not_interested" type="submit">Not Interested</button>
+            </form>
+            <?php if ($previewHref !== ''): ?>
+              <a class="cp-btn-ghost" href="<?= $previewHref ?>" target="_blank">Preview ↗</a>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </details>
+    </section>
+  <?php endif; ?>
+
   <?php if (empty($sendQueue)): ?>
     <div class="cp-empty">No pitches ready. Finish research to generate previews.</div>
   <?php else: ?>
@@ -546,6 +590,8 @@ if (!empty($unresearched)) {
                 <?php if ((int)$b['view_count'] > 0): ?>
                   <span class="cp-view-count"><?= (int)$b['view_count'] ?> view<?= (int)$b['view_count'] !== 1 ? 's' : '' ?></span>
                 <?php endif; ?>
+                <?php $score = (int)$b['fit_score']; $scoreCls = $score >= 5 ? 'green' : ($score >= 3 ? 'amber' : 'grey'); ?>
+                <span class="cp-score cp-score-<?= $scoreCls ?>"><?= $score ?></span>
               </div>
             </div>
 

@@ -537,3 +537,46 @@ a { color: inherit; }
 .cp-cat-legend span {
   font-size: 10px; font-weight: 700; color: #fff; padding: 3px 8px; border-radius: 4px;
 }
+
+/* ── Fit score pill ──────────────────────────────────────────────────────── */
+.cp-score {
+  font-size: 11px; font-weight: 700; border-radius: 10px;
+  padding: 1px 7px; min-width: 22px; text-align: center;
+}
+.cp-score-green { background: #2a7a35; color: #fff; }
+.cp-score-amber { background: #c49000; color: #fff; }
+.cp-score-grey  { background: #bbb; color: var(--ink); }
+
+/* ── Follow-up section ───────────────────────────────────────────────────── */
+.cp-followup-wrap { border: 1.5px solid #c49000; border-radius: var(--r); overflow: hidden; }
+.cp-followup-summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; font-size: 14px; font-weight: 700;
+  background: #fffbe6; cursor: pointer; list-style: none;
+}
+.cp-followup-summary::-webkit-details-marker { display: none; }
+.cp-followup-badge {
+  background: #c49000; color: #fff;
+  font-size: 11px; font-weight: 900; border-radius: 10px;
+  padding: 1px 7px; min-width: 22px; text-align: center;
+}
+.cp-followup-card {
+  padding: 12px 14px;
+  border-top: 1px solid #e5dfc8;
+  background: #fff;
+}
+.cp-followup-head {
+  display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px;
+}
+.cp-followup-head strong { font-size: 15px; }
+.cp-followup-head span   { font-size: 12px; color: var(--ink2); }
+.cp-followup-actions {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+.cp-btn-outcome {
+  flex: 1; min-width: 90px; padding: 8px 10px;
+  font-size: 13px; font-weight: 700; border-radius: var(--r); border: none; cursor: pointer;
+}
+.cp-btn-outcome-yes  { background: #2a7a35; color: #fff; }
+.cp-btn-outcome-no   { background: var(--border); color: var(--ink); }
+.cp-btn-outcome-pass { background: #f5f0e8; color: var(--ink2); }

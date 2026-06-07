@@ -524,6 +524,7 @@ For each business return exactly this JSON structure (one entry per business):
       "strengths": ["thing working in their favor"],
       "gaps": ["thing missing or broken"],
       "recommended_package": "standard",
+      "owner_first_name": "",
       "is_franchise": false
     }
   ]
@@ -534,6 +535,7 @@ Rules:
 - facebook_activity / instagram_activity: "none" (no account), "dormant" (no posts in 3+ months), "active" (posting regularly)
 - recommended_package: "standard" ($499, most businesses) or "managed" ($999, businesses with more content to work with)
 - is_franchise: true if this is a national franchise, corporate chain, multi-location platform, or territory-licensed model (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, ServiceMaster, Junk King, MaidPro, TruGreen, Lawn Love). false for independent local owner-operators.
+- owner_first_name: first name of the owner/operator if findable on Google Business, website About page, or Facebook. Empty string if not found.
 - Return ONLY valid JSON, no explanation, no markdown fences.
 PROMPT;
 }
@@ -628,8 +630,9 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
             $strengths, $gaps, $package,
         ]);
 
-        $pdo->prepare("UPDATE businesses SET pipeline_status = 'researched', updated_at = NOW() WHERE id = ?")
-            ->execute([$bizId]);
+        $ownerFirst = substr(trim((string)($r['owner_first_name'] ?? '')), 0, 100);
+        $pdo->prepare("UPDATE businesses SET pipeline_status = 'researched', owner_first_name = ?, updated_at = NOW() WHERE id = ?")
+            ->execute([$ownerFirst, $bizId]);
 
         ho_auto_generate_preview($pdo, $bizId);
         $updated++;
@@ -717,14 +720,30 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
 
 // ─── Send queue ───────────────────────────────────────────────────────────────
 
+function ho_fit_score(array $biz): int {
+    $score = 0;
+    $hasSite  = (bool)($biz['has_website'] ?? false);
+    $siteQual = (string)($biz['website_quality'] ?? 'none');
+    if (!$hasSite || $siteQual === 'none') $score += 3;
+    $reviews = (int)($biz['google_review_count'] ?? 0);
+    if ($reviews >= 10) $score += 2;
+    if ($reviews >= 20) $score += 1;
+    if ((string)($biz['facebook_activity'] ?? '') === 'active') $score += 1;
+    if ((string)($biz['package_recommendation'] ?? '') === 'managed') $score += 1;
+    if ((string)($biz['email_address'] ?? '') !== '') $score += 1;
+    return $score;
+}
+
 function ho_get_preview_ready(PDO $pdo): array {
-    return $pdo->query("
+    $rows = $pdo->query("
         SELECT b.id, b.business_name, b.business_slug, b.location_city,
                b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
+               b.owner_first_name,
                c.name AS category_name,
                p.headline, p.package_recommendation, p.view_count,
                r.opportunity_summary, r.strengths, r.gaps,
-               r.has_website, r.website_quality, r.google_review_count, r.google_rating
+               r.has_website, r.website_quality, r.google_review_count, r.google_rating,
+               r.facebook_activity
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN previews p ON p.business_id = b.id
@@ -734,6 +753,13 @@ function ho_get_preview_ready(PDO $pdo): array {
         ORDER BY b.updated_at DESC
         LIMIT 50
     ")->fetchAll();
+
+    foreach ($rows as &$row) {
+        $row['fit_score'] = ho_fit_score($row);
+    }
+    unset($row);
+    usort($rows, fn($a, $b) => $b['fit_score'] <=> $a['fit_score']);
+    return $rows;
 }
 
 function ho_pitch_mailto(array $biz, string $previewUrl): string {
@@ -770,7 +796,10 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
         $gapLine = "\nThe main thing I think could move the needle: " . strtolower((string)$gaps[0]) . ".\n";
     }
 
-    $body = "Hi,\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\nTake a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosiersonline.com";
+    $firstName = trim((string)($biz['owner_first_name'] ?? ''));
+    $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
+
+    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\nTake a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosiersonline.com";
 
     return 'mailto:' . rawurlencode($email)
         . '?subject=' . rawurlencode($subject)
@@ -914,8 +943,8 @@ function ho_mark_sent(PDO $pdo, int $businessId, string $sentVia, string $sentTo
     if ($pr) $previewId = (int)$pr['id'];
 
     $pdo->prepare("
-        INSERT INTO outreach_log (business_id, preview_id, sent_via, sent_to, outcome)
-        VALUES (?, ?, ?, ?, 'pending')
+        INSERT INTO outreach_log (business_id, preview_id, sent_via, sent_to, outcome, follow_up_at)
+        VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL 7 DAY))
     ")->execute([$businessId, $previewId, $sentVia, $sentTo]);
 
     $pdo->prepare("UPDATE businesses SET pipeline_status = 'pitched', updated_at = NOW() WHERE id = ?")
@@ -924,6 +953,41 @@ function ho_mark_sent(PDO $pdo, int $businessId, string $sentVia, string $sentTo
     if ($previewId) {
         $pdo->prepare("UPDATE previews SET preview_status = 'sent' WHERE id = ?")
             ->execute([$previewId]);
+    }
+}
+
+function ho_get_followup_due(PDO $pdo, int $limit = 20): array {
+    $s = $pdo->prepare("
+        SELECT b.business_name, b.location_city, b.id AS business_id,
+               ol.id AS log_id, ol.sent_at, ol.follow_up_at, ol.outcome, ol.sent_to,
+               p.preview_slug
+        FROM outreach_log ol
+        JOIN businesses b ON b.id = ol.business_id
+        LEFT JOIN previews p ON p.id = ol.preview_id
+        WHERE ol.outcome = 'pending'
+          AND ol.follow_up_at <= CURDATE()
+        ORDER BY ol.follow_up_at ASC
+        LIMIT " . (int)$limit . "
+    ");
+    $s->execute([]);
+    return $s->fetchAll();
+}
+
+function ho_mark_outcome(PDO $pdo, int $logId, string $outcome): void {
+    $valid = ['no_response', 'interested', 'not_interested', 'converted'];
+    if (!in_array($outcome, $valid, true)) return;
+
+    $pdo->prepare("UPDATE outreach_log SET outcome = ? WHERE id = ?")
+        ->execute([$outcome, $logId]);
+
+    if ($outcome === 'converted') {
+        $row = $pdo->prepare("SELECT business_id FROM outreach_log WHERE id = ?");
+        $row->execute([$logId]);
+        $r = $row->fetch();
+        if ($r) {
+            $pdo->prepare("UPDATE businesses SET pipeline_status = 'converted', updated_at = NOW() WHERE id = ?")
+                ->execute([(int)$r['business_id']]);
+        }
     }
 }
 
