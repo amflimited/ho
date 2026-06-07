@@ -266,50 +266,69 @@ if (!empty($unresearched)) {
   <section class="cp-section">
     <h2 class="cp-sh" style="font-size:13px;margin-bottom:10px;letter-spacing:.08em;">Region coverage</h2>
 
+    <div class="cp-cov-key">
+      <span class="cp-cov-pill cp-cov-active">Active</span>
+      <span class="cp-cov-pill cp-cov-slowing">Slowing</span>
+      <span class="cp-cov-pill cp-cov-low">Low</span>
+      <span class="cp-cov-pill cp-cov-dry">Dry</span>
+      <span class="cp-cov-key-note">= last run yield per region</span>
+    </div>
+
     <?php foreach ($showCats as $catName):
       $regMap    = $covMap[$catName] ?? [];
-      $totRuns   = array_sum(array_column($regMap, 'run_count'));
-      $totFound  = array_sum(array_column($regMap, 'total_found'));
+      $totRuns   = (int)array_sum(array_column($regMap, 'run_count'));
+      $totFound  = (int)array_sum(array_column($regMap, 'total_found'));
+      $nRegions  = count($allRegions);
       $sourced   = count($regMap);
-      $remaining = count($allRegions) - $sourced;
+      $remaining = $nRegions - $sourced;
+      $stCounts  = ['active'=>0,'slowing'=>0,'low'=>0,'dry'=>0];
+      foreach ($regMap as $r) {
+          $ly = (int)$r['last_yield'];
+          if ($ly >= 10)     $stCounts['active']++;
+          elseif ($ly >= 5)  $stCounts['slowing']++;
+          elseif ($ly >= 1)  $stCounts['low']++;
+          else               $stCounts['dry']++;
+      }
     ?>
     <div class="cp-cov-card">
       <div class="cp-cov-card-head">
         <strong><?= ho_h($catName) ?></strong>
         <?php if ($totRuns > 0): ?>
-          <span><?= $totRuns ?> run<?= $totRuns !== 1 ? 's' : '' ?> &middot; <?= $totFound ?> leads &middot; <?= $sourced ?>/<?= count($allRegions) ?> regions</span>
+          <span><?= $sourced ?>/<?= $nRegions ?> &middot; <?= $totFound ?> leads &middot; <?= $totRuns ?> run<?= $totRuns !== 1 ? 's' : '' ?></span>
         <?php else: ?>
-          <span class="cp-cov-unsourced">not yet sourced</span>
+          <span class="cp-cov-untouched">0/<?= $nRegions ?> &middot; not yet sourced</span>
         <?php endif; ?>
       </div>
+
+      <div class="cp-cov-bar">
+        <?php foreach (['active','slowing','low','dry'] as $st): if ($stCounts[$st] > 0): ?>
+          <div class="cp-cov-bar-fill cp-cov-bar-<?= $st ?>" style="width:<?= round($stCounts[$st]/$nRegions*100) ?>%"></div>
+        <?php endif; endforeach; ?>
+      </div>
+
       <div class="cp-cov-regions">
-        <?php foreach ($allRegions as $region):
-          $row = $regMap[$region] ?? null;
-          if ($row) {
-              $ly = (int)$row['last_yield'];
-              if     ($ly >= 10) $st = 'active';
-              elseif ($ly >= 5)  $st = 'slowing';
-              elseif ($ly >= 1)  $st = 'low';
-              else               $st = 'dry';
-          } else { $ly = null; $st = 'new'; }
-          $abbr = $regionAbbr[$region] ?? $region;
-        ?>
-          <span class="cp-cov-pill cp-cov-<?= $st ?>" title="<?= ho_h($region) ?><?= $row ? ' — last yield: ' . $ly : '' ?>">
-            <?= ho_h($abbr) ?><?php if ($ly !== null): ?><em><?= $ly ?></em><?php endif; ?>
-          </span>
-        <?php endforeach; ?>
+        <?php if (empty($regMap)): ?>
+          <span class="cp-cov-none"><?= $nRegions ?> regions available &mdash; no runs yet</span>
+        <?php else: ?>
+          <?php foreach ($regMap as $region => $row):
+            $ly   = (int)$row['last_yield'];
+            if ($ly >= 10)     $st = 'active';
+            elseif ($ly >= 5)  $st = 'slowing';
+            elseif ($ly >= 1)  $st = 'low';
+            else               $st = 'dry';
+            $abbr = $regionAbbr[$region] ?? $region;
+          ?>
+            <span class="cp-cov-pill cp-cov-<?= $st ?>" title="<?= ho_h($region) ?>">
+              <?= ho_h($abbr) ?><em><?= $ly ?></em>
+            </span>
+          <?php endforeach; ?>
+          <?php if ($remaining > 0): ?>
+            <span class="cp-cov-more">+<?= $remaining ?> untouched</span>
+          <?php endif; ?>
+        <?php endif; ?>
       </div>
     </div>
     <?php endforeach; ?>
-
-    <div class="cp-cov-legend">
-      <span class="cp-cov-pill cp-cov-active">Active</span>
-      <span class="cp-cov-pill cp-cov-slowing">Slowing</span>
-      <span class="cp-cov-pill cp-cov-low">Low</span>
-      <span class="cp-cov-pill cp-cov-dry">Dry</span>
-      <span class="cp-cov-pill cp-cov-new">Untouched</span>
-      <span class="cp-cov-legend-note">pill number = last run yield</span>
-    </div>
   </section>
   <?php endif; ?>
 

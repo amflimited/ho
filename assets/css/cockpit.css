@@ -271,39 +271,55 @@ a { color: inherit; }
 }
 
 /* ── COVERAGE MAP ────────────────────────────────────────────────────────── */
+.cp-cov-key {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+  margin-bottom: 10px;
+}
+.cp-cov-key-note { font-size: 11px; color: var(--ink2); margin-left: 2px; }
+
 .cp-cov-card {
   background: var(--white); border: 1.5px solid var(--border);
   border-radius: var(--r); overflow: hidden; margin-bottom: 8px;
 }
 .cp-cov-card-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 9px 12px 8px;
-  border-bottom: 1px solid var(--border);
+  padding: 10px 12px 8px; border-bottom: 1px solid var(--border);
 }
 .cp-cov-card-head strong { font-size: 13px; font-weight: 700; }
 .cp-cov-card-head span   { font-size: 11px; color: var(--ink2); white-space: nowrap; }
-.cp-cov-unsourced        { color: var(--ink2); opacity: .6; font-style: italic; }
+.cp-cov-untouched        { font-style: italic; }
+
+.cp-cov-bar {
+  display: flex; height: 4px;
+  background: var(--border); margin: 0 12px 0;
+}
+.cp-cov-bar-fill        { height: 100%; }
+.cp-cov-bar-active      { background: #2a7a35; }
+.cp-cov-bar-slowing     { background: #c49000; }
+.cp-cov-bar-low         { background: #c06010; }
+.cp-cov-bar-dry         { background: #bbb; }
 
 .cp-cov-regions {
-  display: flex; flex-wrap: wrap; gap: 5px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
   padding: 9px 10px 10px;
 }
 
 .cp-cov-pill {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 3px;
   padding: 3px 8px; border-radius: 999px;
-  font-size: 11px; font-weight: 700; white-space: nowrap; line-height: 1.4;
+  font-size: 11px; font-weight: 700; white-space: nowrap; line-height: 1.5;
 }
-.cp-cov-pill em { font-style: normal; font-weight: 900; font-size: 10px; opacity: .85; }
+.cp-cov-pill em { font-style: normal; font-size: 10px; font-weight: 900; opacity: .8; }
 
 .cp-cov-active  { background: #d4edda; color: #1a5c2a; }
 .cp-cov-slowing { background: #fff3cd; color: #7a5500; }
 .cp-cov-low     { background: #ffe5cc; color: #7a3800; }
 .cp-cov-dry     { background: #ececec; color: #888; }
-.cp-cov-new     { background: transparent; color: var(--ink2); border: 1.5px dashed var(--border); }
 
-.cp-cov-legend {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  margin-top: 10px;
+.cp-cov-more {
+  font-size: 11px; color: var(--ink2); font-weight: 600;
+  padding: 2px 4px;
 }
-.cp-cov-legend-note { font-size: 11px; color: var(--ink2); margin-left: 2px; }
+.cp-cov-none {
+  font-size: 12px; color: var(--ink2); font-style: italic;
+}
