@@ -103,6 +103,7 @@ if ($url !== '' && $httpCode === 200) {
     exit;
 }
 
+$stripeMsg = (string)($data['error']['message'] ?? '');
 error_log('Stripe checkout error (' . $httpCode . '): ' . $response);
-header('Location: ' . $cancelUrl . '&err=1');
+header('Location: ' . $cancelUrl . '&err=' . rawurlencode($stripeMsg !== '' ? $stripeMsg : 'checkout_failed'));
 exit;

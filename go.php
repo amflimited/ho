@@ -56,9 +56,10 @@ if (strlen($telRaw) === 10) {
 $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : 'Hoosier Online';
 
 // ── Your contact info ─────────────────────────────────────────────────────
-$adamPhone = '(765) 443-4321';
-$paid      = isset($_GET['paid']);
-$stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
+$adamPhone  = '(765) 443-4321';
+$paid       = isset($_GET['paid']);
+$errCode    = trim((string)($_GET['err'] ?? ''));
+$stripeErr  = $errCode !== '';
 
 ?><!doctype html>
 <html lang="en">
@@ -414,7 +415,11 @@ $stripeErr = isset($_GET['err']) && $_GET['err'] === 'stripe';
     </form>
     <p class="fd-secure-note">Stripe secure checkout &middot; 256-bit SSL &middot; 30-day money-back guarantee</p>
     <?php if ($stripeErr): ?>
-      <p class="fd-stripe-err">Online checkout isn&rsquo;t set up yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+      <?php if ($errCode === 'stripe'): ?>
+        <p class="fd-stripe-err">Online checkout isn&rsquo;t configured yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+      <?php else: ?>
+        <p class="fd-stripe-err">Something went wrong starting checkout<?= ($errCode !== 'checkout_failed' && $errCode !== '1') ? ': ' . ho_h(urldecode($errCode)) : '' ?> &mdash; please try again or reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></p>
+      <?php endif; ?>
     <?php endif; ?>
     <a class="fd-btn fd-btn-secondary"
        href="mailto:adam@hoosiersonline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
