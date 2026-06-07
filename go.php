@@ -91,12 +91,14 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   <?php
   $templateKey = $design['key'] ?? 'default';
 
-  // Check for category-specific templates first
-  $catTemplateDir  = __DIR__ . '/templates/previews/' . $catSlug . '/';
-  $catIndexFile    = $catTemplateDir . 'index.json';
-  $available       = [];
+  // Resolve template directory — DB slug may differ from directory name
+  $tplDirName     = ho_template_dir_for_slug($catSlug);
+  $catTemplateDir = __DIR__ . '/templates/previews/' . $tplDirName . '/';
+  $catIndexFile   = $catTemplateDir . 'index.json';
+  $available      = [];
+  $usingCatTpls   = false;
 
-  if ($catSlug !== '' && is_file($catIndexFile)) {
+  if ($tplDirName !== '' && is_file($catIndexFile)) {
       $catIndex = json_decode(file_get_contents($catIndexFile), true) ?? [];
       foreach ($catIndex as $entry) {
           $k = $entry['key'] ?? '';
@@ -105,8 +107,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
               $available[$k] = ['label' => $entry['label'] ?? $k, 'color' => $entry['color'] ?? '#2f5e36', 'file' => $f];
           }
       }
-      // Default selected = first in list
-      if (!empty($available)) $templateKey = array_key_first($available);
+      if (!empty($available)) { $templateKey = array_key_first($available); $usingCatTpls = true; }
   }
 
   // Fall back to generic design-family templates
@@ -125,7 +126,11 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
   }
   ?>
 
+  <?php if (!$usingCatTpls): ?>
   <p class="fd-tpl-intro">We picked <strong><?= ho_h($design['name'] ?: 'Classic') ?></strong> for your category. Tap any style to see it on your page.</p>
+  <?php else: ?>
+  <p class="fd-tpl-intro">Pick the style that fits your brand. Tap any option to preview it.</p>
+  <?php endif; ?>
 
   <?php if (!empty($available)): ?>
 
