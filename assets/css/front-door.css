@@ -516,35 +516,12 @@ body.front-door-preview-page{
 .fd-jrt-img{width:100%;display:block}
 .fd-jrt-ov{position:absolute;line-height:1.1;pointer-events:none}
 
-/* ══ Screen 1 — Navy Lime (Montserrat 800, canvas 852×1846) ══════════════ */
-.fd-nl{background:#1a0d3e}
-.fd-nl-h{top:2.27%;left:15.49%;width:48.12%;font-family:'Montserrat',sans-serif;font-size:4vw;font-weight:800;letter-spacing:.02em;text-align:left;color:#fff}
-.fd-nl-t{top:14.62%;left:62.79%;width:22.3%;font-family:'Montserrat',sans-serif;font-size:2.82vw;font-weight:800;letter-spacing:.03em;text-align:center;color:#fff}
-.fd-nl-u{top:20.42%;left:73.71%;width:8.45%;font-family:'Montserrat',sans-serif;font-size:1.17vw;font-weight:700;letter-spacing:.02em;text-align:center;color:#fff}
-
-/* ══ Screen 2 — Forest Green (Poppins 800, canvas 852×1846) ══════════════ */
-.fd-fg{background:#111}
-.fd-fg-h{top:1.52%;left:13.15%;width:50.47%;font-family:'Poppins',sans-serif;font-size:3.76vw;font-weight:800;letter-spacing:.01em;text-align:left;color:#F7F4E9}
-.fd-fg-t{top:10.18%;left:71.95%;width:18.78%;font-family:'Poppins',sans-serif;font-size:2.35vw;font-weight:800;letter-spacing:.02em;text-align:center;color:#F7F4E9}
-.fd-fg-u{top:9.42%;left:6.81%;width:11.27%;font-family:'Poppins',sans-serif;font-size:1.41vw;font-weight:700;letter-spacing:.02em;text-align:center;color:#F7F4E9}
-
-/* ══ Screen 3 — Navy Process (Inter 800, canvas 852×1846) ════════════════ */
+/* ══ Junk Removal — template section backgrounds ══════════════════════════ */
+.fd-nl{background:#0a1525}
+.fd-fg{background:#1c2e1c}
 .fd-np{background:#0d1e2c}
-.fd-np-h{top:1.84%;left:11.27%;width:39.91%;font-family:'Inter',sans-serif;font-size:3.52vw;font-weight:800;letter-spacing:.01em;text-align:left;color:#fff}
-.fd-np-t{top:11.64%;left:73.47%;width:17.61%;font-family:'Inter',sans-serif;font-size:2.35vw;font-weight:800;letter-spacing:.02em;text-align:center;color:#fff}
-.fd-np-u{top:13.97%;left:33.57%;width:11.74%;font-family:'Inter',sans-serif;font-size:1.41vw;font-weight:700;letter-spacing:.02em;text-align:center;color:#fff}
-
-/* ══ Screen 4 — Black Lime (Barlow Condensed 800, canvas 852×1846) ═══════ */
-.fd-bl{background:#1a1a0d}
-.fd-bl-h{top:2.06%;left:13.62%;width:45.77%;font-family:'Barlow Condensed',sans-serif;font-size:4.23vw;font-weight:800;letter-spacing:.03em;text-align:left;text-transform:uppercase;color:#B6D421}
-.fd-bl-t{top:59.26%;left:10.33%;width:15.96%;font-family:'Barlow Condensed',sans-serif;font-size:2.58vw;font-weight:800;letter-spacing:.03em;text-align:center;text-transform:uppercase;color:#B6D421}
-.fd-bl-u{top:61.1%;left:41.43%;width:8.45%;font-family:'Barlow Condensed',sans-serif;font-size:1.29vw;font-weight:700;letter-spacing:.02em;text-align:center;color:#B6D421}
-
-/* ══ Screen 5 — Purple Lime (Nunito Sans 900, canvas 852×1846) ═══════════ */
-.fd-pl{background:#0a1628}
-.fd-pl-h{top:1.95%;left:11.74%;width:44.6%;font-family:'Nunito Sans',sans-serif;font-size:3.76vw;font-weight:900;letter-spacing:.01em;text-align:left;color:#2A0B59}
-.fd-pl-t{top:11.59%;left:60.44%;width:21.71%;font-family:'Nunito Sans',sans-serif;font-size:2.82vw;font-weight:900;letter-spacing:.01em;text-align:center;color:#fff}
-.fd-pl-u{top:17.61%;left:69.84%;width:11.74%;font-family:'Nunito Sans',sans-serif;font-size:1.41vw;font-weight:800;letter-spacing:.01em;text-align:center;color:#fff}
+.fd-bl{background:#0d0d0d}
+.fd-pl{background:#1a0d3e}
 
 .fd-wtd{background:#fff}
 .fd-wtd-hero{
