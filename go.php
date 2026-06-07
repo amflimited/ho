@@ -83,7 +83,7 @@ $pageTitle = $name !== '' ? $name . ' — Hoosier Online Front Door Preview' : '
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
-    <h2>That&rsquo;s your new front door, <?= ho_h($name) ?>.</h2>
+    <h2>This is your new front door, <?= ho_h($name) ?>&hellip;</h2>
     <p>Pick the style that feels right. We&rsquo;ll build it exactly that way &mdash; clean, fast, and made for a phone, because that&rsquo;s where your customers are looking.</p>
   </section>
 
