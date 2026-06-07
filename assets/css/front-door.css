@@ -511,8 +511,7 @@ body.front-door-preview-page{
   background:rgba(37,99,235,.14);color:#6ba4f8;
 }
 
-/* ══ Junk Removal — Work Truck (image + overlay) ══════════════════════════ */
-.fd-jrt{background:#f8f8f8}
+/* ══ Junk Removal — shared image+overlay base ═════════════════════════════ */
 .fd-jrt-wrap{position:relative;display:block;line-height:0}
 .fd-jrt-img{width:100%;display:block}
 .fd-jrt-ov{
@@ -521,50 +520,49 @@ body.front-door-preview-page{
   line-height:1.1;
   pointer-events:none;
 }
-.fd-jrt-name{
-  top:1.2%;left:10%;width:80%;
-  text-align:center;
-  font-size:2.6vw;font-weight:700;letter-spacing:-.01em;
-  color:#1a2e1a;
-}
 /* ══ Junk Removal — Life On ══════════════════════════════════════════════ */
+/* dark nav, logo left, hamburger right — uppercase bold lime centered in gap */
 .fd-lon{background:#0d0d0d}
 .fd-lon-name{
-  top:1.2%;left:10%;width:80%;
+  top:1.2%;left:12%;width:74%;
   text-align:center;
-  font-size:2.6vw;font-weight:700;letter-spacing:-.01em;
-  color:#d4f545;
+  font-size:2.5vw;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  color:#cbff35;
 }
 /* ══ Junk Removal — Clean Slate ══════════════════════════════════════════ */
+/* dark nav, logo left, 3 icons right — shorter width to clear icon cluster */
 .fd-cs{background:#0a0a0a}
 .fd-cs-name{
-  top:1.2%;left:10%;width:80%;
+  top:1.2%;left:12%;width:60%;
   text-align:center;
-  font-size:2.6vw;font-weight:700;letter-spacing:-.01em;
+  font-size:2.3vw;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
   color:#a3e635;
 }
 /* ══ Junk Removal — Peace of Mind ════════════════════════════════════════ */
+/* navy nav, logo left, hamburger right — clean weight, normal case, white */
 .fd-pm{background:#0f1e33}
 .fd-pm-name{
-  top:1.2%;left:10%;width:80%;
+  top:1.2%;left:12%;width:74%;
   text-align:center;
-  font-size:2.6vw;font-weight:700;letter-spacing:-.01em;
+  font-size:2.4vw;font-weight:600;letter-spacing:.01em;
   color:#ffffff;
 }
 /* ══ Junk Removal — Eco Future ═══════════════════════════════════════════ */
+/* white nav, leaf icon left, hamburger right — light weight, dark green, soft */
 .fd-ef{background:#f0f7f0}
 .fd-ef-name{
-  top:1.2%;left:10%;width:80%;
+  top:1.2%;left:13%;width:72%;
   text-align:center;
-  font-size:2.6vw;font-weight:700;letter-spacing:-.01em;
+  font-size:2.4vw;font-weight:600;letter-spacing:.01em;
   color:#1e4620;
 }
 /* ══ Junk Removal — Heavy Stuff ══════════════════════════════════════════ */
+/* dark nav, fist icon left, hamburger right — uppercase bold white, aggressive */
 .fd-hs{background:#1a1a1a}
 .fd-hs-name{
-  top:1.2%;left:10%;width:80%;
+  top:1.2%;left:13%;width:72%;
   text-align:center;
-  font-size:2.6vw;font-weight:700;letter-spacing:-.01em;
+  font-size:2.5vw;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
   color:#ffffff;
 }
 .fd-wtd{background:#fff}
