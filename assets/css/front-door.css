@@ -564,25 +564,26 @@ body.front-door-preview-page{
 }
 .fd-jrt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fd-jrt-card{
-  position:relative;border-radius:14px;height:108px;overflow:hidden;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:8px;
-  padding:0 10px;
+  position:relative;border-radius:14px;height:110px;overflow:hidden;
+  background-size:cover;background-position:center;
+  display:flex;align-items:flex-end;
 }
-.fd-jrt-card-glow{
-  position:absolute;top:-30px;right:-30px;
-  width:100px;height:100px;border-radius:50%;
-  filter:blur(28px);pointer-events:none;
+.fd-jrt-card::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(to bottom,rgba(0,0,0,.18) 0%,rgba(0,0,0,.78) 100%);
 }
 .fd-jrt-icon{
-  font-size:30px;line-height:1;
-  position:relative;z-index:1;
+  position:absolute;top:9px;left:9px;z-index:1;
+  font-size:18px;line-height:1;
+  background:rgba(0,0,0,.40);
+  border-radius:8px;padding:4px 5px;
 }
 .fd-jrt-card-name{
   position:relative;z-index:1;
-  font-size:11px;font-weight:800;letter-spacing:.04em;
-  text-transform:uppercase;color:#fff;
-  text-align:center;line-height:1.2;
+  padding:8px 10px;
+  font-size:12px;font-weight:800;color:#fff;
+  line-height:1.2;letter-spacing:.01em;
+  text-shadow:0 1px 4px rgba(0,0,0,.6);
 }
 .fd-jrt-trust{
   display:flex;justify-content:space-around;align-items:center;

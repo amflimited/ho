@@ -2,27 +2,29 @@
 <?php
 function jrt_svc_style(string $name): array {
     $n = strtolower($name);
+    // photo: curated Unsplash CDN, dark overlay handles readability
+    $p = 'https://images.unsplash.com/';
     if (preg_match('/furni|sofa|couch|chair|table|desk|loveseat/', $n))
-        return ['icon'=>'🛋','bg'=>'linear-gradient(150deg,#3d2a14 0%,#1e1408 100%)','glow'=>'rgba(200,100,10,.28)'];
+        return ['icon'=>'🛋','photo'=>$p.'photo-1555041469-a586c61ea9bc?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#3d2a14'];
     if (preg_match('/applian|washer|dryer|fridge|refrig|stove|oven|dishwash|microwave/', $n))
-        return ['icon'=>'🔌','bg'=>'linear-gradient(150deg,#18253a 0%,#0e1620 100%)','glow'=>'rgba(40,100,220,.24)'];
+        return ['icon'=>'🔌','photo'=>$p.'photo-1558618666-fcd25c85cd64?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#18253a'];
     if (preg_match('/yard|garden|brush|lawn|tree|shrub|limb|branch|green waste/', $n))
-        return ['icon'=>'🌿','bg'=>'linear-gradient(150deg,#1a2e14 0%,#0e1c09 100%)','glow'=>'rgba(40,150,40,.22)'];
+        return ['icon'=>'🌿','photo'=>$p.'photo-1416879595882-3373a0480b5b?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#1a2e14'];
     if (preg_match('/demo|destruct|construct|drywall|brick|concrete|tear/', $n))
-        return ['icon'=>'🏗','bg'=>'linear-gradient(150deg,#2e2018 0%,#1a130a 100%)','glow'=>'rgba(200,120,20,.24)'];
+        return ['icon'=>'🏗','photo'=>$p.'photo-1504307651254-35680f356dfd?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#2e2018'];
     if (preg_match('/recycl|metal|scrap|copper|iron|steel|aluminum/', $n))
-        return ['icon'=>'♻️','bg'=>'linear-gradient(150deg,#182828 0%,#0e1a1a 100%)','glow'=>'rgba(20,160,110,.20)'];
+        return ['icon'=>'♻️','photo'=>$p.'photo-1532996122724-e3c354a0b15b?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#182828'];
     if (preg_match('/electron|tv|computer|monitor|tech|phone|e-waste/', $n))
-        return ['icon'=>'📺','bg'=>'linear-gradient(150deg,#182035 0%,#0f1525 100%)','glow'=>'rgba(50,90,220,.22)'];
+        return ['icon'=>'📺','photo'=>$p.'photo-1518770660439-4636190af475?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#182035'];
     if (preg_match('/mattress|bed|sleep|box spring/', $n))
-        return ['icon'=>'🛏','bg'=>'linear-gradient(150deg,#2e2520 0%,#1b1710 100%)','glow'=>'rgba(160,90,20,.22)'];
+        return ['icon'=>'🛏','photo'=>$p.'photo-1505693416388-ac5ce068fe85?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#2e2520'];
     if (preg_match('/estate|cleanout|clean|hoard/', $n))
-        return ['icon'=>'🏠','bg'=>'linear-gradient(150deg,#1c2820 0%,#111a14 100%)','glow'=>'rgba(30,140,70,.20)'];
+        return ['icon'=>'🏠','photo'=>$p.'photo-1560448204-e02f11c3d0e2?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#1c2820'];
     if (preg_match('/haul|pickup|truck|transport/', $n))
-        return ['icon'=>'🚛','bg'=>'linear-gradient(150deg,#28201a 0%,#181410 100%)','glow'=>'rgba(220,110,10,.22)'];
+        return ['icon'=>'🚛','photo'=>$p.'photo-1601584115197-04ecc0da31d7?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#28201a'];
     if (preg_match('/hot tub|spa|pool/', $n))
-        return ['icon'=>'🛁','bg'=>'linear-gradient(150deg,#182030 0%,#0f151e 100%)','glow'=>'rgba(20,120,200,.20)'];
-    return ['icon'=>'🗑','bg'=>'linear-gradient(150deg,#2a2520 0%,#181510 100%)','glow'=>'rgba(224,123,18,.18)'];
+        return ['icon'=>'🛁','photo'=>$p.'photo-1571902943202-507ec2618e8f?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#182030'];
+    return ['icon'=>'🗑','photo'=>$p.'photo-1530587191325-3db32d826c18?w=400&h=240&fit=crop&auto=format&q=75','fb'=>'#2a2520'];
 }
 ?>
 <section class="fd-mock fd-jrt">
@@ -65,8 +67,7 @@ function jrt_svc_style(string $name): array {
       <?php foreach (array_slice($services, 0, 6) as $svc):
         $s = jrt_svc_style((string)$svc);
       ?>
-        <div class="fd-jrt-card" style="background:<?= $s['bg'] ?>">
-          <div class="fd-jrt-card-glow" style="background:<?= $s['glow'] ?>"></div>
+        <div class="fd-jrt-card" style="background-color:<?= $s['fb'] ?>;background-image:url('<?= $s['photo'] ?>')">
           <span class="fd-jrt-icon"><?= $s['icon'] ?></span>
           <span class="fd-jrt-card-name"><?= ho_h((string)$svc) ?></span>
         </div>
