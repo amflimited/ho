@@ -9,12 +9,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $slug = trim((string)($_POST['slug'] ?? ''));
 $back = $slug !== '' ? '/go.php?slug=' . rawurlencode($slug) : '/';
 
-if (!is_file(__DIR__ . '/stripe-config.php')) {
+// Look outside public_html first (preferred — survives git deploys, not web-accessible),
+// then fall back to same directory (legacy location).
+$stripeConfig = is_file(dirname(__DIR__) . '/stripe-config.php')
+    ? dirname(__DIR__) . '/stripe-config.php'
+    : __DIR__ . '/stripe-config.php';
+
+if (!is_file($stripeConfig)) {
     header('Location: ' . $back . '&err=stripe');
     exit;
 }
 
-require_once __DIR__ . '/stripe-config.php';
+require_once $stripeConfig;
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/ho-model.php';
 
