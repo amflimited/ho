@@ -94,12 +94,13 @@ function ho_mark_excluded(PDO $pdo, int $bizId, string $reason, bool $addToBlock
 
 function ho_multi_market_ids(PDO $pdo, array $businesses): array {
     if (empty($businesses)) return [];
-    $catIds = array_unique(array_map(fn($b) => (int)$b['category_id'], $businesses));
+    try {
+    $catIds = array_values(array_unique(array_map(fn($b) => (int)$b['category_id'], $businesses)));
     $placeholders = implode(',', array_fill(0, count($catIds), '?'));
     $stmt = $pdo->prepare("
         SELECT id, category_id, business_name, location_city
         FROM businesses
-        WHERE category_id IN ($placeholders) AND pipeline_status != 'excluded'
+        WHERE category_id IN ($placeholders)
     ");
     $stmt->execute($catIds);
     $allBiz = $stmt->fetchAll();
@@ -124,6 +125,9 @@ function ho_multi_market_ids(PDO $pdo, array $businesses): array {
         }
     }
     return $multiIds;
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 // ─── Pipeline state ───────────────────────────────────────────────────────────
