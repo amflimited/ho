@@ -70,6 +70,7 @@ $stripeErr  = $errCode !== '';
   <link rel="icon" href="/favicon.ico">
 <link rel="stylesheet" href="/assets/css/front-door.css?v=<?= filemtime(__DIR__ . '/assets/css/front-door.css') ?>">
   <meta name="robots" content="noindex">
+  <script>document.documentElement.classList.add('fd-js')</script>
 </head>
 <body class="front-door-preview-page">
 
@@ -236,8 +237,15 @@ $stripeErr  = $errCode !== '';
 
 
   <!-- ── WHY THIS BUSINESS ───────────────────────────────────────────────── -->
-  <section class="fd-card">
+  <section class="fd-card fd-reveal">
     <p class="fd-kicker">What we found</p>
+    <?php if ($googleCount > 0): ?>
+    <div class="fd-rating-badge">
+      <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
+      <strong><?= number_format($googleRating, 1) ?></strong>
+      <span class="fd-rating-count">(<?= number_format($googleCount) ?> Google reviews)</span>
+    </div>
+    <?php endif; ?>
     <?php if ($angle !== ''): ?>
       <p class="fd-why-angle"><?= ho_h($angle) ?></p>
     <?php endif; ?>
@@ -255,7 +263,7 @@ $stripeErr  = $errCode !== '';
 
 
   <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
-  <section class="fd-card fd-trust" id="about">
+  <section class="fd-card fd-trust fd-reveal" id="about">
     <p class="fd-kicker">Who&rsquo;s behind this</p>
     <h2>Adam F.</h2>
     <p>Web developer from Newcastle, Indiana. I find local service businesses that are doing good work but flying under the radar online &mdash; and I build them a real front door. No sales team, no cold-call scripts, no mystery pricing.</p>
@@ -274,14 +282,14 @@ $stripeErr  = $errCode !== '';
   </section>
 
   <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
-  <section class="fd-section" id="services">
+  <section class="fd-section fd-reveal" id="services">
     <div class="fd-section-head">
       <p class="fd-kicker">What We Build</p>
       <h2>Five things, done right.</h2>
     </div>
     <div class="fd-module-list">
       <?php foreach ($modules as $i => $m): ?>
-        <div class="fd-module">
+        <div class="fd-module fd-reveal" style="--reveal-delay:<?= $i * 80 ?>ms">
           <span class="fd-module-num"><?= $i + 1 ?></span>
           <div>
             <strong><?= ho_h($m['title']) ?></strong>
@@ -293,7 +301,7 @@ $stripeErr  = $errCode !== '';
   </section>
 
   <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
-  <section class="fd-card">
+  <section class="fd-card fd-reveal">
     <p class="fd-kicker">Every Front Door Includes</p>
     <h2>The full build. Nothing held back.</h2>
     <ul class="fd-feature-list">
@@ -304,10 +312,13 @@ $stripeErr  = $errCode !== '';
   </section>
 
   <!-- ── YOUR WEB ADDRESS ─────────────────────────────────────────────────── -->
-  <section class="fd-card fd-domain">
+  <section class="fd-card fd-domain fd-reveal">
     <p class="fd-kicker">Your Web Address</p>
     <h2>Yours the day we launch.</h2>
-    <p class="fd-domain-name"><?= ho_h($subdomain) ?></p>
+    <div class="fd-url-bar">
+      <span class="fd-url-dot" aria-hidden="true"></span>
+      <?= ho_h($subdomain) ?>
+    </div>
     <p class="fd-muted">Included with your Front Door. Want your own domain &mdash; like <strong><?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?></strong>? We handle that too.</p>
   </section>
 
@@ -321,7 +332,7 @@ $stripeErr  = $errCode !== '';
   $defaultBData  = $bundles[$defaultBundle];
   $defaultPrice  = ho_bundle_price($defaultBundle);
   ?>
-  <section class="fd-card fd-offer" id="pricing">
+  <section class="fd-card fd-offer fd-reveal" id="pricing">
     <p class="fd-kicker">Build Your Package</p>
     <h2>Pick what you need.</h2>
 
@@ -410,6 +421,13 @@ $stripeErr  = $errCode !== '';
       <span>Your total:</span>
       <strong id="fd-pkg-total">$<?= number_format($defaultPrice) ?></strong>
     </div>
+
+    <p class="fd-kicker" style="margin-top:20px;margin-bottom:10px">What happens next</p>
+    <ol class="fd-offer-steps">
+      <li>Click below &mdash; takes 2 minutes to confirm your order</li>
+      <li>Adam reaches out within 24 hours to nail down the details</li>
+      <li>Your site goes live within a week, ready to take calls</li>
+    </ol>
 
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
@@ -511,6 +529,21 @@ $stripeErr  = $errCode !== '';
     Front doors for Indiana&rsquo;s hardest-working businesses.<br>
     <span class="fd-footer-by">Built by Adam F. &middot; <a href="mailto:adam@hoosiersonline.com">adam@hoosiersonline.com</a></span>
   </footer>
+
+  <script>
+  (function(){
+    if (!('IntersectionObserver' in window)) {
+      document.querySelectorAll('.fd-reveal').forEach(function(el){ el.classList.add('fd-visible'); });
+      return;
+    }
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ e.target.classList.add('fd-visible'); obs.unobserve(e.target); }
+      });
+    }, {threshold:0.06, rootMargin:'0px 0px -30px 0px'});
+    document.querySelectorAll('.fd-reveal').forEach(function(el){ obs.observe(el); });
+  })();
+  </script>
 
 <?php endif; ?>
 </main>

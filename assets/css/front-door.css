@@ -57,6 +57,7 @@ body.front-door-preview-page{
   padding:22px;
   box-shadow:var(--fd-shadow);
   margin:0 0 16px;
+  transition:box-shadow .2s ease,transform .2s ease;
 }
 .fd-hero{
   padding:28px 22px;
@@ -135,7 +136,8 @@ body.front-door-preview-page{
   font-weight:900;
 }
 .fd-offer{
-  border-left:8px solid var(--fd-green);
+  border-left:none;
+  border-top:4px solid var(--fd-green);
 }
 .fd-offer strong{
   display:block;
@@ -155,6 +157,7 @@ body.front-door-preview-page{
 .fd-btn-primary{
   background:var(--fd-green);
   color:#fff;
+  transition:background .15s,box-shadow .2s,transform .15s;
 }
 .fd-btn-secondary{
   background:rgba(34,23,19,.08);
@@ -270,22 +273,31 @@ body.front-door-preview-page{
 /* ── THE TURN ── */
 .fd-turn{
   text-align:center;
-  padding:20px 16px 10px;
+  padding:56px 20px 40px;
+  position:relative;overflow:hidden;
+}
+.fd-turn::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(47,94,54,.11),transparent 70%);
+  pointer-events:none;
 }
 .fd-turn-eyebrow{
-  margin:0 0 10px;
-  font-size:11px;font-weight:800;letter-spacing:.1em;
+  margin:0 0 18px;
+  font-size:12px;font-weight:800;letter-spacing:.13em;
   text-transform:uppercase;color:var(--fd-muted);
+  position:relative;
 }
 .fd-turn-name{
-  margin:0 0 10px;
-  font-size:clamp(24px,7vw,50px);
-  line-height:1.0;letter-spacing:-.035em;color:var(--fd-ink);
+  margin:0 0 18px;
+  font-size:clamp(46px,13vw,86px);
+  line-height:.92;letter-spacing:-.048em;color:var(--fd-ink);
+  position:relative;
 }
 .fd-turn-tag{
   margin:0;
-  font-size:16px;font-weight:700;
-  color:var(--fd-green);letter-spacing:-.01em;
+  font-size:18px;font-weight:700;
+  color:var(--fd-green);letter-spacing:-.015em;
+  position:relative;
 }
 
 /* ── WHY ANGLE HEADING (sentence-length, so smaller than card h2) ── */
@@ -343,6 +355,7 @@ body.front-door-preview-page{
   background:rgba(255,250,241,.92);
   border:1px solid var(--fd-line);
   border-radius:16px;padding:16px;
+  transition:background .15s,box-shadow .2s,transform .2s;
 }
 .fd-module-num{
   flex-shrink:0;
@@ -794,7 +807,7 @@ body.front-door-preview-page{
 
 .fd-stripe-btn{
   font-size:17px !important;padding:16px 20px !important;
-  letter-spacing:.01em;
+  letter-spacing:.01em;width:100%;
 }
 
 /* ── Checkout form wrapper ────────────────────────────────────────────────── */
@@ -924,4 +937,65 @@ body.front-door-preview-page{
 }
 .fd-customize-btn:hover{
   background:rgba(47,94,54,.06);border-color:var(--fd-green);
+}
+
+/* ── Google rating badge ─────────────────────────────────────────────────── */
+.fd-rating-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  background:rgba(245,158,11,.09);
+  border:1px solid rgba(245,158,11,.22);
+  border-radius:999px;
+  padding:7px 14px;margin:0 0 14px;
+  font-size:13px;font-weight:700;color:var(--fd-ink);
+}
+.fd-rating-badge .fd-stars{color:#f59e0b;font-size:14px;letter-spacing:1px}
+.fd-rating-count{color:var(--fd-muted);font-weight:500}
+
+/* ── URL bar for domain section ──────────────────────────────────────────── */
+.fd-url-bar{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(34,23,19,.05);
+  border:1px solid var(--fd-line);
+  border-radius:12px;
+  padding:13px 16px;margin:12px 0 16px;
+  font-size:15px;font-weight:700;color:var(--fd-green);
+  word-break:break-all;letter-spacing:-.01em;
+}
+.fd-url-dot{
+  flex-shrink:0;width:10px;height:10px;
+  border-radius:50%;background:var(--fd-green);opacity:.7;
+}
+
+/* ── Hover lift (hover-capable devices only) ─────────────────────────────── */
+@media(hover:hover){
+  .fd-card:hover{
+    box-shadow:0 28px 68px rgba(34,23,19,.14);
+    transform:translateY(-2px);
+  }
+  .fd-module:hover{
+    background:rgba(255,255,255,.98);
+    box-shadow:0 8px 28px rgba(34,23,19,.09);
+    transform:translateY(-2px);
+  }
+  .fd-btn-primary:hover{
+    background:#3a7045;
+    box-shadow:0 0 0 4px rgba(47,94,54,.18),0 10px 28px rgba(47,94,54,.35);
+    transform:translateY(-1px);
+  }
+  .fd-bundle-card:hover{
+    border-color:rgba(47,94,54,.45);
+    box-shadow:0 6px 20px rgba(47,94,54,.12);
+  }
+}
+
+/* ── Scroll reveal ───────────────────────────────────────────────────────── */
+.fd-js .fd-reveal{
+  opacity:0;
+  transform:translateY(22px);
+  transition:opacity .6s ease-out,transform .6s ease-out;
+  transition-delay:var(--reveal-delay,0ms);
+}
+.fd-js .fd-reveal.fd-visible{
+  opacity:1;
+  transform:translateY(0);
 }
