@@ -338,9 +338,9 @@ if ($paid && $row && $pdo !== null) {
         // Record selection in checkout form
         var tplInput = document.getElementById('fd-h-template');
         if (tplInput) tplInput.value = key;
-        // Update sticky bar label
-        var tplLabel = document.getElementById('fd-chosen-tpl');
-        if (tplLabel) tplLabel.textContent = tab.textContent.trim();
+        // Update order summary design row
+        var osDesign = document.getElementById('fd-os-design');
+        if (osDesign) osDesign.textContent = tab.dataset.label || tab.textContent.trim();
       });
     });
   })();
@@ -504,6 +504,8 @@ if ($paid && $row && $pdo !== null) {
           if (badge) { badge.className = 'fd-avail-badge fd-avail-yes'; badge.textContent = '✓ Available'; }
           if (hint)  hint.textContent = 'Great — that name is available.';
           if (chosenHid) chosenHid.value = domain;
+          var osDomain = document.getElementById('fd-os-domain');
+          if (osDomain) osDomain.textContent = domain;
         } else {
           if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = '✗ Taken'; }
           if (hint)  hint.textContent = 'That name is taken — try a variation above.';
@@ -552,6 +554,18 @@ if ($paid && $row && $pdo !== null) {
         </ul>
       </label>
       <?php endforeach; ?>
+    </div>
+
+    <!-- Order summary -->
+    <div class="fd-order-summary">
+      <div class="fd-os-row">
+        <span class="fd-os-label">Design</span>
+        <span class="fd-os-value" id="fd-os-design"><?= ho_h($available[$templateKey]['label'] ?? 'Not selected') ?></span>
+      </div>
+      <div class="fd-os-row">
+        <span class="fd-os-label">Your domain</span>
+        <span class="fd-os-value fd-os-domain" id="fd-os-domain"><?= ho_h($ownDotCom ?: 'Not chosen yet') ?></span>
+      </div>
     </div>
 
     <!-- Total + form -->
