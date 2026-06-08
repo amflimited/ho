@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 $demo = isset($_GET['demo']);
 
+require_once __DIR__ . '/ho-model.php';
 if (!$demo) {
     require_once __DIR__ . '/../database.php';
-    require_once __DIR__ . '/ho-model.php';
 }
 
 $token = substr(trim((string)($_GET['token'] ?? '')), 0, 64);
