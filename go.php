@@ -350,7 +350,9 @@ if ($paid && $row && $pdo !== null) {
         <div class="fd-addr-body">
           <div class="fd-addr-head">
             <div class="fd-addr-url"><?= ho_h($subdomain) ?></div>
-            <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
+            <div class="fd-addr-badges">
+              <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
+            </div>
           </div>
           <p>Hosted on hoosieronline.com. Live within a week, no annual fee, no renewals to worry about.</p>
         </div>
@@ -361,9 +363,11 @@ if ($paid && $row && $pdo !== null) {
         <div class="fd-addr-body">
           <div class="fd-addr-head">
             <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
-            <span class="fd-addr-tag fd-addr-tag-addon" id="fd-com-price-tag">+$25/yr</span>
-            <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
-                  <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
+            <div class="fd-addr-badges">
+              <span class="fd-addr-tag fd-addr-tag-addon" id="fd-com-price-tag">+$25/yr</span>
+              <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
+                    <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
+            </div>
           </div>
 
           <!-- Live domain search — stops click from toggling radio accidentally -->
