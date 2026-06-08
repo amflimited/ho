@@ -417,7 +417,7 @@ if ($paid && $row && $pdo !== null) {
           <div class="fd-addr-head">
             <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
             <div class="fd-addr-badges">
-              <span class="fd-addr-tag fd-addr-tag-addon" id="fd-com-price-tag">+$25/yr</span>
+              <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
               <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
                     <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
             </div>
@@ -445,7 +445,7 @@ if ($paid && $row && $pdo !== null) {
             ?></div>
           </div>
 
-          <p>Your own .com &mdash; more professional, easier to hand out. We register and handle renewals. <span id="fd-com-incl-note">Included in <strong>Launch Ready</strong> &amp; <strong>Complete</strong>.</span></p>
+          <p>Your own .com &mdash; more professional, easier to hand out. We register it and handle renewals. Included free with every package.</p>
         </div>
       </label>
     </div>
@@ -575,8 +575,6 @@ if ($paid && $row && $pdo !== null) {
       <input type="hidden" name="template_key" id="fd-h-template" value="<?= ho_h($templateKey ?? '') ?>">
       <input type="hidden" name="subdomain"    id="fd-h-subdomain"  value="<?= ho_h($subdomain) ?>">
       <input type="hidden" name="chosen_com"  id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
-      <!-- domain addon: enabled only when Standard pkg + .com address selected -->
-      <input type="hidden" name="addons[]" id="fd-h-domain" value="domain" disabled>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
         Yes, Build This &rarr;
       </button>
@@ -608,34 +606,7 @@ if ($paid && $row && $pdo !== null) {
     var pkg    = pkgHid ? pkgHid.value : '<?= ho_h($defaultBundle) ?>';
     var base   = FD_PRICES[pkg] || <?= $defaultPrice ?>;
 
-    var comCard  = document.getElementById('fd-addr-com-card');
-    var comRadio = comCard ? comCard.querySelector('input') : null;
-    var wantCom  = !!(comRadio && comRadio.checked);
-
-    // Domain addon only applies to Standard package (Launch/Managed include .com)
-    var domainExtra = (pkg === 'standard' && wantCom) ? 25 : 0;
-    var domHid = document.getElementById('fd-h-domain');
-    if (domHid) {
-      var needAddon = (pkg === 'standard' && wantCom);
-      domHid.disabled = !needAddon;
-      if (needAddon) domHid.value = 'domain';
-    }
-
-    // Update the .com price tag: "Included" for Launch/Managed, "+$25/yr" for Standard
-    var comPriceTag = document.getElementById('fd-com-price-tag');
-    var comInclNote = document.getElementById('fd-com-incl-note');
-    if (comPriceTag) {
-      if (pkg !== 'standard') {
-        comPriceTag.textContent = 'Included';
-        comPriceTag.className = 'fd-addr-tag fd-addr-tag-free';
-      } else {
-        comPriceTag.textContent = '+$25/yr';
-        comPriceTag.className = 'fd-addr-tag fd-addr-tag-addon';
-      }
-    }
-    if (comInclNote) comInclNote.style.display = pkg === 'standard' ? '' : 'none';
-
-    var total = base + domainExtra;
+    var total = base;
     var totalEl = document.getElementById('fd-pkg-total');
     if (totalEl) {
       totalEl.textContent = '$' + total.toLocaleString();

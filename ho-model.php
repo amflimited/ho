@@ -1133,12 +1133,12 @@ function ho_package_catalog(): array {
         'standard' => [
             'label' => 'Front Door',
             'price' => 199,
-            'desc'  => 'Your site built and launched. Live on hoosieronline.com within a week. 1 year of hosting included.',
+            'desc'  => 'Your site built and launched — live within 24 hours. Custom .com domain and 1 year of hosting included free.',
         ],
         'launch' => [
             'label' => 'Launch Ready',
             'price' => 399,
-            'desc'  => 'Front Door plus your own .com domain and Google Business profile — set up right from day one.',
+            'desc'  => 'Front Door plus Google Business profile setup and Google Maps verification — found everywhere from day one.',
         ],
         'managed' => [
             'label' => 'Complete',
@@ -1154,7 +1154,7 @@ function ho_addon_catalog(): array {
         'identity' => [
             'label' => 'Identity & Brand',
             'items' => [
-                'domain'   => ['label' => 'Custom .com domain',      'price' => 25,  'note' => '/yr', 'desc' => 'Your own .com instead of .hoosieronline.com — we register it and handle renewals. (Actual registrar cost is ~$15/yr; we charge $10 to manage it.)'],
+                'domain'   => ['label' => 'Custom .com domain',      'price' => 0,   'note' => '',    'desc' => 'Your own .com — included free with every package. We register it and handle renewals.'],
                 'logo'     => ['label' => 'Logo & wordmark design',   'price' => 149, 'note' => '',    'desc' => 'A clean logo you own — SVG, PNG, and print-ready PDF.'],
                 'bizcard'  => ['label' => 'Business card design',     'price' => 49,  'note' => '',    'desc' => 'Print-ready file for standard cards — ready to upload to any printer.'],
             ],
@@ -1218,14 +1218,14 @@ function ho_bundle_presets(): array {
             'badge'  => '',
             'pkg'    => 'standard',
             'addons' => [],
-            'items'  => ['Site built & launched', 'hoosieronline.com address', '1 year of hosting included'],
+            'items'  => ['Site built & launched', 'Your .com domain — included free', '1 year of hosting included'],
         ],
         'launch' => [
             'label'  => 'Launch Ready',
             'badge'  => 'Most Popular',
             'pkg'    => 'launch',
             'addons' => [],
-            'items'  => ['Everything in Front Door', 'Custom .com domain (year 1 included)', 'Google Business setup'],
+            'items'  => ['Everything in Front Door', 'Google Business setup & verification', 'Found on Google Maps'],
         ],
         'managed' => [
             'label'  => 'Complete',
