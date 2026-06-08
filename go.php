@@ -175,10 +175,13 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-card fd-why-card fd-reveal">
     <p class="fd-kicker">Why I reached out</p>
     <?php if ($googleCount > 0): ?>
-    <div class="fd-rating-badge">
-      <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
-      <strong><?= number_format($googleRating, 1) ?></strong>
-      <span class="fd-rating-count">(<?= number_format($googleCount) ?> Google reviews)</span>
+    <div class="fd-rating-block">
+      <div class="fd-rating-badge">
+        <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
+        <strong><?= number_format($googleRating, 1) ?></strong>
+        <span class="fd-rating-count"><?= number_format($googleCount) ?> Google reviews</span>
+      </div>
+      <p class="fd-rating-source">Your live rating pulled from Google &mdash; this is your business.</p>
     </div>
     <?php endif; ?>
     <?php if (!empty($opp)): ?>
