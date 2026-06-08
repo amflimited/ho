@@ -176,6 +176,8 @@ a { color: inherit; }
 }
 .cp-btn-ghost:hover  { border-color: var(--ink); background: rgba(0,0,0,.04); }
 .cp-btn-ghost:active { background: rgba(0,0,0,.08); }
+.cp-btn-disqualify   { color:#b91c1c;border-color:#fca5a5; }
+.cp-btn-disqualify:hover { border-color:#b91c1c;background:rgba(185,28,28,.06); }
 
 .cp-btn-outline {
   display: inline-flex; align-items: center; justify-content: center;

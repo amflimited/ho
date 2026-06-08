@@ -723,6 +723,14 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
     $row = $s->fetch();
     if (!$row) return false;
 
+    // Auto-exclude businesses that already have a solid web presence — not our target
+    $siteQ = (string)($row['website_quality'] ?? '');
+    if ((bool)$row['has_website'] && in_array($siteQ, ['good', 'decent'], true)) {
+        $pdo->prepare("UPDATE businesses SET pipeline_status = 'excluded', exclusion_reason = 'has_good_website', updated_at = NOW() WHERE id = ?")
+            ->execute([$businessId]);
+        return false;
+    }
+
     $services = json_decode((string)($row['services_list'] ?? '[]'), true);
     if (empty($services)) {
         $services = json_decode((string)($row['typical_services'] ?? '[]'), true);
@@ -923,6 +931,7 @@ function ho_get_preview_ready(PDO $pdo): array {
         LEFT JOIN research_records r ON r.business_id = b.id
         WHERE b.pipeline_status = 'preview_ready'
           AND p.preview_status = 'ready'
+          AND NOT (r.has_website = 1 AND r.website_quality IN ('good','decent'))
         ORDER BY b.updated_at DESC
         LIMIT 50
     ")->fetchAll();

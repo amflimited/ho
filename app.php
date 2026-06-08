@@ -78,6 +78,13 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=research&research_cat_id=' . (int)($_POST['research_cat_id'] ?? 0) . '&flash=' . urlencode('Business excluded.'));
                 exit;
 
+            case 'disqualify_lead':
+                $bizId = (int)($_POST['business_id'] ?? 0);
+                if ($bizId === 0) throw new RuntimeException('Business ID missing.');
+                ho_mark_excluded($pdo, $bizId, 'not_a_fit');
+                header('Location: ?tab=send&flash=' . urlencode('Lead removed.'));
+                exit;
+
             case 'mark_outcome':
                 $logId   = (int)($_POST['log_id']  ?? 0);
                 $outcome = trim((string)($_POST['outcome'] ?? ''));
@@ -806,6 +813,11 @@ if (!empty($unresearched)) {
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
+                <input type="hidden" name="action" value="disqualify_lead">
+                <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+                <button type="submit" class="cp-btn-ghost cp-btn-disqualify">Not a fit ✕</button>
+              </form>
               <details class="cp-research-wrap">
                 <summary class="cp-btn-ghost">Research</summary>
                 <div class="cp-research-panel">
