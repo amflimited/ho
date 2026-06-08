@@ -317,8 +317,9 @@ body.front-door-preview-page{
 }
 .fd-turn-name{
   margin:0 0 18px;
-  font-size:clamp(46px,13vw,86px);
+  font-size:clamp(36px,10vw,86px);
   line-height:.92;letter-spacing:-.048em;color:var(--fd-ink);
+  overflow-wrap:break-word;word-break:break-word;
   position:relative;
 }
 .fd-turn-tag{
