@@ -1646,6 +1646,148 @@ function ho_generate_status_update_text(array $order, string $bizName, string $o
     return "{$greeting}\n\nHere's a quick update on your {$bizName} website:\n\n" . implode("\n", $lines) . "\n{$noteBlock}\nTrack live: {$statusUrl}\n\n— Adam Ferree\nHoosier Online | adam@hoosieronline.com | (765) 443-4321";
 }
 
+// ─── Enrichment (fill new fields on already-researched leads) ────────────────
+
+function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
+    // Businesses that have been researched but are missing the new signal fields
+    try {
+        $rows = $pdo->query("
+            SELECT b.id, b.business_name, b.location_city, b.website_url,
+                   b.facebook_url, b.google_business_url,
+                   c.name AS category_name,
+                   r.has_website, r.website_url AS r_website_url
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            JOIN research_records r ON r.business_id = b.id
+            WHERE r.research_status = 'complete'
+              AND (
+                r.competitor_name  = '' OR r.competitor_name IS NULL OR
+                r.booking_method   = 'unknown' OR r.booking_method IS NULL OR
+                r.years_in_business IS NULL
+              )
+            ORDER BY b.updated_at DESC
+            LIMIT " . (int)$limit . "
+        ")->fetchAll();
+        return $rows;
+    } catch (Throwable) {
+        // New columns may not exist yet
+        return [];
+    }
+}
+
+function ho_generate_enrichment_prompt(array $businesses): string {
+    $list = '';
+    foreach ($businesses as $i => $b) {
+        $n = $i + 1;
+        $list .= "{$n}. [ID:{$b['id']}] {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN";
+        $url = trim((string)($b['website_url'] ?? ''));
+        if ($url !== '') $list .= " — website: {$url}";
+        if (trim((string)($b['facebook_url'] ?? '')) !== '') $list .= " — facebook: {$b['facebook_url']}";
+        if (trim((string)($b['google_business_url'] ?? '')) !== '') $list .= " — google: {$b['google_business_url']}";
+        $list .= "\n";
+    }
+
+    return <<<PROMPT
+These Indiana local service businesses have already been researched. We need a few ADDITIONAL data points for each one. Look them up and fill in ONLY these specific fields — do not re-assess website quality or review counts.
+
+Businesses:
+{$list}
+Return exactly this JSON structure:
+
+{
+  "enrichment_results": [
+    {
+      "business_id": 0,
+      "competitor_has_website": false,
+      "competitor_name": "Name of their most obvious local competitor in the same city/category, or empty string",
+      "competitor_website": "Competitor's website URL or empty string",
+      "booking_method": "phone",
+      "last_review_date": "2024-03",
+      "years_in_business": null,
+      "has_angi": false,
+      "has_thumbtack": false,
+      "responds_to_reviews": false,
+      "gbp_photo_count": null,
+      "owner_age_band": "unknown"
+    }
+  ]
+}
+
+Rules:
+- business_id: copy the [ID:N] number exactly
+- competitor_has_website: true if a direct local competitor in the same city has a working website
+- competitor_name: single most prominent competitor. Empty if none clearly found.
+- competitor_website: that competitor's URL. Empty if none.
+- booking_method: how they appear to accept work — "phone", "facebook", "email", "form", "app", "unknown"
+- last_review_date: most recent Google review date as YYYY-MM. Empty if unknown.
+- years_in_business: integer from GBP or their site. null if unknown.
+- has_angi / has_thumbtack: true if they have a listing on those platforms
+- responds_to_reviews: true if the owner visibly replies to Google reviews
+- gbp_photo_count: approximate count of photos on Google Business. null if unknown.
+- owner_age_band: "under35", "35-55", "55plus", "unknown"
+- Return ONLY valid JSON, no explanation, no markdown fences.
+PROMPT;
+}
+
+function ho_import_enrichment_json(PDO $pdo, string $rawJson): array {
+    $data    = json_decode(ho_clean_json($rawJson), true, 512, JSON_THROW_ON_ERROR);
+    $results = $data['enrichment_results'] ?? (array_is_list($data) ? $data : []);
+
+    $updated = 0;
+    $errors  = [];
+
+    foreach ($results as $r) {
+        if (!is_array($r)) continue;
+        $bizId = (int)($r['business_id'] ?? 0);
+        if ($bizId === 0) continue;
+
+        $s = $pdo->prepare("SELECT id FROM businesses WHERE id = ? LIMIT 1");
+        $s->execute([$bizId]);
+        if (!$s->fetch()) { $errors[] = "No business found for ID:{$bizId}"; continue; }
+
+        $validBooking = ['phone','facebook','email','form','app','unknown'];
+        $validAgeBand = ['under35','35-55','55plus','unknown'];
+        $bookingMethod  = in_array($r['booking_method']  ?? '', $validBooking, true) ? $r['booking_method'] : 'unknown';
+        $ownerAgeBand   = in_array($r['owner_age_band']  ?? '', $validAgeBand,  true) ? $r['owner_age_band'] : 'unknown';
+        $lastReviewDate = substr(trim((string)($r['last_review_date'] ?? '')), 0, 20);
+        $yearsInBiz     = isset($r['years_in_business']) && $r['years_in_business'] !== null ? (int)$r['years_in_business'] : null;
+        $gbpPhotos      = isset($r['gbp_photo_count'])   && $r['gbp_photo_count']   !== null ? (int)$r['gbp_photo_count']   : null;
+        $compName       = substr(trim((string)($r['competitor_name']    ?? '')), 0, 200);
+        $compWebsite    = substr(trim((string)($r['competitor_website'] ?? '')), 0, 500);
+
+        try {
+            $pdo->prepare("
+                UPDATE research_records SET
+                  competitor_has_website = ?,
+                  competitor_name        = ?,
+                  competitor_website     = ?,
+                  booking_method         = ?,
+                  last_review_date       = ?,
+                  years_in_business      = ?,
+                  has_angi               = ?,
+                  has_thumbtack          = ?,
+                  responds_to_reviews    = ?,
+                  gbp_photo_count        = ?,
+                  owner_age_band         = ?
+                WHERE business_id = ?
+            ")->execute([
+                (int)($r['competitor_has_website'] ?? 0), $compName, $compWebsite,
+                $bookingMethod, $lastReviewDate, $yearsInBiz,
+                (int)($r['has_angi']            ?? 0),
+                (int)($r['has_thumbtack']        ?? 0),
+                (int)($r['responds_to_reviews']  ?? 0),
+                $gbpPhotos, $ownerAgeBand,
+                $bizId,
+            ]);
+            $updated++;
+        } catch (Throwable $e) {
+            $errors[] = "ID:{$bizId} — " . $e->getMessage();
+        }
+    }
+
+    return ['updated' => $updated, 'errors' => $errors];
+}
+
 // ─── Website audit ────────────────────────────────────────────────────────────
 
 function ho_get_website_businesses(PDO $pdo): array {

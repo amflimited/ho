@@ -98,6 +98,15 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=sales&flash=' . urlencode('Order updated.'));
                 exit;
 
+            case 'import_enrichment':
+                $rawJson = trim((string)($_POST['result_json'] ?? ''));
+                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
+                $result = ho_import_enrichment_json($pdo, $rawJson);
+                $msg    = "Enriched {$result['updated']} businesses.";
+                if (!empty($result['errors'])) $msg .= ' Issues: ' . implode('; ', $result['errors']);
+                header('Location: ?tab=research&flash=' . urlencode($msg));
+                exit;
+
             case 'audit_websites':
                 set_time_limit(180);
                 $result = ho_audit_and_fix_websites($pdo);
@@ -130,6 +139,8 @@ $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $u
 $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 20) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
+$enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 25) : [];
+$enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
 try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e) { $sendQueue = []; $dbError = $dbError ?? $e->getMessage(); }
 try { $followupDue = $pdo ? ho_get_followup_due($pdo) : []; } catch (Throwable) { $followupDue = []; }
 try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
@@ -546,6 +557,31 @@ if (!empty($unresearched)) {
         <?php endforeach; ?>
       </ul>
     </details>
+  </section>
+  <?php endif; ?>
+
+  <!-- ── Enrichment queue ─────────────────────────────────────────────────── -->
+  <?php if (!empty($enrichmentBatch)): ?>
+  <section class="cp-section" style="margin-top:18px">
+    <h2 class="cp-sh">Enrich existing leads</h2>
+    <p class="cp-hint"><?= count($enrichmentBatch) ?> already-researched lead<?= count($enrichmentBatch) !== 1 ? 's' : '' ?> are missing the new signal fields (competitor, booking method, years, Angi/Thumbtack). This is a shorter prompt — just the new fields, won&rsquo;t overwrite anything.</p>
+
+    <div class="cp-step" style="margin-bottom:6px">Step 1</div>
+    <h3 class="cp-sh" style="font-size:14px;margin-bottom:6px">Copy this prompt</h3>
+    <div style="position:relative">
+      <pre id="enrichPrompt" class="cp-prompt"><?= ho_h($enrichmentPrompt) ?></pre>
+      <button class="cp-copy-btn" onclick="cpCopy('enrichPrompt',this)">Copy</button>
+    </div>
+
+    <div class="cp-step" style="margin:14px 0 6px">Step 2</div>
+    <h3 class="cp-sh" style="font-size:14px;margin-bottom:6px">Paste ChatGPT&rsquo;s result</h3>
+    <form method="POST">
+      <input type="hidden" name="action" value="import_enrichment">
+      <input type="hidden" name="tab"    value="research">
+      <textarea name="result_json" class="cp-textarea" rows="6"
+                placeholder='{"enrichment_results":[...]}'></textarea>
+      <button type="submit" class="cp-btn" style="margin-top:8px">Import enrichment data</button>
+    </form>
   </section>
   <?php endif; ?>
 
