@@ -18,13 +18,14 @@ try {
 }
 
 // ─── Data ───────────────────────────────────────────────────────────────────
-$name     = $row ? (string)$row['business_name']        : '';
-$city     = $row ? (string)$row['location_city']        : '';
-$catName  = $row ? (string)$row['category_name']        : '';
-$opp      = $row ? (string)$row['opportunity_statement'] : '';
-$subhead  = $row ? (string)$row['subheadline']          : '';
-$package  = $row ? (string)$row['package_recommendation'] : 'standard';
-$phone    = $row ? (string)($row['phone_number'] ?? '') : '';
+$name       = $row ? (string)$row['business_name']          : '';
+$city       = $row ? (string)$row['location_city']          : '';
+$catName    = $row ? (string)$row['category_name']          : '';
+$opp        = $row ? (string)$row['opportunity_statement']  : '';
+$subhead    = $row ? (string)$row['subheadline']            : '';
+$package    = $row ? (string)$row['package_recommendation'] : 'standard';
+$phone      = $row ? (string)($row['phone_number'] ?? '')   : '';
+$ownerFirst = $row ? trim((string)($row['owner_first_name'] ?? '')) : '';
 
 $services = $row ? (array)json_decode((string)($row['services_display'] ?? '[]'), true) : [];
 if (empty($services) && $row) {
@@ -146,12 +147,39 @@ $stripeErr  = $errCode !== '';
   <section class="fd-turn">
     <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
-    <p class="fd-turn-tag">This is your new front door.</p>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? ho_h($ownerFirst) . ' &mdash; I built this for you.' : 'I built this for you.' ?></p>
+    <?php if ($angle !== ''): ?>
+      <p class="fd-turn-angle"><?= ho_h($angle) ?></p>
+    <?php endif; ?>
   </section>
   <div class="fd-scroll-hint" aria-hidden="true">
     <span class="fd-scroll-arrow">↓</span>
-    <span>See your preview</span>
+    <span>Keep reading</span>
   </div>
+
+  <!-- ── WHY I REACHED OUT ─────────────────────────────────────────────────── -->
+  <section class="fd-card fd-why-card fd-reveal">
+    <p class="fd-kicker">Why I reached out</p>
+    <?php if ($googleCount > 0): ?>
+    <div class="fd-rating-badge">
+      <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
+      <strong><?= number_format($googleRating, 1) ?></strong>
+      <span class="fd-rating-count">(<?= number_format($googleCount) ?> Google reviews)</span>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($opp)): ?>
+      <p class="fd-why"><?= ho_h($opp) ?></p>
+    <?php endif; ?>
+    <?php if (!empty($gaps)): ?>
+      <p class="fd-gap-intro">Here&rsquo;s what&rsquo;s costing you customers right now:</p>
+      <div class="fd-gap-list">
+        <?php foreach (array_slice($gaps, 0, 3) as $g): ?>
+          <div class="fd-gap-item"><span class="fd-gap-marker" aria-hidden="true">✗</span><?= ho_h((string)$g) ?></div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+    <p class="fd-why-scroll">Scroll down to see what I built. &darr;</p>
+  </section>
 
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <div id="preview"></div>
@@ -258,42 +286,24 @@ $stripeErr  = $errCode !== '';
   <?php endif; ?>
 
 
-  <!-- ── WHY THIS BUSINESS ───────────────────────────────────────────────── -->
-  <section class="fd-card fd-reveal">
-    <p class="fd-kicker">What we found</p>
-    <?php if ($googleCount > 0): ?>
-    <div class="fd-rating-badge">
-      <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
-      <strong><?= number_format($googleRating, 1) ?></strong>
-      <span class="fd-rating-count">(<?= number_format($googleCount) ?> Google reviews)</span>
-    </div>
-    <?php endif; ?>
-    <?php if ($angle !== ''): ?>
-      <p class="fd-why-angle"><?= ho_h($angle) ?></p>
-    <?php endif; ?>
-    <?php if (!empty($opp)): ?>
-      <p class="fd-why"><?= ho_h($opp) ?></p>
-    <?php endif; ?>
-    <?php if (!empty($gaps)): ?>
-      <div class="fd-gap-list">
-        <?php foreach (array_slice($gaps, 0, 3) as $g): ?>
-          <div class="fd-gap-item"><span class="fd-gap-marker" aria-hidden="true">✗</span><?= ho_h((string)$g) ?></div>
-        <?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-  </section>
+  <!-- WHY section moved above mockup — see below -->
 
 
   <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
   <section class="fd-card fd-trust fd-reveal" id="about">
-    <p class="fd-kicker">Who&rsquo;s behind this</p>
-    <div class="fd-trust-avatar" aria-hidden="true">A</div>
-    <h2>Adam F.</h2>
-    <p>Web developer from New Castle, Indiana. I find local service businesses that are doing good work but flying under the radar online &mdash; and I build them a real front door. No sales team, no cold-call scripts, no mystery pricing.</p>
+    <p class="fd-kicker">Who sent this</p>
+    <div class="fd-trust-inner">
+      <div class="fd-trust-avatar" aria-hidden="true">A</div>
+      <div>
+        <h2>Adam Ferree</h2>
+        <p class="fd-trust-location">New Castle, Indiana</p>
+      </div>
+    </div>
+    <p>I research <?= ho_h(strtolower($catName)) ?> businesses across Indiana and build preview sites for the ones I think deserve better visibility online. I do this myself &mdash; no sales team, no outsourcing. If you got this link, I looked you up personally and thought it was worth my time to build.</p>
     <ul class="fd-trust-signals">
-      <li>Originally from New Castle, Indiana</li>
-      <li>Every preview researched and built personally</li>
-      <li>Plain pricing. No surprise fees.</li>
+      <li>Indiana-based, not a national agency</li>
+      <li>Every preview personally researched &amp; built</li>
+      <li>Flat pricing. No contracts. No surprises.</li>
     </ul>
     <div class="fd-trust-contact">
       <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
@@ -356,8 +366,9 @@ $stripeErr  = $errCode !== '';
   $defaultPrice  = ho_bundle_price($defaultBundle);
   ?>
   <section class="fd-card fd-offer fd-reveal" id="pricing">
-    <p class="fd-kicker">Build Your Package</p>
-    <h2>Pick what you need.</h2>
+    <p class="fd-kicker">Ready to launch</p>
+    <h2>Your site. Your price.</h2>
+    <p class="fd-offer-intro">Pick the option that fits. No contract, no monthly fees &mdash; you own it the day it goes live.</p>
 
     <!-- Bundle cards -->
     <div class="fd-bundle-grid">
@@ -445,12 +456,17 @@ $stripeErr  = $errCode !== '';
       <strong id="fd-pkg-total">$<?= number_format($defaultPrice) ?></strong>
     </div>
 
-    <p class="fd-kicker" style="margin-top:20px;margin-bottom:10px">What happens next</p>
+    <p class="fd-kicker" style="margin-top:24px;margin-bottom:10px">What happens next</p>
     <ol class="fd-offer-steps">
-      <li>Click below &mdash; payment takes 2 minutes</li>
-      <li>Your site is built and live within 24 hours</li>
-      <li>You get your URL &mdash; ready to take calls</li>
+      <li>You say yes &mdash; takes about 2 minutes to check out</li>
+      <li>I build your site and send you the link within a week</li>
+      <li>You go live &mdash; customers can find and contact you</li>
     </ol>
+
+    <div class="fd-guarantee-box">
+      <strong>30-day money-back guarantee.</strong>
+      If you&rsquo;re not happy after launch, I&rsquo;ll refund you in full. No questions, no back-and-forth.
+    </div>
 
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
@@ -462,16 +478,17 @@ $stripeErr  = $errCode !== '';
              value="<?= ho_h($addonKey) ?>"<?= !$isChecked ? ' disabled' : '' ?>>
       <?php endforeach; endforeach; ?>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
-        🔒 Get Started &mdash; Pay Now
+        Yes, I Want This &rarr;
       </button>
     </form>
-    <p class="fd-secure-note">Stripe secure checkout &middot; 256-bit SSL &middot; 30-day money-back guarantee</p>
-    <a class="fd-btn fd-btn-secondary"
-       href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>">
-      Have Questions?
+    <p class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</p>
+
+    <a class="fd-btn fd-btn-secondary fd-questions-btn"
+       href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI have a question about the preview you built for " . $name . ".\n\n") ?>">
+      Not ready? Just reply to my email.
     </a>
 
-    <p class="fd-offer-guarantee">Not happy after we launch? Full refund within 30 days &mdash; no questions.</p>
+    <p class="fd-scarcity">I only take one <?= ho_h(strtolower($catName)) ?> site at a time in <?= ho_h($city) ?>.</p>
   </section>
 
   <script>
@@ -550,8 +567,46 @@ $stripeErr  = $errCode !== '';
   <footer class="fd-footer">
     <strong><a href="/">Hoosier Online</a></strong><br>
     Front doors for Indiana&rsquo;s hardest-working businesses.<br>
-    <span class="fd-footer-by">Built by Adam F. &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></span>
+    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></span>
   </footer>
+
+  <!-- ── STICKY BOTTOM CTA ──────────────────────────────────────────────── -->
+  <div class="fd-sticky-bar" id="fd-sticky-bar" hidden>
+    <div class="fd-sticky-inner">
+      <div>
+        <strong><?= ho_h($name) ?></strong>
+        <span>Your total: <span id="fd-sticky-total">$<?= number_format($defaultPrice) ?></span></span>
+      </div>
+      <a href="#pricing" class="fd-btn fd-btn-primary fd-sticky-btn">Get Started &rarr;</a>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var bar    = document.getElementById('fd-sticky-bar');
+    var offer  = document.getElementById('pricing');
+    if (!bar || !offer) return;
+    var shown = false;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) {
+          bar.hidden = true; shown = false;
+        } else if (shown) {
+          bar.hidden = false;
+        }
+      });
+    }, {threshold: 0});
+    io.observe(offer);
+    window.addEventListener('scroll', function(){
+      if (!shown && window.scrollY > 300) { shown = true; bar.hidden = offer.getBoundingClientRect().top < window.innerHeight; }
+    }, {passive: true});
+    var totalEl = document.getElementById('fd-pkg-total');
+    var stickyTotal = document.getElementById('fd-sticky-total');
+    if (totalEl && stickyTotal) {
+      var mo = new MutationObserver(function(){ stickyTotal.textContent = totalEl.textContent; });
+      mo.observe(totalEl, {childList:true, characterData:true, subtree:true});
+    }
+  })();
+  </script>
 
   <script>
   (function(){

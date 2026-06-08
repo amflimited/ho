@@ -1037,3 +1037,98 @@ body.front-door-preview-page{
   opacity:1;
   transform:translateY(0);
 }
+
+/* ── Hero angle subtitle ─────────────────────────────────────────────────── */
+.fd-turn-angle{
+  margin:12px auto 0;
+  max-width:420px;
+  font-size:16px;line-height:1.5;
+  color:var(--fd-muted);
+  position:relative;
+}
+
+/* ── Why card ────────────────────────────────────────────────────────────── */
+.fd-why-card{
+  border-left:4px solid var(--fd-green);
+}
+.fd-gap-intro{
+  font-size:14px;font-weight:700;color:var(--fd-ink);
+  margin:14px 0 8px;text-transform:uppercase;letter-spacing:.04em;
+}
+.fd-why-scroll{
+  margin:18px 0 0;
+  font-size:14px;font-weight:600;color:var(--fd-green);
+  text-align:center;
+}
+
+/* ── Trust inner layout ──────────────────────────────────────────────────── */
+.fd-trust-inner{
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:14px;
+}
+.fd-trust-inner h2{margin:0 0 2px;}
+.fd-trust-location{
+  font-size:13px;color:var(--fd-muted);margin:0;font-weight:600;
+}
+.fd-trust-inner .fd-trust-avatar{margin-bottom:0;}
+
+/* ── Offer intro line ────────────────────────────────────────────────────── */
+.fd-offer-intro{
+  font-size:15px;color:var(--fd-muted);margin:0 0 20px;line-height:1.5;
+}
+
+/* ── Guarantee box ───────────────────────────────────────────────────────── */
+.fd-guarantee-box{
+  background:rgba(47,94,54,.07);
+  border:1px solid rgba(47,94,54,.20);
+  border-left:4px solid var(--fd-green);
+  border-radius:12px;
+  padding:14px 16px;
+  margin:20px 0 18px;
+  font-size:14px;line-height:1.5;color:var(--fd-ink);
+}
+.fd-guarantee-box strong{
+  display:block;font-size:15px;color:var(--fd-green);margin-bottom:4px;
+}
+
+/* ── Scarcity line ───────────────────────────────────────────────────────── */
+.fd-scarcity{
+  text-align:center;
+  font-size:12px;font-weight:600;
+  color:var(--fd-muted);
+  letter-spacing:.03em;
+  margin:16px 0 0;
+  font-style:italic;
+}
+
+/* ── Questions / soft CTA button ─────────────────────────────────────────── */
+.fd-questions-btn{
+  width:100%;margin-top:10px;
+  font-size:15px;font-weight:700;
+}
+
+/* ── Sticky bottom CTA bar ───────────────────────────────────────────────── */
+.fd-sticky-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:300;
+  background:rgba(255,250,241,.97);
+  border-top:1px solid var(--fd-line);
+  backdrop-filter:blur(8px);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  box-shadow:0 -4px 24px rgba(34,23,19,.12);
+}
+.fd-sticky-inner{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  max-width:540px;margin:0 auto;
+}
+.fd-sticky-inner > div{
+  display:flex;flex-direction:column;gap:1px;min-width:0;
+}
+.fd-sticky-inner strong{
+  font-size:14px;font-weight:700;color:var(--fd-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.fd-sticky-inner span{
+  font-size:12px;color:var(--fd-muted);font-weight:600;
+}
+.fd-sticky-btn{
+  flex-shrink:0;min-height:42px;padding:0 20px;font-size:15px;font-weight:700;
+}
