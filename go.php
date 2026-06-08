@@ -244,41 +244,43 @@ if ($paid && $row && $pdo !== null) {
 
   <?php if (!empty($available)): ?>
 
-  <div class="fd-design-chooser">
-    <p class="fd-kicker">Choose your design</p>
-    <h2 class="fd-design-title">This is your actual site &mdash; pick the look you want.</h2>
-    <p class="fd-design-sub">Tap a style below. What you see is what we build.</p>
-    <div class="fd-design-exclusive">
-      <span class="fd-excl-badge">100% original</span>
-      Every design is built from scratch for your business. The one you choose will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?> &mdash; or anywhere else.
+  <section class="fd-card fd-reveal">
+    <div class="fd-design-chooser">
+      <p class="fd-kicker">Choose your design</p>
+      <h2 class="fd-design-title">This is your actual site &mdash; pick the look you want.</h2>
+      <p class="fd-design-sub">Tap a style below. What you see is what we build.</p>
+      <div class="fd-design-exclusive">
+        <span class="fd-excl-badge">100% original</span>
+        <span class="fd-excl-text">Every design is built from scratch for your business. The one you choose will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?> &mdash; or anywhere else.</span>
+      </div>
     </div>
-  </div>
 
-  <div class="fd-tpl-picker">
-    <?php foreach ($available as $k => $opt): ?>
-      <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
-        <span class="fd-tpl-dot" style="background:<?= ho_h($opt['color']) ?>"></span>
-        <?= ho_h($opt['label']) ?>
-      </button>
-    <?php endforeach; ?>
-  </div>
-
-  <div class="fd-chosen-label">
-    <span>Your design:</span>
-    <strong id="fd-chosen-tpl"><?= ho_h($available[$templateKey]['label'] ?? '') ?></strong>
-    <span class="fd-chosen-check">✓ Selected</span>
-  </div>
-
-  <div class="fd-phone-frame">
-    <div class="fd-phone-screen" id="fd-phone-screen">
+    <div class="fd-tpl-picker">
       <?php foreach ($available as $k => $opt): ?>
-        <div class="fd-tpl-pane" id="tpl-<?= ho_h($k) ?>"<?= $k !== $templateKey ? ' hidden' : '' ?>>
-          <?php include $opt['file']; ?>
-        </div>
+        <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
+          <span class="fd-tpl-dot" style="background:<?= ho_h($opt['color']) ?>"></span>
+          <?= ho_h($opt['label']) ?>
+        </button>
       <?php endforeach; ?>
     </div>
-  </div>
-  <p class="fd-phone-hint">Scroll inside the phone to explore &uarr; &nbsp;&middot;&nbsp; your choice carries through to checkout.</p>
+
+    <div class="fd-chosen-label">
+      <span>Your design:</span>
+      <strong id="fd-chosen-tpl"><?= ho_h($available[$templateKey]['label'] ?? '') ?></strong>
+      <span class="fd-chosen-check">✓ Selected</span>
+    </div>
+
+    <div class="fd-phone-frame">
+      <div class="fd-phone-screen" id="fd-phone-screen">
+        <?php foreach ($available as $k => $opt): ?>
+          <div class="fd-tpl-pane" id="tpl-<?= ho_h($k) ?>"<?= $k !== $templateKey ? ' hidden' : '' ?>>
+            <?php include $opt['file']; ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <div class="fd-phone-hint">Scroll inside the phone to explore &uarr; &nbsp;&middot;&nbsp; your choice carries through to checkout.</div>
+  </section>
 
   <script>
   (function(){
@@ -339,9 +341,9 @@ if ($paid && $row && $pdo !== null) {
   }
   $domainInputVal = preg_replace('/\.com$/i', '', $ownDotCom);
   ?>
-  <div class="fd-addr-chooser fd-reveal">
+  <section class="fd-card fd-addr-chooser fd-reveal">
     <p class="fd-kicker">Choose your address</p>
-    <h2 class="fd-design-title">Where customers will find you.</h2>
+    <h2>Where customers will find you.</h2>
     <p class="fd-design-sub">Both options go live the day your site launches. You can always upgrade later.</p>
 
     <div class="fd-addr-options">
@@ -383,22 +385,20 @@ if ($paid && $row && $pdo !== null) {
               <button type="button" class="fd-domain-check-btn"
                       onclick="event.stopPropagation();fdCheckDomain()">Check</button>
             </div>
-            <p class="fd-domain-hint" id="fd-domain-hint"><?php
+            <div class="fd-domain-hint" id="fd-domain-hint"><?php
               if ($domainCheck !== null && !$domainCheck['available']) {
                   echo 'That name is taken &mdash; try a variation above.';
-              } elseif ($domainCheck !== null) {
-                  echo 'Want a different name? Type it and tap Check.';
               } else {
                   echo 'Want a different name? Type it and tap Check.';
               }
-            ?></p>
+            ?></div>
           </div>
 
           <p>Your own .com &mdash; more professional, easier to hand out. We register and handle renewals. <span id="fd-com-incl-note">Included in <strong>Launch Ready</strong> &amp; <strong>Complete</strong>.</span></p>
         </div>
       </label>
     </div>
-  </div>
+  </section>
 
   <script>
   function syncDomainAddon(wantCom) {
