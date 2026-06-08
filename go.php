@@ -238,6 +238,10 @@ if ($paid && $row && $pdo !== null) {
     <p class="fd-kicker">Choose your design</p>
     <h2 class="fd-design-title">This is your actual site &mdash; pick the look you want.</h2>
     <p class="fd-design-sub">Tap a style below. What you see is what we build.</p>
+    <div class="fd-design-exclusive">
+      <span class="fd-excl-badge">100% original</span>
+      Every design is built from scratch for your business. The one you choose will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?> &mdash; or anywhere else.
+    </div>
   </div>
 
   <div class="fd-tpl-picker">
