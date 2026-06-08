@@ -452,22 +452,10 @@ body.front-door-preview-page{
 .fd-design-sub{
   font-size:15px;color:var(--fd-muted);margin:0 0 12px;
 }
-.fd-design-exclusive{
-  display:flex;flex-direction:column;gap:8px;
-  background:rgba(47,94,54,.06);
-  border:1px solid rgba(47,94,54,.18);
-  border-radius:12px;
-  padding:12px 14px;
-  margin-bottom:14px;
-}
-.fd-excl-badge{
-  align-self:flex-start;
-  font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
-  color:#fff;background:var(--fd-green);
-  border-radius:20px;padding:3px 10px;
-}
-.fd-excl-text{
-  font-size:14px;line-height:1.5;color:var(--fd-muted);
+.fd-excl-note{
+  font-size:13px;line-height:1.5;color:var(--fd-muted);
+  margin:14px 0 4px;
+  padding-left:2px;
 }
 
 /* ── Domain display (replaces two-card address chooser) ─────────────────── */
@@ -596,22 +584,20 @@ body.front-door-preview-page{
 }
 
 .fd-tpl-picker{
-  display:flex;gap:8px;
-  overflow-x:auto;scrollbar-width:none;
-  -webkit-overflow-scrolling:touch;
-  padding:4px 8px 14px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:4px 0 16px;
 }
-.fd-tpl-picker::-webkit-scrollbar{display:none}
 
 .fd-tpl-tab{
-  flex-shrink:0;
-  display:inline-flex;align-items:center;gap:8px;
-  min-height:44px;padding:0 18px;
+  display:inline-flex;align-items:center;gap:7px;
+  min-height:40px;padding:0 14px;
   border-radius:999px;
   border:2px solid rgba(34,23,19,.14);
   background:rgba(255,255,255,.85);
   color:var(--fd-ink);
-  font-size:14px;font-weight:700;
+  font-size:13px;font-weight:700;
   cursor:pointer;white-space:nowrap;
   -webkit-tap-highlight-color:transparent;
   transition:background .12s,border-color .12s,color .12s;

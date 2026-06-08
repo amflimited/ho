@@ -291,15 +291,9 @@ if ($paid && $row && $pdo !== null) {
   <?php if (!empty($available)): ?>
 
   <section class="fd-card fd-reveal">
-    <div class="fd-design-chooser">
-      <p class="fd-kicker">Your website &mdash; live preview</p>
-      <h2 class="fd-design-title">This is the real thing. Pick your look.</h2>
-      <p class="fd-design-sub">Tap any style. The one you pick is the one we build.</p>
-      <div class="fd-design-exclusive">
-        <span class="fd-excl-badge">100% original</span>
-        <span class="fd-excl-text">Every design is built from scratch for your business. The one you choose will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?> &mdash; or anywhere else.</span>
-      </div>
-    </div>
+    <p class="fd-kicker">Your website &mdash; live preview</p>
+    <h2 class="fd-design-title">This is the real thing. Pick your look.</h2>
+    <p class="fd-design-sub">Tap any style below. What you see is what we build.</p>
 
     <div class="fd-tpl-picker">
       <?php foreach ($available as $k => $opt): ?>
@@ -308,12 +302,6 @@ if ($paid && $row && $pdo !== null) {
           <?= ho_h($opt['label']) ?>
         </button>
       <?php endforeach; ?>
-    </div>
-
-    <div class="fd-chosen-label">
-      <span>Your design:</span>
-      <strong id="fd-chosen-tpl"><?= ho_h($available[$templateKey]['label'] ?? '') ?></strong>
-      <span class="fd-chosen-check">✓ Selected</span>
     </div>
 
     <div class="fd-phone-stage">
@@ -327,7 +315,9 @@ if ($paid && $row && $pdo !== null) {
       </div>
     </div>
     </div><!-- /.fd-phone-stage -->
-    <div class="fd-phone-hint">This choice carries into checkout &mdash; pick the one you want to launch with.</div>
+
+    <p class="fd-excl-note">Every design is built from scratch for <?= ho_h($name) ?>. The style you choose will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?>.</p>
+    <p class="fd-phone-hint">Your choice carries into checkout &mdash; pick the one you want to launch with.</p>
   </section>
 
   <script>
