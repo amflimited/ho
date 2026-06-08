@@ -46,8 +46,10 @@ try {
     require_once __DIR__ . '/../database.php';
     require_once __DIR__ . '/ho-model.php';
 
-    $pkg    = trim((string)($_POST['pkg']   ?? ''));
-    $addons = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
+    $pkg         = trim((string)($_POST['pkg']          ?? ''));
+    $addons      = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
+    $templateKey = substr(trim((string)($_POST['template_key'] ?? '')), 0, 80);
+    $subdomain   = substr(trim((string)($_POST['subdomain']    ?? '')), 0, 120);
 
     $packages = ho_package_catalog();
     $priceMap = ho_addon_price_map();
@@ -83,18 +85,25 @@ try {
     }
 
     // ── Stripe Checkout Session ────────────────────────────────────────────────
-    $host       = 'https://' . $_SERVER['HTTP_HOST'];
-    $successUrl = $host . '/go.php?slug=' . rawurlencode($slug) . '&paid=1';
-    $cancelUrl  = $host . '/go.php?slug=' . rawurlencode($slug);
+    $host      = 'https://' . $_SERVER['HTTP_HOST'];
+    $cancelUrl = $host . '/go.php?slug=' . rawurlencode($slug);
+
+    $hasDomain  = in_array('domain', $addons, true);
+    $ownDotCom  = $subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '';
+    $successUrl = $host . '/go.php?slug=' . rawurlencode($slug) . '&paid=1'
+        . ($templateKey !== '' ? '&tpl=' . rawurlencode($templateKey) : '');
 
     $params = [
-        'mode'               => 'payment',
-        'success_url'        => $successUrl,
-        'cancel_url'         => $cancelUrl,
-        'metadata[slug]'       => $slug,
-        'metadata[business]'   => $bizName,
-        'metadata[pkg]'        => $pkg,
-        'metadata[has_domain]' => in_array('domain', $addons, true) ? '1' : '0',
+        'mode'                    => 'payment',
+        'success_url'             => $successUrl,
+        'cancel_url'              => $cancelUrl,
+        'metadata[slug]'          => $slug,
+        'metadata[business]'      => $bizName,
+        'metadata[pkg]'           => $pkg,
+        'metadata[template]'      => $templateKey,
+        'metadata[subdomain]'     => $subdomain,
+        'metadata[has_domain]'    => $hasDomain ? '1' : '0',
+        'metadata[own_domain]'    => $hasDomain ? $ownDotCom : '',
     ];
     foreach ($items as $i => $item) {
         $params["line_items[{$i}][price_data][currency]"]           = 'usd';

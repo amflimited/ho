@@ -76,6 +76,17 @@ $paid       = isset($_GET['paid']);
 $errCode    = trim((string)($_GET['err'] ?? ''));
 $stripeErr  = $errCode !== '';
 
+// ── Record template choice on successful payment ──────────────────────────
+if ($paid && $row && $pdo !== null) {
+    $chosenTpl = trim((string)($_GET['tpl'] ?? ''));
+    if ($chosenTpl !== '') {
+        try {
+            $pdo->prepare("UPDATE previews SET selected_template = ? WHERE business_id = ?")
+                ->execute([substr($chosenTpl, 0, 80), (int)$row['id']]);
+        } catch (Throwable) {}
+    }
+}
+
 ?><!doctype html>
 <html lang="en">
 <head>
@@ -245,7 +256,7 @@ $stripeErr  = $errCode !== '';
       <?php endforeach; ?>
     </div>
   </div>
-  <p class="fd-phone-hint">Your website, on any phone &nbsp;&middot;&nbsp; scroll inside to explore &uarr;</p>
+  <p class="fd-phone-hint">Pick your style &mdash; your choice is saved when you purchase.</p>
 
   <script>
   (function(){
@@ -262,6 +273,12 @@ $stripeErr  = $errCode !== '';
         var pane = document.getElementById('tpl-' + key);
         if (pane) pane.hidden = false;
         if (screen) screen.scrollTop = 0;
+        // Record selection in checkout form
+        var tplInput = document.getElementById('fd-h-template');
+        if (tplInput) tplInput.value = key;
+        // Update sticky bar label
+        var tplLabel = document.getElementById('fd-chosen-tpl');
+        if (tplLabel) tplLabel.textContent = tab.textContent.trim();
       });
     });
   })();
@@ -469,8 +486,10 @@ $stripeErr  = $errCode !== '';
     </div>
 
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
-      <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
-      <input type="hidden" name="pkg"  id="fd-h-pkg" value="<?= ho_h($defaultBData['pkg']) ?>">
+      <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
+      <input type="hidden" name="pkg"          id="fd-h-pkg"      value="<?= ho_h($defaultBData['pkg']) ?>">
+      <input type="hidden" name="template_key" id="fd-h-template" value="<?= ho_h($templateKey) ?>">
+      <input type="hidden" name="subdomain"                       value="<?= ho_h($subdomain) ?>">
       <?php foreach ($addonCatalog as $cat): foreach ($cat['items'] as $addonKey => $addon):
         $isChecked = in_array($addonKey, $defaultBData['addons'], true);
       ?>
