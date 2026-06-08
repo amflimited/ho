@@ -434,11 +434,6 @@ if ($paid && $row && $pdo !== null) {
     fetch('/domain-check.php', {method: 'POST', body: fd})
       .then(function(r){ return r.json(); })
       .then(function(data){
-        if (data.debug_raw) {
-          if (hint) hint.textContent = 'DEBUG: ' + JSON.stringify(data.debug_raw);
-          if (badge) badge.hidden = true;
-          return;
-        }
         if (data.error) {
           if (badge) { badge.hidden = true; }
           if (hint)  hint.textContent = '⚠ ' + data.error;

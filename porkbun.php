@@ -51,8 +51,9 @@ function ho_porkbun_check(string $domain): array {
         throw new RuntimeException('Porkbun: ' . ($data['message'] ?? 'bad response'));
     }
 
-    $available = strtolower((string)($data['avail'] ?? 'no')) === 'yes';
-    $price     = $available ? (string)($data['pricing']['registration'] ?? '') : null;
+    $resp      = is_array($data['response'] ?? null) ? $data['response'] : $data;
+    $available = strtolower((string)($resp['avail'] ?? 'no')) === 'yes';
+    $price     = $available ? (string)($resp['price'] ?? '') : null;
 
     return ['available' => $available, 'price' => $price, 'domain' => $domain];
 }
