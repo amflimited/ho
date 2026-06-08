@@ -160,8 +160,7 @@ if ($paid && $row && $pdo !== null) {
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
-    <p class="fd-turn-disclaimer">Free, unpaid preview &middot; Built personally by Adam Ferree &middot; New Castle, Indiana &middot; Not your official website unless you approve it</p>
-    <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
+<p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
     <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website preview for your business.' : 'I built a website preview for your business.' ?></p>
     <?php if ($angle !== ''): ?>
