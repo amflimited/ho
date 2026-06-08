@@ -1299,6 +1299,7 @@ body.front-door-preview-page{
   padding:10px 16px calc(10px + env(safe-area-inset-bottom));
   box-shadow:0 -4px 24px rgba(34,23,19,.12);
 }
+.fd-sticky-inner[hidden]{display:none!important;}
 .fd-sticky-inner{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   max-width:540px;margin:0 auto;
