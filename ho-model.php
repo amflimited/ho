@@ -1123,7 +1123,7 @@ function ho_product_features(): array {
         'Booking or request path',
         'Payment / deposit link when needed',
         'Cleanup of old or broken info',
-        'Your own web address',
+        'Custom .com domain — included free',
     ];
 }
 

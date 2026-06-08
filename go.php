@@ -193,7 +193,7 @@ if ($paid && $row && $pdo !== null) {
         <?php endforeach; ?>
       </div>
     <?php endif; ?>
-    <p class="fd-why-scroll">Scroll down to see what I built. &darr;</p>
+    <p class="fd-why-scroll">I built something to fix that. See it below &darr;</p>
   </section>
 
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
@@ -240,9 +240,9 @@ if ($paid && $row && $pdo !== null) {
 
   <section class="fd-card fd-reveal">
     <div class="fd-design-chooser">
-      <p class="fd-kicker">Choose your design</p>
-      <h2 class="fd-design-title">This is your actual site &mdash; pick the look you want.</h2>
-      <p class="fd-design-sub">Tap a style below. What you see is what we build.</p>
+      <p class="fd-kicker">Your website &mdash; live preview</p>
+      <h2 class="fd-design-title">This is the real thing. Pick your look.</h2>
+      <p class="fd-design-sub">Tap any style. The one you pick is the one we build.</p>
       <div class="fd-design-exclusive">
         <span class="fd-excl-badge">100% original</span>
         <span class="fd-excl-text">Every design is built from scratch for your business. The one you choose will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?> &mdash; or anywhere else.</span>
@@ -273,7 +273,7 @@ if ($paid && $row && $pdo !== null) {
         <?php endforeach; ?>
       </div>
     </div>
-    <div class="fd-phone-hint">Your design choice carries through to checkout &mdash; pick the one you like.</div>
+    <div class="fd-phone-hint">This choice carries into checkout &mdash; pick the one you want to launch with.</div>
   </section>
 
   <script>
@@ -324,7 +324,7 @@ if ($paid && $row && $pdo !== null) {
 
   <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
   <section class="fd-card fd-trust fd-reveal" id="about">
-    <p class="fd-kicker">Who sent this</p>
+    <p class="fd-kicker">Who built this</p>
     <div class="fd-trust-inner">
       <div class="fd-trust-avatar" aria-hidden="true">A</div>
       <div>
@@ -332,11 +332,11 @@ if ($paid && $row && $pdo !== null) {
         <p class="fd-trust-location">New Castle, Indiana</p>
       </div>
     </div>
-    <p>I research <?= ho_h(strtolower($catName)) ?> businesses across Indiana and build preview sites for the ones I think deserve better visibility online. I do this myself &mdash; no sales team, no outsourcing. If you got this link, I looked you up personally and thought it was worth my time to build.</p>
+    <p>Building websites for Indiana service businesses is my full-time work &mdash; not a side project, not a template mill. I found your business online, looked at what you had (or didn&rsquo;t have), and decided it was worth a few hours of my time to build something real. If I sent this to you, I mean it.</p>
     <ul class="fd-trust-signals">
-      <li>Indiana-based, not a national agency</li>
-      <li>Every preview personally researched &amp; built</li>
-      <li>Flat pricing. No contracts. No surprises.</li>
+      <li>Indiana-based &mdash; not a national agency</li>
+      <li>Every preview researched and built personally</li>
+      <li>Flat price, no contract, no monthly fees</li>
     </ul>
     <div class="fd-trust-contact">
       <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
@@ -351,7 +351,7 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-section fd-reveal" id="services">
     <div class="fd-section-head">
       <p class="fd-kicker">What We Build</p>
-      <h2>Five things, done right.</h2>
+      <h2>Everything a customer needs to hire you.</h2>
     </div>
     <div class="fd-module-list">
       <?php foreach ($modules as $i => $m): ?>
@@ -369,7 +369,7 @@ if ($paid && $row && $pdo !== null) {
   <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
   <section class="fd-card fd-reveal">
     <p class="fd-kicker">Every Front Door Includes</p>
-    <h2>The full build. Nothing held back.</h2>
+    <h2>Full build. Nothing extra to buy.</h2>
     <ul class="fd-feature-list">
       <?php foreach ($features as $f): ?>
         <li><?= ho_h($f) ?></li>
@@ -480,8 +480,8 @@ if ($paid && $row && $pdo !== null) {
   ?>
   <section class="fd-card fd-offer fd-reveal" id="pricing">
     <p class="fd-kicker">Ready to launch</p>
-    <h2>Your site. Your price.</h2>
-    <p class="fd-offer-intro">Pick the option that fits. No contract, no monthly fees &mdash; you own it the day it goes live.</p>
+    <h2>Launch your site. One flat price.</h2>
+    <p class="fd-offer-intro">Pick the option that fits. You own it the day it goes live &mdash; no contracts, no monthly fees, no surprises.</p>
 
     <!-- Bundle cards -->
     <div class="fd-bundle-grid">
@@ -541,10 +541,10 @@ if ($paid && $row && $pdo !== null) {
 
     <a class="fd-btn fd-btn-secondary fd-questions-btn"
        href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI have a question about the preview you built for " . $name . ".\n\n") ?>">
-      Not ready? Just reply to my email.
+      Have a question first? Email me &mdash; no pressure.
     </a>
 
-    <div class="fd-scarcity">I only take one <?= ho_h(strtolower($catName)) ?> site at a time in <?= ho_h($city) ?>.</div>
+    <div class="fd-scarcity">I build one <?= ho_h(strtolower($catName)) ?> site per city &mdash; whoever says yes first in <?= ho_h($city) ?> gets it.</div>
   </section>
 
   <script>
