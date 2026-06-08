@@ -120,7 +120,7 @@ if ($paid && $row && $pdo !== null) {
 
 <nav class="fd-nav">
   <a class="fd-nav-brand" href="/">Hoosier Online</a>
-  <a class="fd-nav-cta" href="#pricing">See Pricing</a>
+  <a class="fd-nav-cta" href="#preview">See Preview</a>
 </nav>
 
 <main class="fd-shell">
@@ -160,19 +160,17 @@ if ($paid && $row && $pdo !== null) {
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
+    <p class="fd-turn-disclaimer">Free, unpaid preview &middot; Built personally by Adam Ferree &middot; New Castle, Indiana &middot; Not your official website unless you approve it</p>
     <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
-    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? ho_h($ownerFirst) . ' &mdash; I built this for you.' : 'I built this for you.' ?></p>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website preview for your business.' : 'I built a website preview for your business.' ?></p>
     <?php if ($angle !== ''): ?>
       <p class="fd-turn-angle"><?= ho_h($angle) ?></p>
     <?php endif; ?>
+    <div class="fd-turn-actions">
+      <a href="#preview" class="fd-btn fd-btn-primary fd-turn-cta">View Your Preview &darr;</a>
+    </div>
   </section>
-  <div class="fd-scroll-hint" aria-hidden="true">
-    <span class="fd-scroll-arrow">↓</span>
-    <span>Keep reading</span>
-  </div>
-
-  <div class="fd-intro-note">A <strong>Front Door site</strong> is a focused one-page website &mdash; live within 24 hours, built around your business, designed to turn searches into calls.</div>
 
   <!-- ── WHY I REACHED OUT ─────────────────────────────────────────────────── -->
   <section class="fd-card fd-why-card fd-reveal">
