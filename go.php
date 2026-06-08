@@ -314,6 +314,58 @@ if ($paid && $row && $pdo !== null) {
 
   <?php endif; ?>
 
+  <!-- ── CHOOSE YOUR ADDRESS ───────────────────────────────────────────────── -->
+  <?php $ownDotCom = str_replace('.hoosieronline.com', '.com', $subdomain); ?>
+  <div class="fd-addr-chooser fd-reveal">
+    <p class="fd-kicker">Choose your address</p>
+    <h2 class="fd-design-title">Where customers will find you.</h2>
+    <p class="fd-design-sub">Both options go live the day your site launches. You can always upgrade later.</p>
+
+    <div class="fd-addr-options">
+      <label class="fd-addr-card is-selected" id="fd-addr-sub-card">
+        <input type="radio" name="addr_choice" value="sub" checked>
+        <div class="fd-addr-body">
+          <div class="fd-addr-head">
+            <div class="fd-addr-url"><?= ho_h($subdomain) ?></div>
+            <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
+          </div>
+          <p>Hosted on hoosieronline.com. Live within a week, no annual fee, no renewals to worry about.</p>
+        </div>
+      </label>
+
+      <label class="fd-addr-card" id="fd-addr-com-card">
+        <input type="radio" name="addr_choice" value="com">
+        <div class="fd-addr-body">
+          <div class="fd-addr-head">
+            <div class="fd-addr-url fd-addr-url-com"><?= ho_h($ownDotCom) ?></div>
+            <span class="fd-addr-tag fd-addr-tag-addon">+$25/yr</span>
+          </div>
+          <p>Your own .com &mdash; looks more professional, easier to hand out. We register it and handle renewals. Included at no extra cost in <strong>Launch Ready</strong> &amp; <strong>Complete</strong>.</p>
+        </div>
+      </label>
+    </div>
+    <p class="fd-addr-note">If <?= ho_h($ownDotCom) ?> isn&rsquo;t available, I&rsquo;ll find the closest option and confirm with you before anything is registered.</p>
+  </div>
+
+  <script>
+  (function(){
+    var subCard = document.getElementById('fd-addr-sub-card');
+    var comCard = document.getElementById('fd-addr-com-card');
+    var subRadio = subCard ? subCard.querySelector('input') : null;
+    var comRadio = comCard ? comCard.querySelector('input') : null;
+    function syncDomainAddon(wantCom) {
+      var cb  = document.querySelector('.fd-addon-list input[data-addon="domain"]');
+      var hid = document.getElementById('fd-h-domain');
+      if (cb)  { cb.checked = wantCom; }
+      if (hid) { hid.disabled = !wantCom; if (wantCom) hid.value = 'domain'; }
+      if (typeof fdUpdateTotal === 'function') fdUpdateTotal();
+      if (subCard) subCard.classList.toggle('is-selected', !wantCom);
+      if (comCard) comCard.classList.toggle('is-selected', wantCom);
+    }
+    if (subRadio) subRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(false); });
+    if (comRadio) comRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(true); });
+  })();
+  </script>
 
   <!-- WHY section moved above mockup — see below -->
 
@@ -371,17 +423,6 @@ if ($paid && $row && $pdo !== null) {
         <li><?= ho_h($f) ?></li>
       <?php endforeach; ?>
     </ul>
-  </section>
-
-  <!-- ── YOUR WEB ADDRESS ─────────────────────────────────────────────────── -->
-  <section class="fd-card fd-domain fd-reveal">
-    <p class="fd-kicker">Your Web Address</p>
-    <h2>Yours the day we launch.</h2>
-    <div class="fd-url-bar">
-      <span class="fd-url-dot" aria-hidden="true"></span>
-      <?= ho_h($subdomain) ?>
-    </div>
-    <p class="fd-muted">Included with your Front Door. Want your own domain &mdash; like <strong><?= ho_h(str_replace('.hoosieronline.com', '.com', $subdomain)) ?></strong>? We handle that too.</p>
   </section>
 
   <!-- ── PACKAGE CONFIGURATOR ────────────────────────────────────────────── -->
