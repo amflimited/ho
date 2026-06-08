@@ -1262,25 +1262,25 @@ function ho_why_text(array $row): string {
     }
     // No website, but on Google
     if ((!$hasWebsite || $websiteQ === 'none') && $hasGoogle) {
-        return 'Your Google listing gets you found — but there\u{2019}s nowhere for customers to land. A website gives them a reason to call you instead of moving on to the next result.';
+        return "Your Google listing gets you found \u{2014} but there\u{2019}s nowhere for customers to land. A website gives them a reason to call you instead of moving on to the next result.";
     }
     // No website, not on Google either
     if (!$hasWebsite || $websiteQ === 'none') {
-        return 'Right now there\u{2019}s no website for customers to find when they search for you. Every potential job that looks you up and can\u{2019}t find a clear page goes somewhere else.';
+        return "Right now there\u{2019}s no website for customers to find when they search for you. Every potential job that looks you up and can\u{2019}t find a clear page goes somewhere else.";
     }
     // Poor website with decent reviews
     if ($websiteQ === 'poor' && $reviews >= 5) {
-        return 'Your reviews are solid, but your website isn\u{2019}t doing them justice. Customers who find it may not bother reaching out — a better page would fix that.';
+        return "Your reviews are solid, but your website isn\u{2019}t doing them justice. Customers who find it may not bother reaching out \u{2014} a better page would fix that.";
     }
     // Poor website, few reviews
     if ($websiteQ === 'poor') {
-        return 'Your current site is working against you — it\u{2019}s outdated enough that customers who find it often move on before reaching out.';
+        return "Your current site is working against you \u{2014} it\u{2019}s outdated enough that customers who find it often move on before reaching out.";
     }
     // Active social or strong reviews — upsell angle
     if ($fbActive || $reviews >= 15) {
-        return 'You have real activity and a following. The opportunity is making sure all of that points to one page that turns visitors into paying customers.';
+        return "You have real activity and a following. The opportunity is making sure all of that points to one page that turns visitors into paying customers.";
     }
-    return 'Your business is doing solid work — the online presence just hasn\u{2019}t caught up yet.';
+    return "Your business is doing solid work \u{2014} the online presence just hasn\u{2019}t caught up yet.";
 }
 
 function ho_sales_angle(array $row): string {
