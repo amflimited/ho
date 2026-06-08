@@ -120,13 +120,7 @@ if ($paid && $row && $pdo !== null) {
 
 <nav class="fd-nav">
   <a class="fd-nav-brand" href="/">Hoosier Online</a>
-  <div class="fd-nav-links">
-    <a href="#preview">Preview</a>
-    <a href="#about">About</a>
-    <a href="#services">Services</a>
-    <a href="#pricing">Pricing</a>
-    <a class="fd-nav-cta" href="#pricing">Get Started</a>
-  </div>
+  <a class="fd-nav-cta" href="#pricing">See Pricing</a>
 </nav>
 
 <main class="fd-shell">
@@ -178,6 +172,8 @@ if ($paid && $row && $pdo !== null) {
     <span>Keep reading</span>
   </div>
 
+  <div class="fd-intro-note">A <strong>Front Door site</strong> is a focused one-page website &mdash; live in a week, built around your business, designed to turn searches into calls.</div>
+
   <!-- ── WHY I REACHED OUT ─────────────────────────────────────────────────── -->
   <section class="fd-card fd-why-card fd-reveal">
     <p class="fd-kicker">Why I reached out</p>
@@ -225,6 +221,7 @@ if ($paid && $row && $pdo !== null) {
       }
       if (!empty($available)) { $templateKey = array_key_first($available); $usingCatTpls = true; }
   }
+  if (count($available) > 4) $available = array_slice($available, 0, 4, true);
 
   // Fall back to generic design-family templates
   if (empty($available)) {
@@ -255,9 +252,10 @@ if ($paid && $row && $pdo !== null) {
       </div>
     </div>
 
+    <?php $firstTplKey = array_key_first($available); ?>
     <div class="fd-tpl-picker">
       <?php foreach ($available as $k => $opt): ?>
-        <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
+        <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?><?= $k === $firstTplKey ? ' fd-tpl-tab--rec' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
           <span class="fd-tpl-dot" style="background:<?= ho_h($opt['color']) ?>"></span>
           <?= ho_h($opt['label']) ?>
         </button>
@@ -279,7 +277,7 @@ if ($paid && $row && $pdo !== null) {
         <?php endforeach; ?>
       </div>
     </div>
-    <div class="fd-phone-hint">Scroll inside the phone to explore &uarr; &nbsp;&middot;&nbsp; your choice carries through to checkout.</div>
+    <div class="fd-phone-hint">Your design choice carries through to checkout &mdash; pick the one you like.</div>
   </section>
 
   <script>
@@ -325,6 +323,63 @@ if ($paid && $row && $pdo !== null) {
   </section>
 
   <?php endif; ?>
+
+
+
+  <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
+  <section class="fd-card fd-trust fd-reveal" id="about">
+    <p class="fd-kicker">Who sent this</p>
+    <div class="fd-trust-inner">
+      <div class="fd-trust-avatar" aria-hidden="true">A</div>
+      <div>
+        <h2>Adam Ferree</h2>
+        <p class="fd-trust-location">New Castle, Indiana</p>
+      </div>
+    </div>
+    <p>I research <?= ho_h(strtolower($catName)) ?> businesses across Indiana and build preview sites for the ones I think deserve better visibility online. I do this myself &mdash; no sales team, no outsourcing. If you got this link, I looked you up personally and thought it was worth my time to build.</p>
+    <ul class="fd-trust-signals">
+      <li>Indiana-based, not a national agency</li>
+      <li>Every preview personally researched &amp; built</li>
+      <li>Flat pricing. No contracts. No surprises.</li>
+    </ul>
+    <div class="fd-trust-contact">
+      <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
+      <?php if ($adamPhone !== ''): ?>
+        <span class="fd-trust-sep">&middot;</span>
+        <a href="tel:<?= ho_h(preg_replace('/\D/', '', $adamPhone)) ?>"><?= ho_h($adamPhone) ?></a>
+      <?php endif; ?>
+    </div>
+  </section>
+
+  <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
+  <section class="fd-section fd-reveal" id="services">
+    <div class="fd-section-head">
+      <p class="fd-kicker">What We Build</p>
+      <h2>Five things, done right.</h2>
+    </div>
+    <div class="fd-module-list">
+      <?php foreach ($modules as $i => $m): ?>
+        <div class="fd-module fd-reveal" style="--reveal-delay:<?= $i * 80 ?>ms">
+          <span class="fd-module-num"><?= $i + 1 ?></span>
+          <div>
+            <strong><?= ho_h($m['title']) ?></strong>
+            <p><?= ho_h($m['desc']) ?></p>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
+  <section class="fd-card fd-reveal">
+    <p class="fd-kicker">Every Front Door Includes</p>
+    <h2>The full build. Nothing held back.</h2>
+    <ul class="fd-feature-list">
+      <?php foreach ($features as $f): ?>
+        <li><?= ho_h($f) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </section>
 
   <!-- ── CHOOSE YOUR ADDRESS ───────────────────────────────────────────────── -->
   <?php
@@ -447,7 +502,6 @@ if ($paid && $row && $pdo !== null) {
           if (badge) { badge.className = 'fd-avail-badge fd-avail-yes'; badge.textContent = '✓ Available'; }
           if (hint)  hint.textContent = 'Great — that name is available.';
           if (chosenHid) chosenHid.value = domain;
-          // Auto-select the .com card
           var comCard  = document.getElementById('fd-addr-com-card');
           var comRadio = comCard ? comCard.querySelector('input[type="radio"]') : null;
           if (comRadio && !comRadio.checked) { comRadio.checked = true; syncDomainAddon(true); }
@@ -461,64 +515,6 @@ if ($paid && $row && $pdo !== null) {
       });
   }
   </script>
-
-  <!-- WHY section moved above mockup — see below -->
-
-
-  <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
-  <section class="fd-card fd-trust fd-reveal" id="about">
-    <p class="fd-kicker">Who sent this</p>
-    <div class="fd-trust-inner">
-      <div class="fd-trust-avatar" aria-hidden="true">A</div>
-      <div>
-        <h2>Adam Ferree</h2>
-        <p class="fd-trust-location">New Castle, Indiana</p>
-      </div>
-    </div>
-    <p>I research <?= ho_h(strtolower($catName)) ?> businesses across Indiana and build preview sites for the ones I think deserve better visibility online. I do this myself &mdash; no sales team, no outsourcing. If you got this link, I looked you up personally and thought it was worth my time to build.</p>
-    <ul class="fd-trust-signals">
-      <li>Indiana-based, not a national agency</li>
-      <li>Every preview personally researched &amp; built</li>
-      <li>Flat pricing. No contracts. No surprises.</li>
-    </ul>
-    <div class="fd-trust-contact">
-      <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
-      <?php if ($adamPhone !== ''): ?>
-        <span class="fd-trust-sep">&middot;</span>
-        <a href="tel:<?= ho_h(preg_replace('/\D/', '', $adamPhone)) ?>"><?= ho_h($adamPhone) ?></a>
-      <?php endif; ?>
-    </div>
-  </section>
-
-  <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
-  <section class="fd-section fd-reveal" id="services">
-    <div class="fd-section-head">
-      <p class="fd-kicker">What We Build</p>
-      <h2>Five things, done right.</h2>
-    </div>
-    <div class="fd-module-list">
-      <?php foreach ($modules as $i => $m): ?>
-        <div class="fd-module fd-reveal" style="--reveal-delay:<?= $i * 80 ?>ms">
-          <span class="fd-module-num"><?= $i + 1 ?></span>
-          <div>
-            <strong><?= ho_h($m['title']) ?></strong>
-            <p><?= ho_h($m['desc']) ?></p>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  </section>
-
-  <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
-  <section class="fd-card fd-reveal">
-    <p class="fd-kicker">Every Front Door Includes</p>
-    <h2>The full build. Nothing held back.</h2>
-    <ul class="fd-feature-list">
-      <?php foreach ($features as $f): ?>
-        <li><?= ho_h($f) ?></li>
-      <?php endforeach; ?>
-    </ul>
-  </section>
 
   <!-- ── PACKAGE CONFIGURATOR ────────────────────────────────────────────── -->
   <?php
@@ -586,7 +582,7 @@ if ($paid && $row && $pdo !== null) {
       <!-- domain addon: enabled only when Standard pkg + .com address selected -->
       <input type="hidden" name="addons[]" id="fd-h-domain" value="domain" disabled>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
-        Yes, I Want This &rarr;
+        Yes, Build This &rarr;
       </button>
     </form>
     <p class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</p>
@@ -662,32 +658,47 @@ if ($paid && $row && $pdo !== null) {
 
   <!-- ── STICKY BOTTOM CTA ──────────────────────────────────────────────── -->
   <div class="fd-sticky-bar" id="fd-sticky-bar" hidden>
-    <div class="fd-sticky-inner">
+    <div class="fd-sticky-inner" id="fd-sticky-pre">
+      <span class="fd-sticky-biz"><?= ho_h($name) ?></span>
+      <a href="#pricing" class="fd-btn fd-btn-secondary fd-sticky-btn">See Launch Options &rarr;</a>
+    </div>
+    <div class="fd-sticky-inner" id="fd-sticky-post" hidden>
       <div>
         <strong><?= ho_h($name) ?></strong>
-        <span>Your total: <span id="fd-sticky-total">$<?= number_format($defaultPrice) ?></span></span>
+        <span>Total: <span id="fd-sticky-total">$<?= number_format($defaultPrice) ?></span></span>
       </div>
-      <a href="#pricing" class="fd-btn fd-btn-primary fd-sticky-btn">Get Started &rarr;</a>
+      <a href="#pricing" class="fd-btn fd-btn-primary fd-sticky-btn">Yes, Build This &rarr;</a>
     </div>
   </div>
   <script>
   (function(){
-    var bar    = document.getElementById('fd-sticky-bar');
-    var offer  = document.getElementById('pricing');
+    var bar      = document.getElementById('fd-sticky-bar');
+    var offer    = document.getElementById('pricing');
+    var preEl    = document.getElementById('fd-sticky-pre');
+    var postEl   = document.getElementById('fd-sticky-post');
     if (!bar || !offer) return;
-    var shown = false;
+    var shown = false, pricingSeen = false;
+    function showBar() {
+      bar.hidden = false;
+      if (preEl)  preEl.hidden  = pricingSeen;
+      if (postEl) postEl.hidden = !pricingSeen;
+    }
     var io = new IntersectionObserver(function(entries){
       entries.forEach(function(e){
         if (e.isIntersecting) {
+          pricingSeen = true;
           bar.hidden = true; shown = false;
         } else if (shown) {
-          bar.hidden = false;
+          showBar();
         }
       });
     }, {threshold: 0});
     io.observe(offer);
     window.addEventListener('scroll', function(){
-      if (!shown && window.scrollY > 300) { shown = true; bar.hidden = offer.getBoundingClientRect().top < window.innerHeight; }
+      if (!shown && window.scrollY > 300) {
+        shown = true;
+        if (offer.getBoundingClientRect().top >= window.innerHeight) showBar();
+      }
     }, {passive: true});
     var totalEl = document.getElementById('fd-pkg-total');
     var stickyTotal = document.getElementById('fd-sticky-total');
