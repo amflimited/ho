@@ -1,6 +1,7 @@
 database.php
 admin-secrets.php
 stripe-config.php
+porkbun-config.php
 private/
 .env
 *.local.php
