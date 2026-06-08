@@ -21,11 +21,7 @@ jobs:
           BEFORE="${{ github.event.before }}"
           SKIP='(database\.php|admin-secrets\.php|stripe-config\.php|porkbun-config\.php|^\.github/)'
 
-          if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-            FILES=$(git diff --name-only "$BEFORE" HEAD | grep -Ev "$SKIP" || true)
-          else
-            FILES=$(git ls-files | grep -Ev "$SKIP" || true)
-          fi
+          FILES=$(git ls-files | grep -Ev "$SKIP" || true)
 
           [ -z "$FILES" ] && { echo "Nothing to deploy."; exit 0; }
           echo "Deploying: $FILES"
