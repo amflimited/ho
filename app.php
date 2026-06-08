@@ -660,6 +660,76 @@ if (!empty($unresearched)) {
   </script>
   <?php endif; ?>
 
+  <!-- ── Hidden Website Audit ──────────────────────────────────────────────── -->
+  <?php
+  $noWebsiteIds = [];
+  try {
+      if ($pdo) {
+          $noWebRows = $pdo->query("
+              SELECT b.id FROM businesses b
+              JOIN research_records r ON r.business_id = b.id
+              WHERE r.has_website = 0
+                AND r.research_status = 'complete'
+                AND b.pipeline_status NOT IN ('excluded','converted','pitched')
+              ORDER BY b.id ASC
+          ")->fetchAll(PDO::FETCH_COLUMN);
+          $noWebsiteIds = array_map('intval', $noWebRows);
+      }
+  } catch (Throwable) {}
+  ?>
+  <?php if (!empty($noWebsiteIds)): ?>
+  <section class="cp-section" style="margin-top:18px" id="domainAuditSection">
+    <h2 class="cp-sh">Hidden Website Check</h2>
+    <p class="cp-hint"><?= count($noWebsiteIds) ?> lead<?= count($noWebsiteIds) !== 1 ? 's' : '' ?> marked as no website. Tries their likely .com — auto-removes anyone the AI missed (like Rogers Groundskeeping).</p>
+    <button class="cp-btn" id="domainAuditBtn" onclick="runDomainAudit()">
+      Check <?= count($noWebsiteIds) ?> lead<?= count($noWebsiteIds) !== 1 ? 's' : '' ?> for hidden websites
+    </button>
+    <div id="domainAuditProgress" style="display:none;margin-top:12px">
+      <div style="background:#e8e3d8;border-radius:6px;height:8px;overflow:hidden">
+        <div id="domainAuditBar" style="background:#2a7a35;height:100%;width:0;transition:width .2s"></div>
+      </div>
+      <p class="cp-hint" id="domainAuditStatus" style="margin-top:6px">Starting…</p>
+    </div>
+  </section>
+  <script>
+  (function(){
+    var ids = <?= json_encode($noWebsiteIds) ?>;
+    var total = ids.length, done = 0, found = 0, excluded = 0;
+    window.runDomainAudit = function() {
+      document.getElementById('domainAuditBtn').disabled = true;
+      document.getElementById('domainAuditProgress').style.display = 'block';
+      domainNext(0);
+    };
+    function domainNext(i) {
+      if (i >= ids.length) {
+        document.getElementById('domainAuditBar').style.width = '100%';
+        document.getElementById('domainAuditStatus').textContent =
+          'Done. ' + found + ' hidden site' + (found !== 1 ? 's' : '') + ' found, ' +
+          excluded + ' lead' + (excluded !== 1 ? 's' : '') + ' auto-removed.';
+        document.getElementById('domainAuditBtn').textContent = 'Run again';
+        document.getElementById('domainAuditBtn').disabled = false;
+        return;
+      }
+      var fd = new FormData();
+      fd.append('id', ids[i]);
+      fetch('/audit-domain.php', {method:'POST', body:fd})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          done++;
+          if (d.alive) found++;
+          if (d.excluded) excluded++;
+          var pct = Math.round(done / total * 100);
+          document.getElementById('domainAuditBar').style.width = pct + '%';
+          document.getElementById('domainAuditStatus').textContent =
+            done + ' of ' + total + ' checked — ' + found + ' found, ' + excluded + ' removed';
+        })
+        .catch(function(){ done++; })
+        .finally(function(){ domainNext(i + 1); });
+    }
+  })();
+  </script>
+  <?php endif; ?>
+
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'send'): ?>
 
