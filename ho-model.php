@@ -1649,28 +1649,41 @@ function ho_generate_status_update_text(array $order, string $bizName, string $o
 // ─── Enrichment (fill new fields on already-researched leads) ────────────────
 
 function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
-    // Businesses that have been researched but are missing the new signal fields
+    // Try the filtered query first (only leads missing the new fields)
     try {
         $rows = $pdo->query("
             SELECT b.id, b.business_name, b.location_city, b.website_url,
                    b.facebook_url, b.google_business_url,
-                   c.name AS category_name,
-                   r.has_website, r.website_url AS r_website_url
+                   c.name AS category_name
             FROM businesses b
             JOIN categories c ON c.id = b.category_id
             JOIN research_records r ON r.business_id = b.id
             WHERE r.research_status = 'complete'
               AND (
-                r.competitor_name  = '' OR r.competitor_name IS NULL OR
-                r.booking_method   = 'unknown' OR r.booking_method IS NULL OR
+                r.competitor_name   = '' OR r.competitor_name IS NULL OR
+                r.booking_method    = 'unknown' OR r.booking_method IS NULL OR
                 r.years_in_business IS NULL
               )
             ORDER BY b.updated_at DESC
             LIMIT " . (int)$limit . "
         ")->fetchAll();
         return $rows;
+    } catch (Throwable) {}
+
+    // Fallback: new columns don't exist yet — return recently-researched leads
+    try {
+        return $pdo->query("
+            SELECT b.id, b.business_name, b.location_city, b.website_url,
+                   b.facebook_url, b.google_business_url,
+                   c.name AS category_name
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            JOIN research_records r ON r.business_id = b.id
+            WHERE r.research_status = 'complete'
+            ORDER BY b.updated_at DESC
+            LIMIT " . (int)$limit . "
+        ")->fetchAll();
     } catch (Throwable) {
-        // New columns may not exist yet
         return [];
     }
 }
