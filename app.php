@@ -551,23 +551,70 @@ if (!empty($unresearched)) {
 
   <!-- ── Website Audit ─────────────────────────────────────────────────────── -->
   <?php
-  $websiteBizCount = 0;
+  $websiteBizIds = [];
   try {
-      $websiteBizCount = $pdo ? (int)$pdo->query("SELECT COUNT(*) FROM research_records WHERE has_website = 1")->fetchColumn() : 0;
+      if ($pdo) {
+          $auditRows = $pdo->query("
+              SELECT b.id FROM businesses b
+              JOIN research_records r ON r.business_id = b.id
+              WHERE r.has_website = 1
+              ORDER BY b.id ASC
+          ")->fetchAll(PDO::FETCH_COLUMN);
+          $websiteBizIds = array_map('intval', $auditRows);
+      }
   } catch (Throwable) {}
   ?>
-  <?php if ($websiteBizCount > 0): ?>
-  <section class="cp-section" style="margin-top:18px">
+  <?php if (!empty($websiteBizIds)): ?>
+  <section class="cp-section" style="margin-top:18px" id="auditSection">
     <h2 class="cp-sh">Website Data Audit</h2>
-    <p class="cp-hint"><?= $websiteBizCount ?> lead<?= $websiteBizCount !== 1 ? 's' : '' ?> marked as having a website. This scan checks each URL live and clears any that don&rsquo;t respond &mdash; fixing bad AI guesses automatically.</p>
-    <form method="POST">
-      <input type="hidden" name="action" value="audit_websites">
-      <input type="hidden" name="tab" value="research">
-      <button type="submit" class="cp-btn" onclick="this.textContent='Scanning… this may take up to 30 seconds';this.disabled=true">
-        Scan &amp; fix <?= $websiteBizCount ?> website<?= $websiteBizCount !== 1 ? 's' : '' ?>
-      </button>
-    </form>
+    <p class="cp-hint"><?= count($websiteBizIds) ?> lead<?= count($websiteBizIds) !== 1 ? 's' : '' ?> marked as having a website. Checks each URL live and clears bad AI guesses.</p>
+    <button class="cp-btn" id="auditBtn" onclick="runAudit()">
+      Scan &amp; fix <?= count($websiteBizIds) ?> website<?= count($websiteBizIds) !== 1 ? 's' : '' ?>
+    </button>
+    <div id="auditProgress" style="display:none;margin-top:12px">
+      <div style="background:#e8e3d8;border-radius:6px;height:8px;overflow:hidden">
+        <div id="auditBar" style="background:#2a7a35;height:100%;width:0;transition:width .2s"></div>
+      </div>
+      <p class="cp-hint" id="auditStatus" style="margin-top:6px">Starting…</p>
+    </div>
   </section>
+  <script>
+  (function(){
+    var ids = <?= json_encode($websiteBizIds) ?>;
+    var total = ids.length, done = 0, fixed = 0, live = 0;
+    window.runAudit = function() {
+      document.getElementById('auditBtn').disabled = true;
+      document.getElementById('auditProgress').style.display = 'block';
+      processNext(0);
+    };
+    function processNext(i) {
+      if (i >= ids.length) {
+        document.getElementById('auditBar').style.width = '100%';
+        document.getElementById('auditStatus').textContent =
+          'Done. ' + live + ' real site' + (live !== 1 ? 's' : '') + ' confirmed, ' +
+          fixed + ' bad record' + (fixed !== 1 ? 's' : '') + ' cleared.';
+        document.getElementById('auditBtn').textContent = 'Run again';
+        document.getElementById('auditBtn').disabled = false;
+        return;
+      }
+      var fd = new FormData();
+      fd.append('id', ids[i]);
+      fetch('/audit-url.php', {method:'POST', body:fd})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          done++;
+          if (d.fixed) fixed++;
+          else if (d.alive) live++;
+          var pct = Math.round(done / total * 100);
+          document.getElementById('auditBar').style.width = pct + '%';
+          document.getElementById('auditStatus').textContent =
+            done + ' of ' + total + ' checked — ' + fixed + ' cleared so far';
+        })
+        .catch(function(){done++;})
+        .finally(function(){ processNext(i + 1); });
+    }
+  })();
+  </script>
   <?php endif; ?>
 
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
