@@ -88,9 +88,7 @@ try {
     $host      = 'https://' . $_SERVER['HTTP_HOST'];
     $cancelUrl = $host . '/go.php?slug=' . rawurlencode($slug);
 
-    $ownDotCom  = $chosenCom !== ''
-        ? $chosenCom
-        : ($subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '');
+    $ownDotCom  = $chosenCom;
     $hasDomain  = $chosenCom !== '';
     $successUrl = $host . '/go.php?slug=' . rawurlencode($slug) . '&paid=1'
         . ($templateKey !== '' ? '&tpl=' . rawurlencode($templateKey) : '');

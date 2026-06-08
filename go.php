@@ -548,7 +548,7 @@ if ($paid && $row && $pdo !== null) {
   </section>
 
   <script>
-  var FD_PRICES = {standard: 199, launch: 399, managed: 649};
+  var FD_PRICES = {standard:<?= ho_bundle_price('standard') ?>,launch:<?= ho_bundle_price('launch') ?>,managed:<?= ho_bundle_price('managed') ?>};
 
   function fdSelectBundle(card) {
     var pkg = card.dataset.pkg || 'standard';
