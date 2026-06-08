@@ -562,7 +562,8 @@ if (!empty($unresearched)) {
     <p class="cp-hint"><?= $websiteBizCount ?> lead<?= $websiteBizCount !== 1 ? 's' : '' ?> marked as having a website. This scan checks each URL live and clears any that don&rsquo;t respond &mdash; fixing bad AI guesses automatically.</p>
     <form method="POST">
       <input type="hidden" name="action" value="audit_websites">
-      <button type="submit" class="cp-btn" onclick="this.textContent='Scanning… this may take a minute';this.disabled=true">
+      <input type="hidden" name="tab" value="research">
+      <button type="submit" class="cp-btn" onclick="this.textContent='Scanning… this may take up to 30 seconds';this.disabled=true">
         Scan &amp; fix <?= $websiteBizCount ?> website<?= $websiteBizCount !== 1 ? 's' : '' ?>
       </button>
     </form>

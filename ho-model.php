@@ -1430,51 +1430,65 @@ function ho_get_website_businesses(PDO $pdo): array {
     ")->fetchAll();
 }
 
-function ho_check_url_live(string $url): bool {
-    if ($url === '') return false;
-    if (!preg_match('#^https?://#i', $url)) $url = 'https://' . $url;
-    $ch = curl_init($url);
-    if ($ch === false) return false;
-    curl_setopt_array($ch, [
-        CURLOPT_NOBODY         => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS      => 4,
-        CURLOPT_TIMEOUT        => 6,
-        CURLOPT_CONNECTTIMEOUT => 4,
-        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; HoosierOnline/1.0)',
-        CURLOPT_SSL_VERIFYPEER => false,
-    ]);
-    curl_exec($ch);
-    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    return $code >= 200 && $code < 400;
-}
-
 function ho_audit_and_fix_websites(PDO $pdo): array {
+    @set_time_limit(120);
     $businesses = ho_get_website_businesses($pdo);
-    $fixed   = 0;
-    $live    = 0;
-    $skipped = 0;
+    $live  = 0;
+    $fixed = 0;
+
+    // Separate out the no-URL records immediately
+    $toCheck = [];
     foreach ($businesses as $biz) {
         $url = trim((string)$biz['website_url']);
         if ($url === '') {
-            // has_website=1 but no URL stored — definitely wrong
-            $pdo->prepare("UPDATE research_records SET has_website = 0, website_quality = 'none' WHERE business_id = ?")
-                ->execute([$biz['id']]);
+            $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$biz['id']]);
             $fixed++;
-            continue;
-        }
-        $alive = ho_check_url_live($url);
-        if ($alive) {
-            $live++;
         } else {
-            $pdo->prepare("UPDATE research_records SET has_website = 0, website_quality = 'none' WHERE business_id = ?")
-                ->execute([$biz['id']]);
-            $pdo->prepare("UPDATE businesses SET website_url = '', updated_at = NOW() WHERE id = ?")
-                ->execute([$biz['id']]);
-            $fixed++;
+            if (!preg_match('#^https?://#i', $url)) $url = 'https://' . $url;
+            $toCheck[$biz['id']] = ['biz' => $biz, 'url' => $url];
         }
     }
-    $skipped = count($businesses) - $live - $fixed;
-    return ['total' => count($businesses), 'live' => $live, 'fixed' => $fixed, 'skipped' => $skipped];
+
+    // Parallel curl_multi in batches of 15
+    $batchSize = 15;
+    $ids = array_keys($toCheck);
+    foreach (array_chunk($ids, $batchSize) as $batch) {
+        $mh   = curl_multi_init();
+        $chs  = [];
+        foreach ($batch as $bizId) {
+            $url = $toCheck[$bizId]['url'];
+            $ch  = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_NOBODY         => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 3,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; HoosierOnline/1.0)',
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $chs[$bizId] = $ch;
+        }
+
+        $running = null;
+        do { curl_multi_exec($mh, $running); curl_multi_select($mh); } while ($running > 0);
+
+        foreach ($chs as $bizId => $ch) {
+            $code  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $alive = $code >= 200 && $code < 400;
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            if ($alive) {
+                $live++;
+            } else {
+                $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$bizId]);
+                $pdo->prepare("UPDATE businesses SET website_url='', updated_at=NOW() WHERE id=?")->execute([$bizId]);
+                $fixed++;
+            }
+        }
+        curl_multi_close($mh);
+    }
+
+    return ['total' => count($businesses), 'live' => $live, 'fixed' => $fixed];
 }
