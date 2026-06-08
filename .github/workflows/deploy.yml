@@ -1,0 +1,27 @@
+name: Deploy to HostGator
+
+on:
+  push:
+    branches: ["claude/admin-site-assessment-4Zrig"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.4
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: /public_html/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            database.php
+            admin-secrets.php
+            stripe-config.php
+            porkbun-config.php
