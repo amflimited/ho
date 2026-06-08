@@ -1398,3 +1398,60 @@ body.front-door-preview-page{
 .fd-bundle-card.is-selected{
   box-shadow:0 6px 32px rgba(47,94,54,.20),0 0 0 1px rgba(47,94,54,.15);
 }
+
+/* ── Research sources ("We reviewed:") ──────────────────────────────────── */
+.fd-research-sources{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+  margin:0 0 16px;
+}
+.fd-rs-label{
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--fd-muted);
+  white-space:nowrap;flex-shrink:0;
+}
+.fd-rs-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:12px;font-weight:600;
+  padding:4px 11px;border-radius:999px;
+  text-decoration:none;white-space:nowrap;
+}
+.fd-rs-site{
+  background:rgba(47,94,54,.09);
+  border:1px solid rgba(47,94,54,.20);
+  color:var(--fd-green);
+}
+.fd-rs-fb{
+  background:rgba(24,119,242,.08);
+  border:1px solid rgba(24,119,242,.18);
+  color:#1877f2;
+}
+.fd-rs-google{
+  background:rgba(66,133,244,.08);
+  border:1px solid rgba(66,133,244,.18);
+  color:#4285f4;
+}
+@media(hover:hover){
+  a.fd-rs-chip:hover{ opacity:.80; }
+}
+
+/* ── Strengths list ("What you have going for you") ─────────────────────── */
+.fd-str-intro{
+  font-size:13px;font-weight:700;color:var(--fd-green);
+  text-transform:uppercase;letter-spacing:.04em;
+  margin:16px 0 8px;
+}
+.fd-str-list{display:flex;flex-direction:column;gap:7px;margin-bottom:16px;}
+.fd-str-item{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(47,94,54,.06);
+  border:1px solid rgba(47,94,54,.14);
+  border-left:3px solid var(--fd-green);
+  border-radius:12px;
+  padding:10px 14px;
+  font-size:15px;line-height:1.4;color:var(--fd-ink);
+}
+.fd-str-marker{
+  flex-shrink:0;
+  font-size:14px;font-weight:900;color:var(--fd-green);
+  line-height:1.4;margin-top:-1px;
+}

@@ -31,7 +31,15 @@ $services = $row ? (array)json_decode((string)($row['services_display'] ?? '[]')
 if (empty($services) && $row) {
     $services = (array)json_decode((string)($row['typical_services'] ?? '[]'), true);
 }
-$gaps     = $row ? (array)json_decode((string)($row['gaps'] ?? '[]'), true) : [];
+$gaps      = $row ? (array)json_decode((string)($row['gaps']      ?? '[]'), true) : [];
+$strengths = $row ? (array)json_decode((string)($row['strengths'] ?? '[]'), true) : [];
+
+$websiteUrl  = $row ? trim((string)($row['website_url']   ?? '')) : '';
+$fbUrl       = $row ? trim((string)($row['facebook_url']  ?? '')) : '';
+$hasWebsite  = $row ? (bool)($row['has_website']          ?? false) : false;
+$websiteQ    = $row ? (string)($row['website_quality']    ?? 'none') : 'none';
+$hasFacebook = $row ? (bool)($row['has_facebook']         ?? false) : false;
+$fbActivity  = $row ? (string)($row['facebook_activity']  ?? 'none') : 'none';
 
 $googleCount  = (int)($row['google_review_count'] ?? 0);
 $googleRating = (float)($row['google_rating']     ?? 0);
@@ -174,6 +182,35 @@ if ($paid && $row && $pdo !== null) {
   <!-- ── WHY I REACHED OUT ─────────────────────────────────────────────────── -->
   <section class="fd-card fd-why-card fd-reveal">
     <p class="fd-kicker">Why I reached out</p>
+
+    <?php
+    // Build the "we looked up" source chips
+    $sources = [];
+    if ($hasWebsite && $websiteUrl !== '') {
+        $domain = parse_url($websiteUrl, PHP_URL_HOST) ?: $websiteUrl;
+        $domain = ltrim($domain, 'www.');
+        $sources[] = ['href' => $websiteUrl, 'label' => ho_h($domain), 'class' => 'fd-rs-site'];
+    }
+    if ($hasFacebook && $fbUrl !== '') {
+        $sources[] = ['href' => $fbUrl, 'label' => 'Facebook page', 'class' => 'fd-rs-fb'];
+    }
+    if ($hasGoogle) {
+        $sources[] = ['href' => null, 'label' => 'Google Business', 'class' => 'fd-rs-google'];
+    }
+    ?>
+    <?php if (!empty($sources)): ?>
+    <div class="fd-research-sources">
+      <span class="fd-rs-label">We reviewed:</span>
+      <?php foreach ($sources as $src): ?>
+        <?php if ($src['href'] !== null): ?>
+          <a href="<?= ho_h($src['href']) ?>" target="_blank" rel="noopener" class="fd-rs-chip <?= $src['class'] ?>"><?= $src['label'] ?></a>
+        <?php else: ?>
+          <span class="fd-rs-chip <?= $src['class'] ?>"><?= $src['label'] ?></span>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
     <?php if ($googleCount > 0): ?>
     <div class="fd-rating-block">
       <div class="fd-rating-badge">
@@ -181,20 +218,32 @@ if ($paid && $row && $pdo !== null) {
         <strong><?= number_format($googleRating, 1) ?></strong>
         <span class="fd-rating-count"><?= number_format($googleCount) ?> Google reviews</span>
       </div>
-      <p class="fd-rating-source">Your live rating pulled from Google &mdash; this is your business.</p>
+      <p class="fd-rating-source">Your live rating pulled from Google.</p>
     </div>
     <?php endif; ?>
+
     <?php if (!empty($opp)): ?>
       <p class="fd-why"><?= ho_h($opp) ?></p>
     <?php endif; ?>
+
+    <?php if (!empty($strengths)): ?>
+      <p class="fd-str-intro">What you already have going for you:</p>
+      <div class="fd-str-list">
+        <?php foreach (array_slice($strengths, 0, 3) as $s): ?>
+          <div class="fd-str-item"><span class="fd-str-marker" aria-hidden="true">✓</span><?= ho_h((string)$s) ?></div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+
     <?php if (!empty($gaps)): ?>
-      <p class="fd-gap-intro">Here&rsquo;s what&rsquo;s costing you customers right now:</p>
+      <p class="fd-gap-intro">What&rsquo;s holding you back right now:</p>
       <div class="fd-gap-list">
         <?php foreach (array_slice($gaps, 0, 3) as $g): ?>
           <div class="fd-gap-item"><span class="fd-gap-marker" aria-hidden="true">✗</span><?= ho_h((string)$g) ?></div>
         <?php endforeach; ?>
       </div>
     <?php endif; ?>
+
     <p class="fd-why-scroll">I built something to fix that. See it below &darr;</p>
   </section>
 
@@ -485,7 +534,7 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-card fd-offer fd-reveal" id="pricing">
     <p class="fd-kicker">Ready to launch</p>
     <h2>Launch your site. One flat price.</h2>
-    <p class="fd-offer-intro">Pick the option that fits. You own it the day it goes live &mdash; no contracts, no monthly fees, no surprises.</p>
+    <p class="fd-offer-intro">Built for <?= ho_h($name) ?>, serving <?= ho_h($serviceArea) ?>. You own it the day it goes live &mdash; no contracts, no monthly fees, no surprises.</p>
 
     <!-- Bundle cards -->
     <div class="fd-bundle-grid">
@@ -523,8 +572,8 @@ if ($paid && $row && $pdo !== null) {
     <p class="fd-kicker" style="margin-top:24px;margin-bottom:10px">What happens next</p>
     <ol class="fd-offer-steps">
       <li>You say yes &mdash; takes about 2 minutes to check out</li>
-      <li>I build your site and it&rsquo;s live within 24 hours &mdash; guaranteed</li>
-      <li>You go live &mdash; customers can find and contact you</li>
+      <li>I build <?= ho_h($name) ?>&rsquo;s site &mdash; live within 24 hours, guaranteed</li>
+      <li><?= $ownDotCom !== '' ? ho_h($ownDotCom) . ' goes live' : ho_h($name) . ' goes live' ?> &mdash; customers can find and hire you</li>
     </ol>
 
     <div class="fd-guarantee-box">
