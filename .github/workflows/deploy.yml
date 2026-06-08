@@ -12,32 +12,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Deploy changed files via SFTP
-        env:
-          SSHPASS: ${{ secrets.FTP_PASSWORD }}
+      - name: Deploy changed files via FTP
         run: |
-          sudo apt-get install -y lftp sshpass
+          sudo apt-get install -y lftp
 
           BEFORE="${{ github.event.before }}"
           SKIP='(database\.php|admin-secrets\.php|stripe-config\.php|porkbun-config\.php|^\.github/)'
 
-          FILES=$(git ls-files | grep -Ev "$SKIP" || true)
+          if git rev-parse --verify "$BEFORE" >/dev/null 2>&1; then
+            FILES=$(git diff --name-only "$BEFORE" HEAD | grep -Ev "$SKIP" || true)
+          else
+            FILES=$(git ls-files | grep -Ev "$SKIP" || true)
+          fi
 
           [ -z "$FILES" ] && { echo "Nothing to deploy."; exit 0; }
           echo "Deploying $(echo "$FILES" | wc -l) file(s)..."
 
           BATCH=$(mktemp)
-          echo "set sftp:connect-program 'sshpass -e ssh -o StrictHostKeyChecking=no'" >> "$BATCH"
-          printf "open -u %s,dummy sftp://%s\n" "${{ secrets.FTP_USERNAME }}" "${{ secrets.FTP_HOST }}" >> "$BATCH"
+          echo "open ftp://${{ secrets.FTP_HOST }}" >> "$BATCH"
+          echo "user ${{ secrets.FTP_USERNAME }} ${{ secrets.FTP_PASSWORD }}" >> "$BATCH"
+          echo "set ftp:passive-mode yes" >> "$BATCH"
 
           declare -A DIRS_DONE
           while IFS= read -r f; do
             dir=$(dirname "$f")
             if [ "$dir" != "." ] && [ -z "${DIRS_DONE[$dir]}" ]; then
-              printf 'mkdir -p /public_html/%s\n' "$dir" >> "$BATCH"
+              echo "mkdir -p /public_html/$dir" >> "$BATCH"
               DIRS_DONE[$dir]=1
             fi
-            printf 'put %s /public_html/%s\n' "$f" "$f" >> "$BATCH"
+            echo "put $f /public_html/$f" >> "$BATCH"
           done <<< "$FILES"
 
           echo "bye" >> "$BATCH"
