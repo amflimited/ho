@@ -909,13 +909,14 @@ function ho_get_preview_ready(PDO $pdo): array {
         SELECT b.id, b.business_name, b.business_slug, b.location_city,
                b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
                b.owner_first_name,
-               c.name AS category_name,
+               c.name AS category_name, c.slug AS category_slug,
                p.headline, p.package_recommendation, p.view_count, p.last_viewed_at,
                r.opportunity_summary, r.strengths, r.gaps,
                r.has_website, r.website_quality, r.google_review_count, r.google_rating,
                r.facebook_activity, r.competitor_has_website, r.competitor_name,
                r.booking_method, r.years_in_business, r.has_angi, r.has_thumbtack,
-               r.mobile_friendly, r.has_ssl
+               r.mobile_friendly, r.has_ssl,
+               r.owner_age_band, r.last_review_date
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN previews p ON p.business_id = b.id
@@ -938,6 +939,7 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     $name     = (string)$biz['business_name'];
     $city     = (string)$biz['location_city'];
     $catLower = strtolower((string)$biz['category_name']);
+    $catSlug  = (string)($biz['category_slug'] ?? '');
     $email    = (string)($biz['email_address'] ?? '');
 
     $strengths = json_decode((string)($biz['strengths'] ?? '[]'), true);
@@ -953,7 +955,15 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     $hasThumb    = (bool)($biz['has_thumbtack'] ?? false);
     $booking     = (string)($biz['booking_method'] ?? 'unknown');
     $years       = (int)($biz['years_in_business'] ?? 0);
+    $ageBand     = trim((string)($biz['owner_age_band'] ?? ''));
     $noSite      = !$hasSite || $siteQual === 'none';
+
+    // Review age
+    $reviewAgeMonths = null;
+    $lastReviewRaw   = trim((string)($biz['last_review_date'] ?? ''));
+    if ($lastReviewRaw !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewRaw, $lm)) {
+        $reviewAgeMonths = ((int)date('Y') - (int)$lm[1]) * 12 + ((int)date('n') - (int)$lm[2]);
+    }
 
     $subject = "A quick note for {$name}";
 
@@ -963,10 +973,14 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     } elseif ($hasAngi || $hasThumb) {
         $platform = $hasAngi ? 'Angi' : 'Thumbtack';
         $hook = "I noticed you\u{2019}re on {$platform} \u{2014} paying per lead for jobs you could be getting for free from a website. I put together a quick mockup to show you what that could look like.";
+    } elseif ($noSite && $reviews >= 21) {
+        $hook = "I noticed {$name} has {$reviews} Google reviews \u{2014} that\u{2019}s serious social proof. But right now it\u{2019}s all locked inside Google\u{2019}s interface. A website puts that proof everywhere: on the page, in estimates, wherever you share it. I built a mockup to show what that looks like.";
     } elseif ($opSum !== '') {
         $hook = $opSum;
     } elseif ($noSite && $reviews >= 10) {
-        $hook = "I noticed your {$reviews} Google reviews \u{2014} that\u{2019}s real social proof with nowhere to live. Right now customers who search for you find your Google listing and then... nothing. I built a mockup to show what fixing that looks like.";
+        $hook = "I noticed your {$reviews} Google reviews \u{2014} that\u{2019}s real social proof with nowhere to live. Right now customers who search for you find your Google listing and then\u{2026} nothing. I built a mockup to show what fixing that looks like.";
+    } elseif ($reviewAgeMonths !== null && $reviewAgeMonths >= 6 && $reviews >= 5) {
+        $hook = "Your most recent Google review was {$reviewAgeMonths} months ago. Without fresh activity, customers searching for {$catLower} services can\u{2019}t tell if you\u{2019}re still taking work. A website gives you a permanent presence that doesn\u{2019}t go stale.";
     } elseif (!$hasSite || $siteQual === 'none') {
         $hook = "I noticed you don\u{2019}t have a dedicated website yet \u{2014} which actually means there\u{2019}s a real opportunity here.";
     } elseif ($siteQual === 'poor') {
@@ -986,10 +1000,22 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
         $gapLine = "\nThe main thing I think could move the needle: " . strtolower((string)$gaps[0]) . ".\n";
     }
 
+    // Seasonal urgency line
+    $seasonalLine = '';
+    $seasonal = ho_seasonal_urgency_note($catSlug);
+    if ($seasonal !== '') {
+        $seasonalLine = "\n{$seasonal}\n";
+    }
+
+    // Closing line — varies by owner age band
+    $closing = $ageBand === '55plus'
+        ? "Take a look \u{2014} it\u{2019}s free, no strings. I handle all the technical side, so there\u{2019}s nothing for you to deal with. If it looks right, just reply and we\u{2019}ll take it from there."
+        : "Take a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.";
+
     $firstName = trim((string)($biz['owner_first_name'] ?? ''));
     $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\nTake a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}{$seasonalLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\n{$closing}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
 
     return 'mailto:' . rawurlencode($email)
         . '?subject=' . rawurlencode($subject)
@@ -1432,28 +1458,37 @@ function ho_bundle_price(string $key): int {
  * Always second-person. Never references the review count (shown in the badge).
  */
 function ho_why_text(array $row): string {
-    $hasWebsite  = (bool)($row['has_website']          ?? false);
-    $hasGoogle   = (bool)($row['has_google_business']  ?? false);
-    $reviews     = (int)($row['google_review_count']   ?? 0);
-    $websiteQ    = (string)($row['website_quality']    ?? 'none');
-    $fbActive    = (string)($row['facebook_activity']  ?? 'none') === 'active';
-    $compHasSite = (bool)($row['competitor_has_website'] ?? false);
-    $compName    = trim((string)($row['competitor_name'] ?? ''));
-    $hasAngi     = (bool)($row['has_angi']             ?? false);
-    $hasThumb    = (bool)($row['has_thumbtack']        ?? false);
-    $booking     = (string)($row['booking_method']     ?? 'unknown');
-    $years       = (int)($row['years_in_business']     ?? 0);
-    $noSsl       = isset($row['has_ssl'])          && (string)$row['has_ssl']          === '0';
-    $notMobile   = isset($row['mobile_friendly'])  && (string)$row['mobile_friendly']  === '0';
-    $noSite      = !$hasWebsite || $websiteQ === 'none';
+    $hasWebsite      = (bool)($row['has_website']           ?? false);
+    $hasGoogle       = (bool)($row['has_google_business']   ?? false);
+    $reviews         = (int)($row['google_review_count']    ?? 0);
+    $websiteQ        = (string)($row['website_quality']     ?? 'none');
+    $fbActive        = (string)($row['facebook_activity']   ?? 'none') === 'active';
+    $compHasSite     = (bool)($row['competitor_has_website']?? false);
+    $compName        = trim((string)($row['competitor_name']?? ''));
+    $hasAngi         = (bool)($row['has_angi']              ?? false);
+    $hasThumb        = (bool)($row['has_thumbtack']         ?? false);
+    $booking         = (string)($row['booking_method']      ?? 'unknown');
+    $years           = (int)($row['years_in_business']      ?? 0);
+    $noSsl           = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
+    $notMobile       = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
+    $responds        = (bool)($row['responds_to_reviews']   ?? false);
+    $gbpPhotos       = isset($row['gbp_photo_count']) && $row['gbp_photo_count'] !== null ? (int)$row['gbp_photo_count'] : null;
+    $noSite          = !$hasWebsite || $websiteQ === 'none';
 
-    // Paying for leads they could get free — ROI is the hook
+    // Review age in months
+    $reviewAgeMonths = null;
+    $lastReviewDate  = trim((string)($row['last_review_date'] ?? ''));
+    if ($lastReviewDate !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewDate, $m)) {
+        $reviewAgeMonths = ((int)date('Y') - (int)$m[1]) * 12 + ((int)date('n') - (int)$m[2]);
+    }
+
+    // Paying per lead on Angi/Thumbtack — ROI is the hook
     if (($hasAngi || $hasThumb) && $noSite) {
         $platform = $hasAngi ? 'Angi' : 'Thumbtack';
         return "You\u{2019}re paying {$platform} for leads you could get for free. A website captures the same customers \u{2014} every search, every time \u{2014} without paying per job.";
     }
 
-    // Competitor has a site, you don\u{2019}t — competitive pressure
+    // Competitor has a site, you don't — direct competitive pressure
     if ($compHasSite && $noSite && $compName !== '') {
         return "When someone searches for your services in your area, {$compName} has a site for them to land on. You don\u{2019}t. That\u{2019}s the gap we close.";
     }
@@ -1461,9 +1496,19 @@ function ho_why_text(array $row): string {
         return "Your competitors have websites. When someone searches for your services, they\u{2019}re finding those pages \u{2014} not you. That\u{2019}s the gap this fixes.";
     }
 
-    // Strong reviews + no site — clearest proof-to-conversion pitch
+    // Strong review equity — reviews locked in Google's interface
+    if ($reviews >= 21 && $noSite) {
+        return "You\u{2019}ve built {$reviews} Google reviews \u{2014} more social proof than most businesses ever earn. But it\u{2019}s all locked inside Google\u{2019}s interface. A website puts that proof front and center and turns it into a conversion machine.";
+    }
+
+    // Solid reviews + no site
     if ($reviews >= 5 && $noSite) {
         return "Your reviews prove customers trust you \u{2014} but anyone who searches right now hits a dead end. A website turns that proof into actual calls and quote requests.";
+    }
+
+    // Few/no reviews + no site — credibility problem
+    if ($reviews < 5 && $noSite && $hasGoogle) {
+        return "You\u{2019}re on Google, but {$reviews} reviews isn\u{2019}t enough for a stranger to trust you on sight. A website gives you credibility that fills the gap \u{2014} services, photos, and a clear way to get in touch.";
     }
 
     // Facebook-only = rented platform risk
@@ -1481,13 +1526,13 @@ function ho_why_text(array $row): string {
         return "Right now there\u{2019}s no website for customers to find when they search for you. Every potential job that looks you up and can\u{2019}t find a clear page goes somewhere else.";
     }
 
-    // Has site, but technical issues — redesign angle
+    // Has a site but with technical issues
     if ($websiteQ === 'poor' && ($noSsl || $notMobile)) {
         $issue = $notMobile ? "isn\u{2019}t mobile-friendly" : "doesn\u{2019}t have SSL";
         return "Your current site {$issue} \u{2014} which means Google is actively pushing it down in search results. Most of your customers are searching on their phones.";
     }
 
-    // Poor site with reviews
+    // Poor site + reviews — showcase angle
     if ($websiteQ === 'poor' && $reviews >= 5) {
         return "Your reviews are solid, but your website isn\u{2019}t doing them justice. Customers who find it may not bother reaching out \u{2014} a better page fixes that.";
     }
@@ -1495,14 +1540,24 @@ function ho_why_text(array $row): string {
         return "Your current site is working against you \u{2014} it\u{2019}s outdated enough that customers who find it often move on before reaching out.";
     }
 
+    // Stale reviews — recency problem
+    if ($reviewAgeMonths !== null && $reviewAgeMonths >= 6 && $reviews >= 5) {
+        return "Your most recent Google review was {$reviewAgeMonths} months ago. Without fresh activity, customers can\u{2019}t tell if you\u{2019}re still active. A website gives you a permanent presence that doesn\u{2019}t go stale.";
+    }
+
     // Phone-only booking friction
     if ($booking === 'phone' && $reviews >= 10) {
         return "You have the reviews to back it up \u{2014} but phone-only booking means anyone who doesn\u{2019}t want to call just moves on. A contact form captures those jobs.";
     }
 
-    // Established + no site (credibility argument)
+    // Years in business — credibility buried online
     if ($years >= 5 && $noSite) {
         return "You\u{2019}ve been doing this for {$years} years \u{2014} that credibility is completely invisible online. A website makes your track record the first thing customers see.";
+    }
+
+    // Strong review equity on existing site — showcase angle
+    if ($reviews >= 21) {
+        return "You\u{2019}ve earned {$reviews} Google reviews \u{2014} but they\u{2019}re buried in Google\u{2019}s interface. A website lets you showcase that proof everywhere: on the page, in estimates, on business cards.";
     }
 
     if ($fbActive || $reviews >= 15) {

@@ -56,10 +56,17 @@ $bookingMethod= (string)($row['booking_method']    ?? 'unknown');
 $yearsInBiz   = (int)($row['years_in_business']    ?? 0);
 $hasAngi      = (bool)($row['has_angi']            ?? false);
 $hasThumbtak  = (bool)($row['has_thumbtack']       ?? false);
-$gbpPhotos    = isset($row['gbp_photo_count']) && $row['gbp_photo_count'] !== null ? (int)$row['gbp_photo_count'] : null;
-$notMobile    = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
-$noSsl        = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
-$seasonalNote = $row ? ho_seasonal_urgency_note($catSlug) : '';
+$gbpPhotos       = isset($row['gbp_photo_count']) && $row['gbp_photo_count'] !== null ? (int)$row['gbp_photo_count'] : null;
+$notMobile       = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
+$noSsl           = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
+$lastReviewDate  = $row ? trim((string)($row['last_review_date']   ?? '')) : '';
+$respondsReviews = $row ? (bool)($row['responds_to_reviews']       ?? false) : false;
+$ownerAgeBand    = $row ? trim((string)($row['owner_age_band']     ?? '')) : '';
+$reviewAgeMonths = null;
+if ($lastReviewDate !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewDate, $lrdm)) {
+    $reviewAgeMonths = ((int)date('Y') - (int)$lrdm[1]) * 12 + ((int)date('n') - (int)$lrdm[2]);
+}
+$seasonalNote    = $row ? ho_seasonal_urgency_note($catSlug) : '';
 
 $email        = $row ? trim((string)($row['email_address'] ?? '')) : '';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
@@ -219,7 +226,7 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-turn">
 <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
-    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website preview for your business.' : 'I built a website preview for your business.' ?></p>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website preview for your business.' : 'I built a website preview for your business.' ?><?= ($ownerAgeBand === '55plus') ? ' No tech headaches &mdash; I handle everything.' : '' ?></p>
     <?php if ($angle !== ''): ?>
       <p class="fd-turn-angle"><?= ho_h($angle) ?></p>
     <?php endif; ?>
@@ -342,6 +349,39 @@ if ($paid && $row && $pdo !== null) {
       <div>
         <strong><?= $yearsInBiz ?> years in business.</strong>
         That credibility is completely invisible online right now. A website makes your track record the first thing customers see.
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php // ── GBP photo count ─────────────────────────────────────────────── ?>
+    <?php if ($gbpPhotos !== null && $gbpPhotos < 10): ?>
+    <div class="fd-signal fd-signal-friction">
+      <span class="fd-signal-icon" aria-hidden="true">📷</span>
+      <div>
+        <strong>Only <?= $gbpPhotos ?> photo<?= $gbpPhotos !== 1 ? 's' : '' ?> on your Google listing.</strong>
+        Businesses with 20+ photos get significantly more profile clicks. A website gives customers a full visual portfolio to scroll through.
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php // ── Stale reviews recency ────────────────────────────────────────── ?>
+    <?php if ($reviewAgeMonths !== null && $reviewAgeMonths >= 6 && $googleCount >= 3): ?>
+    <div class="fd-signal fd-signal-friction">
+      <span class="fd-signal-icon" aria-hidden="true">🕐</span>
+      <div>
+        <strong>Your most recent review was <?= $reviewAgeMonths ?> months ago.</strong>
+        Without fresh activity customers can&rsquo;t tell if you&rsquo;re still taking jobs. A website gives you a permanent presence that doesn&rsquo;t go stale.
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php // ── Review equity — locked in Google ─────────────────────────────── ?>
+    <?php if ($googleCount >= 10 && (!$hasWebsite || $websiteQ === 'none')): ?>
+    <div class="fd-signal fd-signal-cred">
+      <span class="fd-signal-icon" aria-hidden="true">🔒</span>
+      <div>
+        <strong>Your <?= number_format($googleCount) ?> reviews are locked inside Google.</strong>
+        Right now that proof only shows up when someone searches for you by name. A website puts those reviews front and center &mdash; on every page, in every quote, on every estimate.
       </div>
     </div>
     <?php endif; ?>
