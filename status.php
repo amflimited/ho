@@ -1,13 +1,30 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../database.php';
-require_once __DIR__ . '/ho-model.php';
+$demo = isset($_GET['demo']);
+
+if (!$demo) {
+    require_once __DIR__ . '/../database.php';
+    require_once __DIR__ . '/ho-model.php';
+}
 
 $token = substr(trim((string)($_GET['token'] ?? '')), 0, 64);
 $order = null;
 
-if ($token !== '') {
+if ($demo) {
+    // Sample data so the layout can be previewed without a real order
+    $order = [
+        'business_name'   => 'Smith\'s Lawn Care',
+        'location_city'   => 'New Castle',
+        'owner_first_name'=> 'Tyler',
+        'chosen_domain'   => 'smithslawncare.com',
+        'customer_note'   => 'Domain registered! Starting the site build today — should be ready by Thursday.',
+        'domain_status'   => 'complete',
+        'hosting_status'  => 'complete',
+        'design_status'   => 'in_progress',
+        'launch_status'   => 'pending',
+    ];
+} elseif ($token !== '') {
     try {
         $pdo   = ho_db();
         $order = ho_get_order_by_token($pdo, $token);

@@ -122,9 +122,9 @@ $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $u
 $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 20) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
-$sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
-$followupDue   = $pdo ? ho_get_followup_due($pdo) : [];
-$pendingOrders = $pdo ? ho_get_pending_orders($pdo) : [];
+try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e) { $sendQueue = []; $dbError = $dbError ?? $e->getMessage(); }
+try { $followupDue = $pdo ? ho_get_followup_due($pdo) : []; } catch (Throwable) { $followupDue = []; }
+try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
 
 $coverage = $pdo ? ho_source_coverage($pdo) : [];
 
