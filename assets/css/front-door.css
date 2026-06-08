@@ -421,12 +421,39 @@ body.front-door-preview-page{
 
 /* ══ Template picker + phone frame ═════════════════════════════════════════ */
 
-.fd-tpl-intro{
-  text-align:center;
-  font-size:13px;color:var(--fd-muted);
-  margin:6px 0 8px;padding:0 8px;
+/* ── Design chooser header ───────────────────────────────────────────────── */
+.fd-design-chooser{
+  padding:4px 4px 6px;
 }
-.fd-tpl-intro strong{color:var(--fd-ink)}
+.fd-design-title{
+  font-size:clamp(24px,7vw,36px);
+  line-height:1.1;letter-spacing:-.03em;
+  margin:0 0 6px;
+}
+.fd-design-sub{
+  font-size:15px;color:var(--fd-muted);margin:0 0 14px;
+}
+
+/* ── "Your design: X ✓ Selected" confirmation row ───────────────────────── */
+.fd-chosen-label{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(47,94,54,.07);
+  border:1px solid rgba(47,94,54,.20);
+  border-radius:10px;
+  padding:10px 14px;
+  margin:0 0 14px;
+  font-size:14px;
+}
+.fd-chosen-label span:first-child{color:var(--fd-muted);font-weight:600;}
+.fd-chosen-label strong{color:var(--fd-ink);font-weight:700;}
+.fd-chosen-check{
+  margin-left:auto;
+  font-size:12px;font-weight:700;
+  color:var(--fd-green);
+  background:rgba(47,94,54,.12);
+  border-radius:20px;padding:3px 10px;
+  white-space:nowrap;
+}
 
 .fd-tpl-picker{
   display:flex;gap:8px;

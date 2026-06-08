@@ -232,19 +232,27 @@ if ($paid && $row && $pdo !== null) {
   }
   ?>
 
-  <?php if (!$usingCatTpls): ?>
-  <p class="fd-tpl-intro">We defaulted to <strong><?= ho_h($design['name'] ?: 'Classic') ?></strong> &mdash; tap any style to switch.</p>
-  <?php endif; ?>
-
   <?php if (!empty($available)): ?>
+
+  <div class="fd-design-chooser">
+    <p class="fd-kicker">Choose your design</p>
+    <h2 class="fd-design-title">This is your actual site &mdash; pick the look you want.</h2>
+    <p class="fd-design-sub">Tap a style below. What you see is what we build.</p>
+  </div>
 
   <div class="fd-tpl-picker">
     <?php foreach ($available as $k => $opt): ?>
-      <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>">
+      <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
         <span class="fd-tpl-dot" style="background:<?= ho_h($opt['color']) ?>"></span>
         <?= ho_h($opt['label']) ?>
       </button>
     <?php endforeach; ?>
+  </div>
+
+  <div class="fd-chosen-label">
+    <span>Your design:</span>
+    <strong id="fd-chosen-tpl"><?= ho_h($available[$templateKey]['label'] ?? '') ?></strong>
+    <span class="fd-chosen-check">✓ Selected</span>
   </div>
 
   <div class="fd-phone-frame">
@@ -256,7 +264,7 @@ if ($paid && $row && $pdo !== null) {
       <?php endforeach; ?>
     </div>
   </div>
-  <p class="fd-phone-hint">Pick your style &mdash; your choice is saved when you purchase.</p>
+  <p class="fd-phone-hint">Scroll inside the phone to explore &uarr; &nbsp;&middot;&nbsp; your choice carries through to checkout.</p>
 
   <script>
   (function(){
