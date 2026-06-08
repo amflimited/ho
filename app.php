@@ -126,6 +126,29 @@ try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e
 try { $followupDue = $pdo ? ho_get_followup_due($pdo) : []; } catch (Throwable) { $followupDue = []; }
 try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
 
+if (isset($_GET['demo']) && empty($pendingOrders)) {
+    $pendingOrders = [[
+        'id'              => 0,
+        'business_name'   => 'Smith\'s Lawn Care',
+        'location_city'   => 'New Castle',
+        'owner_first_name'=> 'Tyler',
+        'category_name'   => 'Lawn mowing',
+        'package'         => 'standard',
+        'template_key'    => 'lawn_mowing_clean',
+        'chosen_domain'   => 'smithslawncare.com',
+        'email_address'   => 'tyler@smithslawncare.com',
+        'phone_number'    => '(765) 555-0192',
+        'status_token'    => 'demo00000000',
+        'domain_status'   => 'complete',
+        'hosting_status'  => 'complete',
+        'design_status'   => 'in_progress',
+        'launch_status'   => 'pending',
+        'customer_note'   => 'Domain registered! Starting the build today.',
+        'internal_note'   => 'Porkbun login saved in 1Password. HostGator cPanel set up.',
+        'paid_at'         => date('Y-m-d H:i:s', strtotime('-3 hours')),
+    ]];
+}
+
 $coverage = $pdo ? ho_source_coverage($pdo) : [];
 
 $templatedCategories = array_values(array_filter($categories, function($cat) {
