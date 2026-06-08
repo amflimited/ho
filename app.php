@@ -598,21 +598,37 @@ if (!empty($unresearched)) {
               default    => 'cp-send-card-none',
             };
           ?>
+          <?php
+            $score       = (int)$b['fit_score'];
+            $scoreCls    = $score >= 5 ? 'green' : ($score >= 3 ? 'amber' : 'grey');
+            $viewCount   = (int)$b['view_count'];
+            $lastViewed  = (string)($b['last_viewed_at'] ?? '');
+            $viewedDaysAgo = $lastViewed !== '' ? (int)floor((time() - strtotime($lastViewed)) / 86400) : null;
+            $opp         = trim((string)($b['opportunity_summary'] ?? ''));
+            $siteQual    = (string)($b['website_quality'] ?? '');
+            $hasSite     = (bool)($b['has_website'] ?? false);
+            $gReviews    = (int)($b['google_review_count'] ?? 0);
+            $gRating     = (float)($b['google_rating'] ?? 0);
+            $fbActivity  = (string)($b['facebook_activity'] ?? '');
+          ?>
           <div class="cp-send-card <?= $accentCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
 
             <div class="cp-send-head">
-              <div>
-                <strong><?= ho_h((string)$b['business_name']) ?></strong>
-                <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
-              </div>
-              <div class="cp-send-meta">
-                <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
-                <?php if ((int)$b['view_count'] > 0): ?>
-                  <span class="cp-view-count"><?= (int)$b['view_count'] ?> view<?= (int)$b['view_count'] !== 1 ? 's' : '' ?></span>
-                <?php endif; ?>
-                <?php $score = (int)$b['fit_score']; $scoreCls = $score >= 5 ? 'green' : ($score >= 3 ? 'amber' : 'grey'); ?>
-                <span class="cp-score cp-score-<?= $scoreCls ?>"><?= $score ?></span>
-              </div>
+              <strong><?= ho_h((string)$b['business_name']) ?></strong>
+              <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+            </div>
+
+            <div class="cp-card-badges">
+              <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
+              <span class="cp-score cp-score-<?= $scoreCls ?>">fit&nbsp;<?= $score ?></span>
+              <?php if ($viewCount > 0): ?>
+                <span class="cp-view-count">
+                  <?= $viewCount ?> view<?= $viewCount !== 1 ? 's' : '' ?>
+                  <?php if ($viewedDaysAgo !== null): ?>
+                    &middot; <?= $viewedDaysAgo === 0 ? 'today' : $viewedDaysAgo . 'd ago' ?>
+                  <?php endif; ?>
+                </span>
+              <?php endif; ?>
             </div>
 
             <div class="cp-send-primary">
@@ -639,6 +655,30 @@ if (!empty($unresearched)) {
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <details class="cp-research-wrap">
+                <summary class="cp-btn-ghost">Research</summary>
+                <div class="cp-research-panel">
+                  <?php if ($opp !== ''): ?>
+                    <p class="cp-research-opp"><?= ho_h($opp) ?></p>
+                  <?php endif; ?>
+                  <div class="cp-research-row">
+                    <span class="cp-research-label">Website</span>
+                    <span><?= $hasSite ? ho_h($siteQual ?: 'exists') : 'none' ?></span>
+                  </div>
+                  <?php if ($gReviews > 0): ?>
+                  <div class="cp-research-row">
+                    <span class="cp-research-label">Google</span>
+                    <span><?= $gReviews ?> reviews<?= $gRating > 0 ? ', ' . number_format($gRating, 1) . '★' : '' ?></span>
+                  </div>
+                  <?php endif; ?>
+                  <?php if ($fbActivity !== ''): ?>
+                  <div class="cp-research-row">
+                    <span class="cp-research-label">Facebook</span>
+                    <span><?= ho_h($fbActivity) ?></span>
+                  </div>
+                  <?php endif; ?>
+                </div>
+              </details>
               <details class="cp-sent-wrap">
                 <summary class="cp-btn-outline">Mark Sent</summary>
                 <form method="POST" class="cp-sent-form">
@@ -678,13 +718,11 @@ if (!empty($unresearched)) {
           ?>
             <div class="cp-send-card <?= $accentCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
               <div class="cp-send-head">
-                <div>
-                  <strong><?= ho_h((string)$b['business_name']) ?></strong>
-                  <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
-                </div>
-                <div class="cp-send-meta">
-                  <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
-                </div>
+                <strong><?= ho_h((string)$b['business_name']) ?></strong>
+                <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+              </div>
+              <div class="cp-card-badges">
+                <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
               </div>
               <div class="cp-send-primary">
                 <?php if ($hasFb): ?>

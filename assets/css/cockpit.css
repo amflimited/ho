@@ -38,12 +38,12 @@ a { color: inherit; }
 
 .cp-stat {
   display: flex; flex-direction: column; align-items: center;
-  font-family: var(--fn); font-size: 10px; font-weight: 700;
-  letter-spacing: .07em; color: rgba(255,255,255,.5);
-  line-height: 1;
+  font-family: var(--fn); font-size: 9px; font-weight: 700;
+  letter-spacing: .08em; color: rgba(255,255,255,.55);
+  line-height: 1; text-transform: uppercase;
 }
 .cp-stat em {
-  font-style: normal; font-size: 20px; font-weight: 900; line-height: 1.1;
+  font-style: normal; font-size: 24px; font-weight: 900; line-height: 1;
 }
 .cp-hi  { color: var(--gold); }
 .cp-hot { color: var(--gold); }
@@ -78,7 +78,7 @@ a { color: inherit; }
 
 /* ── MAIN ────────────────────────────────────────────────────────────────── */
 .cp-main {
-  padding: 14px 14px 40px;
+  padding: 16px 14px 48px;
   max-width: 540px; margin: 0 auto;
 }
 
@@ -100,7 +100,7 @@ a { color: inherit; }
 .cp-alert-err { background: #F8D7DA; color: #721C24; }
 
 /* ── SECTIONS ────────────────────────────────────────────────────────────── */
-.cp-section { margin-bottom: 22px; }
+.cp-section { margin-bottom: 26px; }
 
 .cp-step {
   font-family: var(--fn); font-size: 11px; font-weight: 900;
@@ -260,13 +260,17 @@ a { color: inherit; }
 .cp-send-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); }
 
 .cp-send-head {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  display: flex; flex-direction: column; gap: 2px;
   padding: 12px 12px 6px;
 }
-.cp-send-head > div { display: flex; flex-direction: column; gap: 2px; }
-.cp-send-head > div:first-child { flex: 1; min-width: 0; }
-.cp-send-head strong { font-size: 15px; overflow-wrap: break-word; word-break: break-word; }
-.cp-send-head span { font-size: 12px; color: var(--ink2); }
+.cp-send-head strong { font-size: 16px; font-weight: 700; line-height: 1.2; overflow-wrap: break-word; word-break: break-word; }
+.cp-send-sub { font-size: 12px; color: var(--ink2); }
+
+/* ── Card badges row ─────────────────────────────────────────────────────── */
+.cp-card-badges {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 0 12px 10px;
+}
 
 .cp-pkg {
   flex-shrink: 0;
@@ -420,14 +424,32 @@ a { color: inherit; }
 .cp-btn-exclude:hover  { background: #d01628; }
 .cp-btn-exclude:active { background: #8c0d19; }
 
-/* ── Send tab meta ──────────────────────────────────────────────────────────── */
-.cp-send-meta {
-  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;
-}
-
+/* ── View count pill ──────────────────────────────────────────────────────── */
 .cp-view-count {
   font-size: 11px; font-weight: 600; color: var(--ink2);
   background: #eee; border-radius: 4px; padding: 2px 6px;
+}
+
+/* ── Inline research panel ───────────────────────────────────────────────── */
+.cp-research-wrap { flex: 1; min-width: 0; }
+.cp-research-wrap > summary { width: 100%; }
+.cp-research-panel {
+  background: #f8f5ef; border-top: 1px solid var(--border);
+  padding: 10px 12px; margin-top: 8px;
+  border-radius: 0 0 var(--r) var(--r);
+}
+.cp-research-opp {
+  font-size: 12px; line-height: 1.5; color: var(--ink);
+  margin-bottom: 8px; border-left: 3px solid var(--gold);
+  padding-left: 8px;
+}
+.cp-research-row {
+  display: flex; gap: 8px; align-items: baseline;
+  font-size: 12px; margin-bottom: 4px;
+}
+.cp-research-label {
+  font-weight: 700; color: var(--ink2); min-width: 60px; flex-shrink: 0;
+  text-transform: uppercase; font-size: 10px; letter-spacing: .05em;
 }
 
 /* ── Send "later" section ────────────────────────────────────────────────────── */

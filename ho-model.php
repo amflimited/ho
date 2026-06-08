@@ -755,7 +755,7 @@ function ho_get_preview_ready(PDO $pdo): array {
                b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
                b.owner_first_name,
                c.name AS category_name,
-               p.headline, p.package_recommendation, p.view_count,
+               p.headline, p.package_recommendation, p.view_count, p.last_viewed_at,
                r.opportunity_summary, r.strengths, r.gaps,
                r.has_website, r.website_quality, r.google_review_count, r.google_rating,
                r.facebook_activity
