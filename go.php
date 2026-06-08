@@ -377,7 +377,7 @@ if ($paid && $row && $pdo !== null) {
     </ul>
   </section>
 
-  <!-- ── CHOOSE YOUR ADDRESS ───────────────────────────────────────────────── -->
+  <!-- ── YOUR DOMAIN ───────────────────────────────────────────────────────── -->
   <?php
   $initAvailClass = '';
   $initAvailText  = '';
@@ -393,86 +393,48 @@ if ($paid && $row && $pdo !== null) {
   $domainInputVal = preg_replace('/\.com$/i', '', $ownDotCom);
   ?>
   <section class="fd-card fd-addr-chooser fd-reveal">
-    <p class="fd-kicker">Choose your address</p>
+    <p class="fd-kicker">Your web address</p>
     <h2>Where customers will find you.</h2>
-    <p class="fd-design-sub">Both options go live the day your site launches. You can always upgrade later.</p>
+    <p class="fd-design-sub">Included free. We register it and handle renewals.</p>
 
-    <div class="fd-addr-options">
-      <label class="fd-addr-card is-selected" id="fd-addr-sub-card">
-        <input type="radio" name="addr_choice" value="sub" checked>
-        <div class="fd-addr-body">
-          <div class="fd-addr-head">
-            <div class="fd-addr-url"><?= ho_h($subdomain) ?></div>
-            <div class="fd-addr-badges">
-              <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
-            </div>
-          </div>
-          <p>Hosted on hoosieronline.com. Live within 24 hours, no annual fee, no renewals to worry about.</p>
-        </div>
-      </label>
+    <div class="fd-addr-domain">
+      <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
+      <div class="fd-addr-badges">
+        <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
+        <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
+              <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
+      </div>
+    </div>
 
-      <label class="fd-addr-card" id="fd-addr-com-card">
-        <input type="radio" name="addr_choice" value="com">
-        <div class="fd-addr-body">
-          <div class="fd-addr-head">
-            <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
-            <div class="fd-addr-badges">
-              <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
-              <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
-                    <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
-            </div>
-          </div>
-
-          <!-- Live domain search — stops click from toggling radio accidentally -->
-          <div class="fd-domain-search" onclick="event.stopPropagation()">
-            <div class="fd-domain-input-row">
-              <input type="text" id="fd-domain-input"
-                     class="fd-domain-input"
-                     value="<?= ho_h($domainInputVal) ?>"
-                     placeholder="yourbusiness"
-                     maxlength="63"
-                     onkeydown="if(event.key==='Enter'){event.preventDefault();fdCheckDomain();}">
-              <span class="fd-domain-tld">.com</span>
-              <button type="button" class="fd-domain-check-btn"
-                      onclick="event.stopPropagation();fdCheckDomain()">Check</button>
-            </div>
-            <div class="fd-domain-hint" id="fd-domain-hint"><?php
-              if ($domainCheck !== null && !$domainCheck['available']) {
-                  echo 'That name is taken &mdash; try a variation above.';
-              } else {
-                  echo 'Want a different name? Type it and tap Check.';
-              }
-            ?></div>
-          </div>
-
-          <p>Your own .com &mdash; more professional, easier to hand out. We register it and handle renewals. Included free with every package.</p>
-        </div>
-      </label>
+    <div class="fd-domain-search">
+      <p class="fd-design-sub">Want a different name? Check availability below.</p>
+      <div class="fd-domain-input-row">
+        <input type="text" id="fd-domain-input"
+               class="fd-domain-input"
+               value="<?= ho_h($domainInputVal) ?>"
+               placeholder="yourbusiness"
+               maxlength="63"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();fdCheckDomain();}">
+        <span class="fd-domain-tld">.com</span>
+        <button type="button" class="fd-domain-check-btn"
+                onclick="fdCheckDomain()">Check</button>
+      </div>
+      <div class="fd-domain-hint" id="fd-domain-hint"><?php
+        if ($domainCheck !== null && !$domainCheck['available']) {
+            echo 'That name is taken &mdash; try a variation above.';
+        } else {
+            echo 'Want a different name? Type it and tap Check.';
+        }
+      ?></div>
     </div>
   </section>
 
   <script>
-  function syncDomainAddon(wantCom) {
-    var subCard = document.getElementById('fd-addr-sub-card');
-    var comCard = document.getElementById('fd-addr-com-card');
-    if (subCard) subCard.classList.toggle('is-selected', !wantCom);
-    if (comCard) comCard.classList.toggle('is-selected', wantCom);
-    if (typeof fdUpdateTotal === 'function') fdUpdateTotal();
-  }
-  (function(){
-    var subCard  = document.getElementById('fd-addr-sub-card');
-    var comCard  = document.getElementById('fd-addr-com-card');
-    var subRadio = subCard ? subCard.querySelector('input[type="radio"]') : null;
-    var comRadio = comCard ? comCard.querySelector('input[type="radio"]') : null;
-    if (subRadio) subRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(false); });
-    if (comRadio) comRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(true); });
-  })();
-
   function fdCheckDomain() {
-    var input   = document.getElementById('fd-domain-input');
-    var badge   = document.getElementById('fd-com-avail-badge');
-    var display = document.getElementById('fd-com-display');
-    var hint    = document.getElementById('fd-domain-hint');
+    var input     = document.getElementById('fd-domain-input');
+    var badge     = document.getElementById('fd-com-avail-badge');
+    var display   = document.getElementById('fd-com-display');
+    var hint      = document.getElementById('fd-domain-hint');
     var chosenHid = document.getElementById('fd-h-chosen-com');
     if (!input) return;
 
@@ -498,9 +460,6 @@ if ($paid && $row && $pdo !== null) {
           if (badge) { badge.className = 'fd-avail-badge fd-avail-yes'; badge.textContent = '✓ Available'; }
           if (hint)  hint.textContent = 'Great — that name is available.';
           if (chosenHid) chosenHid.value = domain;
-          var comCard  = document.getElementById('fd-addr-com-card');
-          var comRadio = comCard ? comCard.querySelector('input[type="radio"]') : null;
-          if (comRadio && !comRadio.checked) { comRadio.checked = true; syncDomainAddon(true); }
         } else {
           if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = '✗ Taken'; }
           if (hint)  hint.textContent = 'That name is taken — try a variation above.';
@@ -573,7 +532,6 @@ if ($paid && $row && $pdo !== null) {
       <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
       <input type="hidden" name="pkg"          id="fd-h-pkg"      value="<?= ho_h($defaultBData['pkg']) ?>">
       <input type="hidden" name="template_key" id="fd-h-template" value="<?= ho_h($templateKey ?? '') ?>">
-      <input type="hidden" name="subdomain"    id="fd-h-subdomain"  value="<?= ho_h($subdomain) ?>">
       <input type="hidden" name="chosen_com"  id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
         Yes, Build This &rarr;

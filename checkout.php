@@ -49,7 +49,6 @@ try {
     $pkg         = trim((string)($_POST['pkg']          ?? ''));
     $addons      = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
     $templateKey = substr(trim((string)($_POST['template_key'] ?? '')), 0, 80);
-    $subdomain   = substr(trim((string)($_POST['subdomain']    ?? '')), 0, 120);
     $chosenCom   = substr(trim((string)($_POST['chosen_com']   ?? '')), 0, 100);
 
     $packages = ho_package_catalog();
@@ -104,7 +103,6 @@ try {
         'metadata[business]'      => $bizName,
         'metadata[pkg]'           => $pkg,
         'metadata[template]'      => $templateKey,
-        'metadata[subdomain]'     => $subdomain,
         'metadata[has_domain]'    => $hasDomain ? '1' : '0',
         'metadata[own_domain]'    => $hasDomain ? $ownDotCom : '',
     ];

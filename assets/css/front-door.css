@@ -469,13 +469,11 @@ body.front-door-preview-page{
   font-size:14px;line-height:1.5;color:var(--fd-muted);
 }
 
-/* ── Address chooser — now a fd-card section, inner wrapper needs no extra margin */
-.fd-addr-chooser{
-  margin:0;
-}
-.fd-addr-options{
-  display:flex;flex-direction:column;gap:10px;
-  margin-bottom:10px;
+/* ── Domain display (replaces two-card address chooser) ─────────────────── */
+.fd-addr-chooser{margin:0;}
+.fd-addr-domain{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:16px 0 20px;
 }
 .fd-addr-card{
   position:relative;
