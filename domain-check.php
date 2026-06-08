@@ -26,5 +26,5 @@ try {
     echo json_encode($result);
 } catch (Throwable $e) {
     error_log('domain-check.php: ' . $e->getMessage());
-    echo json_encode(['error' => 'Unable to check — please try again']);
+    echo json_encode(['error' => $e->getMessage()]);
 }

@@ -435,7 +435,8 @@ if ($paid && $row && $pdo !== null) {
       .then(function(r){ return r.json(); })
       .then(function(data){
         if (data.error) {
-          if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = '⚠ ' + data.error; }
+          if (badge) { badge.hidden = true; }
+          if (hint)  hint.textContent = '⚠ ' + data.error;
           return;
         }
         if (data.available) {
