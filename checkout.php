@@ -50,6 +50,7 @@ try {
     $addons      = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
     $templateKey = substr(trim((string)($_POST['template_key'] ?? '')), 0, 80);
     $subdomain   = substr(trim((string)($_POST['subdomain']    ?? '')), 0, 120);
+    $chosenCom   = substr(trim((string)($_POST['chosen_com']   ?? '')), 0, 100);
 
     $packages = ho_package_catalog();
     $priceMap = ho_addon_price_map();
@@ -89,7 +90,9 @@ try {
     $cancelUrl = $host . '/go.php?slug=' . rawurlencode($slug);
 
     $hasDomain  = in_array('domain', $addons, true);
-    $ownDotCom  = $subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '';
+    $ownDotCom  = $chosenCom !== ''
+        ? $chosenCom
+        : ($subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '');
     $successUrl = $host . '/go.php?slug=' . rawurlencode($slug) . '&paid=1'
         . ($templateKey !== '' ? '&tpl=' . rawurlencode($templateKey) : '');
 

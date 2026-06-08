@@ -326,14 +326,18 @@ if ($paid && $row && $pdo !== null) {
 
   <!-- ── CHOOSE YOUR ADDRESS ───────────────────────────────────────────────── -->
   <?php
-  $availHtml = '';
+  $initAvailClass = '';
+  $initAvailText  = '';
   if ($domainCheck !== null) {
       if ($domainCheck['available']) {
-          $availHtml = '<span class="fd-avail-badge fd-avail-yes">✓ Available</span>';
+          $initAvailClass = 'fd-avail-yes';
+          $initAvailText  = '✓ Available';
       } else {
-          $availHtml = '<span class="fd-avail-badge fd-avail-no">✗ Taken</span>';
+          $initAvailClass = 'fd-avail-no';
+          $initAvailText  = '✗ Taken';
       }
   }
+  $domainInputVal = preg_replace('/\.com$/i', '', $ownDotCom);
   ?>
   <div class="fd-addr-chooser fd-reveal">
     <p class="fd-kicker">Choose your address</p>
@@ -356,35 +360,101 @@ if ($paid && $row && $pdo !== null) {
         <input type="radio" name="addr_choice" value="com">
         <div class="fd-addr-body">
           <div class="fd-addr-head">
-            <div class="fd-addr-url fd-addr-url-com"><?= ho_h($ownDotCom) ?></div>
+            <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
             <span class="fd-addr-tag fd-addr-tag-addon" id="fd-com-price-tag">+$25/yr</span>
-            <?= $availHtml ?>
+            <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
+                  <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
           </div>
-          <p>Your own .com &mdash; looks more professional, easier to hand out. We register it and handle renewals. <span id="fd-com-incl-note">Included at no extra cost in <strong>Launch Ready</strong> &amp; <strong>Complete</strong>.</span></p>
+
+          <!-- Live domain search — stops click from toggling radio accidentally -->
+          <div class="fd-domain-search" onclick="event.stopPropagation()">
+            <div class="fd-domain-input-row">
+              <input type="text" id="fd-domain-input"
+                     class="fd-domain-input"
+                     value="<?= ho_h($domainInputVal) ?>"
+                     placeholder="yourbusiness"
+                     maxlength="63"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();fdCheckDomain();}">
+              <span class="fd-domain-tld">.com</span>
+              <button type="button" class="fd-domain-check-btn"
+                      onclick="event.stopPropagation();fdCheckDomain()">Check</button>
+            </div>
+            <p class="fd-domain-hint" id="fd-domain-hint"><?php
+              if ($domainCheck !== null && !$domainCheck['available']) {
+                  echo 'That name is taken &mdash; try a variation above.';
+              } elseif ($domainCheck !== null) {
+                  echo 'Want a different name? Type it and tap Check.';
+              } else {
+                  echo 'Want a different name? Type it and tap Check.';
+              }
+            ?></p>
+          </div>
+
+          <p>Your own .com &mdash; more professional, easier to hand out. We register and handle renewals. <span id="fd-com-incl-note">Included in <strong>Launch Ready</strong> &amp; <strong>Complete</strong>.</span></p>
         </div>
       </label>
     </div>
-    <?php if ($domainCheck !== null && !$domainCheck['available']): ?>
-    <p class="fd-addr-note">That .com is taken, but don&rsquo;t worry &mdash; I&rsquo;ll find the closest available option and confirm with you before anything is registered.</p>
-    <?php else: ?>
-    <p class="fd-addr-note">If <?= ho_h($ownDotCom) ?> isn&rsquo;t available, I&rsquo;ll find the closest option and confirm with you before anything is registered.</p>
-    <?php endif; ?>
   </div>
 
   <script>
-  (function(){
+  function syncDomainAddon(wantCom) {
     var subCard = document.getElementById('fd-addr-sub-card');
     var comCard = document.getElementById('fd-addr-com-card');
-    var subRadio = subCard ? subCard.querySelector('input') : null;
-    var comRadio = comCard ? comCard.querySelector('input') : null;
-    function syncDomainAddon(wantCom) {
-      if (subCard) subCard.classList.toggle('is-selected', !wantCom);
-      if (comCard) comCard.classList.toggle('is-selected', wantCom);
-      if (typeof fdUpdateTotal === 'function') fdUpdateTotal();
-    }
+    if (subCard) subCard.classList.toggle('is-selected', !wantCom);
+    if (comCard) comCard.classList.toggle('is-selected', wantCom);
+    if (typeof fdUpdateTotal === 'function') fdUpdateTotal();
+  }
+  (function(){
+    var subCard  = document.getElementById('fd-addr-sub-card');
+    var comCard  = document.getElementById('fd-addr-com-card');
+    var subRadio = subCard ? subCard.querySelector('input[type="radio"]') : null;
+    var comRadio = comCard ? comCard.querySelector('input[type="radio"]') : null;
     if (subRadio) subRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(false); });
     if (comRadio) comRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(true); });
   })();
+
+  function fdCheckDomain() {
+    var input   = document.getElementById('fd-domain-input');
+    var badge   = document.getElementById('fd-com-avail-badge');
+    var display = document.getElementById('fd-com-display');
+    var hint    = document.getElementById('fd-domain-hint');
+    var chosenHid = document.getElementById('fd-h-chosen-com');
+    if (!input) return;
+
+    var raw = input.value.trim().toLowerCase().replace(/\.com$/i, '').replace(/[^a-z0-9\-]/g, '');
+    if (raw.length < 2) { if (hint) hint.textContent = 'Enter at least 2 characters.'; return; }
+    var domain = raw + '.com';
+
+    if (display) display.textContent = domain;
+    if (badge)   { badge.className = 'fd-avail-badge fd-avail-checking'; badge.textContent = 'Checking…'; badge.hidden = false; }
+    if (hint)    hint.textContent = '';
+
+    var fd = new FormData();
+    fd.append('domain', raw);
+    fetch('/domain-check.php', {method: 'POST', body: fd})
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (data.error) {
+          if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = '⚠ ' + data.error; }
+          return;
+        }
+        if (data.available) {
+          if (badge) { badge.className = 'fd-avail-badge fd-avail-yes'; badge.textContent = '✓ Available'; }
+          if (hint)  hint.textContent = 'Great — that name is available.';
+          if (chosenHid) chosenHid.value = domain;
+          // Auto-select the .com card
+          var comCard  = document.getElementById('fd-addr-com-card');
+          var comRadio = comCard ? comCard.querySelector('input[type="radio"]') : null;
+          if (comRadio && !comRadio.checked) { comRadio.checked = true; syncDomainAddon(true); }
+        } else {
+          if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = '✗ Taken'; }
+          if (hint)  hint.textContent = 'That name is taken — try a variation above.';
+        }
+      })
+      .catch(function(){
+        if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = 'Check failed — try again'; }
+      });
+  }
   </script>
 
   <!-- WHY section moved above mockup — see below -->
@@ -506,7 +576,8 @@ if ($paid && $row && $pdo !== null) {
       <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
       <input type="hidden" name="pkg"          id="fd-h-pkg"      value="<?= ho_h($defaultBData['pkg']) ?>">
       <input type="hidden" name="template_key" id="fd-h-template" value="<?= ho_h($templateKey ?? '') ?>">
-      <input type="hidden" name="subdomain"    id="fd-h-subdomain" value="<?= ho_h($subdomain) ?>">
+      <input type="hidden" name="subdomain"    id="fd-h-subdomain"  value="<?= ho_h($subdomain) ?>">
+      <input type="hidden" name="chosen_com"  id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
       <!-- domain addon: enabled only when Standard pkg + .com address selected -->
       <input type="hidden" name="addons[]" id="fd-h-domain" value="domain" disabled>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
