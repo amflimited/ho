@@ -221,7 +221,6 @@ if ($paid && $row && $pdo !== null) {
       }
       if (!empty($available)) { $templateKey = array_key_first($available); $usingCatTpls = true; }
   }
-  if (count($available) > 4) $available = array_slice($available, 0, 4, true);
 
   // Fall back to generic design-family templates
   if (empty($available)) {
@@ -252,10 +251,9 @@ if ($paid && $row && $pdo !== null) {
       </div>
     </div>
 
-    <?php $firstTplKey = array_key_first($available); ?>
     <div class="fd-tpl-picker">
       <?php foreach ($available as $k => $opt): ?>
-        <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?><?= $k === $firstTplKey ? ' fd-tpl-tab--rec' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
+        <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
           <span class="fd-tpl-dot" style="background:<?= ho_h($opt['color']) ?>"></span>
           <?= ho_h($opt['label']) ?>
         </button>
@@ -585,14 +583,14 @@ if ($paid && $row && $pdo !== null) {
         Yes, Build This &rarr;
       </button>
     </form>
-    <p class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</p>
+    <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
 
     <a class="fd-btn fd-btn-secondary fd-questions-btn"
        href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI have a question about the preview you built for " . $name . ".\n\n") ?>">
       Not ready? Just reply to my email.
     </a>
 
-    <p class="fd-scarcity">I only take one <?= ho_h(strtolower($catName)) ?> site at a time in <?= ho_h($city) ?>.</p>
+    <div class="fd-scarcity">I only take one <?= ho_h(strtolower($catName)) ?> site at a time in <?= ho_h($city) ?>.</div>
   </section>
 
   <script>

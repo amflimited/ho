@@ -1,13 +1,12 @@
 [
-  {"key": "work_truck_dark", "label": "Work Truck",  "color": "#1a1a1a"},
-  {"key": "green_pro",       "label": "Green Pro",   "color": "#2f7a35"},
-  {"key": "local_orange",    "label": "Local",       "color": "#c05c10"},
-  {"key": "teal_curb",       "label": "Teal",        "color": "#0d6e6e"},
-  {"key": "fresh_cut",       "label": "Fresh Cut",   "color": "#3a8a40"},
-  {"key": "eco_organic",     "label": "Eco Organic", "color": "#1a4a1a"},
-  {"key": "fast_reliable",   "label": "Fast",        "color": "#111111"},
-  {"key": "blue_relax",      "label": "Blue",        "color": "#1e5fa0"},
-  {"key": "white_glove",     "label": "White Glove", "color": "#4a5a20"},
-  {"key": "better_lawn",     "label": "Better Lawn", "color": "#2f7a35"},
-  {"key": "dark_yard",       "label": "Dark Yard",   "color": "#1a1a1a"}
+  {"key": "green_pro",     "label": "Green Pro",    "color": "#2f7a35"},
+  {"key": "local_orange",  "label": "Local",        "color": "#c05c10"},
+  {"key": "dark_yard",     "label": "Dark Yard",    "color": "#1a1a1a"},
+  {"key": "teal_curb",     "label": "Teal",         "color": "#0d6e6e"},
+  {"key": "fresh_cut",     "label": "Fresh Cut",    "color": "#3a8a40"},
+  {"key": "eco_organic",   "label": "Eco Organic",  "color": "#1a4a1a"},
+  {"key": "fast_reliable", "label": "Fast",         "color": "#111111"},
+  {"key": "blue_relax",    "label": "Blue",         "color": "#1e5fa0"},
+  {"key": "white_glove",   "label": "White Glove",  "color": "#4a5a20"},
+  {"key": "better_lawn",   "label": "Better Lawn",  "color": "#2f7a35"}
 ]

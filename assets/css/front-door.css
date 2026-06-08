@@ -1015,19 +1015,6 @@ body.front-door-preview-page{
 }
 .fd-intro-note strong{color:var(--fd-ink);}
 
-/* ── Template tab — recommended badge ───────────────────────────────────── */
-.fd-tpl-tab--rec{
-  position:relative;
-}
-.fd-tpl-tab--rec::after{
-  content:'★ Rec';
-  position:absolute;top:-7px;right:-4px;
-  font-size:9px;font-weight:800;letter-spacing:.04em;
-  background:var(--fd-green);color:#fff;
-  padding:2px 5px;border-radius:8px;
-  line-height:1.2;pointer-events:none;
-}
-
 /* ── Sticky bar — pre/post modes ────────────────────────────────────────── */
 .fd-sticky-biz{
   font-size:14px;font-weight:700;color:var(--fd-ink);
