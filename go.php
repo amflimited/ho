@@ -21,7 +21,7 @@ try {
 $name       = $row ? (string)$row['business_name']          : '';
 $city       = $row ? (string)$row['location_city']          : '';
 $catName    = $row ? (string)$row['category_name']          : '';
-$opp        = $row ? (string)$row['opportunity_statement']  : '';
+$opp        = $row ? ho_why_text($row) : '';
 $subhead    = $row ? (string)$row['subheadline']            : '';
 $package    = $row ? (string)$row['package_recommendation'] : 'standard';
 $phone      = $row ? (string)($row['phone_number'] ?? '')   : '';
