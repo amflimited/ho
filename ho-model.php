@@ -1416,3 +1416,65 @@ function ho_generate_status_update_text(array $order, string $bizName, string $o
 
     return "{$greeting}\n\nHere's a quick update on your {$bizName} website:\n\n" . implode("\n", $lines) . "\n{$noteBlock}\nTrack live: {$statusUrl}\n\n— Adam Ferree\nHoosier Online | adam@hoosieronline.com | (765) 443-4321";
 }
+
+// ─── Website audit ────────────────────────────────────────────────────────────
+
+function ho_get_website_businesses(PDO $pdo): array {
+    return $pdo->query("
+        SELECT b.id, b.business_name, b.location_city, b.website_url,
+               r.has_website, r.website_quality
+        FROM businesses b
+        JOIN research_records r ON r.business_id = b.id
+        WHERE r.has_website = 1
+        ORDER BY b.business_name ASC
+    ")->fetchAll();
+}
+
+function ho_check_url_live(string $url): bool {
+    if ($url === '') return false;
+    if (!preg_match('#^https?://#i', $url)) $url = 'https://' . $url;
+    $ch = curl_init($url);
+    if ($ch === false) return false;
+    curl_setopt_array($ch, [
+        CURLOPT_NOBODY         => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS      => 4,
+        CURLOPT_TIMEOUT        => 6,
+        CURLOPT_CONNECTTIMEOUT => 4,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; HoosierOnline/1.0)',
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return $code >= 200 && $code < 400;
+}
+
+function ho_audit_and_fix_websites(PDO $pdo): array {
+    $businesses = ho_get_website_businesses($pdo);
+    $fixed   = 0;
+    $live    = 0;
+    $skipped = 0;
+    foreach ($businesses as $biz) {
+        $url = trim((string)$biz['website_url']);
+        if ($url === '') {
+            // has_website=1 but no URL stored — definitely wrong
+            $pdo->prepare("UPDATE research_records SET has_website = 0, website_quality = 'none' WHERE business_id = ?")
+                ->execute([$biz['id']]);
+            $fixed++;
+            continue;
+        }
+        $alive = ho_check_url_live($url);
+        if ($alive) {
+            $live++;
+        } else {
+            $pdo->prepare("UPDATE research_records SET has_website = 0, website_quality = 'none' WHERE business_id = ?")
+                ->execute([$biz['id']]);
+            $pdo->prepare("UPDATE businesses SET website_url = '', updated_at = NOW() WHERE id = ?")
+                ->execute([$biz['id']]);
+            $fixed++;
+        }
+    }
+    $skipped = count($businesses) - $live - $fixed;
+    return ['total' => count($businesses), 'live' => $live, 'fixed' => $fixed, 'skipped' => $skipped];
+}

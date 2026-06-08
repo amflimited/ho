@@ -97,6 +97,14 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 ho_update_order($pdo, $orderId, $updates);
                 header('Location: ?tab=sales&flash=' . urlencode('Order updated.'));
                 exit;
+
+            case 'audit_websites':
+                set_time_limit(180);
+                $result = ho_audit_and_fix_websites($pdo);
+                header('Location: ?tab=research&flash=' . urlencode(
+                    "Website audit complete: {$result['live']} real sites confirmed, {$result['fixed']} bad records cleared, {$result['total']} total checked."
+                ));
+                exit;
         }
     } catch (Throwable $e) {
         header('Location: ?tab=' . urlencode($_POST['tab'] ?? 'source') . '&error=' . urlencode($e->getMessage()));
@@ -538,6 +546,26 @@ if (!empty($unresearched)) {
         <?php endforeach; ?>
       </ul>
     </details>
+  </section>
+  <?php endif; ?>
+
+  <!-- ── Website Audit ─────────────────────────────────────────────────────── -->
+  <?php
+  $websiteBizCount = 0;
+  try {
+      $websiteBizCount = $pdo ? (int)$pdo->query("SELECT COUNT(*) FROM research_records WHERE has_website = 1")->fetchColumn() : 0;
+  } catch (Throwable) {}
+  ?>
+  <?php if ($websiteBizCount > 0): ?>
+  <section class="cp-section" style="margin-top:18px">
+    <h2 class="cp-sh">Website Data Audit</h2>
+    <p class="cp-hint"><?= $websiteBizCount ?> lead<?= $websiteBizCount !== 1 ? 's' : '' ?> marked as having a website. This scan checks each URL live and clears any that don&rsquo;t respond &mdash; fixing bad AI guesses automatically.</p>
+    <form method="POST">
+      <input type="hidden" name="action" value="audit_websites">
+      <button type="submit" class="cp-btn" onclick="this.textContent='Scanning… this may take a minute';this.disabled=true">
+        Scan &amp; fix <?= $websiteBizCount ?> website<?= $websiteBizCount !== 1 ? 's' : '' ?>
+      </button>
+    </form>
   </section>
   <?php endif; ?>
 
