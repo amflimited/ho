@@ -121,6 +121,31 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     "Website audit complete: {$result['live']} real sites confirmed, {$result['fixed']} bad records cleared, {$result['total']} total checked."
                 ));
                 exit;
+
+            case 'reroute_decent_sites':
+                set_time_limit(120);
+                $rerouteRows = $pdo->query("
+                    SELECT b.id, b.business_name, b.business_slug, b.location_city,
+                           b.email_address, b.phone_number, b.facebook_url, b.website_url,
+                           c.name AS category_name,
+                           r.has_website, r.website_quality, r.booking_method,
+                           r.has_angi, r.has_thumbtack, r.has_google_business,
+                           r.mobile_friendly, r.has_ssl, r.gbp_photo_count,
+                           r.last_review_date, r.google_review_count
+                    FROM businesses b
+                    JOIN categories c ON c.id = b.category_id
+                    JOIN research_records r ON r.business_id = b.id
+                    WHERE r.has_website = 1
+                      AND r.website_quality IN ('decent','good')
+                      AND b.pipeline_status IN ('preview_ready','researched','identified','needs_contact','excluded')
+                ")->fetchAll();
+                $reRouted = 0;
+                foreach ($rerouteRows as $rRow) {
+                    ho_route_to_enhancement($pdo, (int)$rRow['id'], $rRow);
+                    $reRouted++;
+                }
+                header('Location: ?tab=research&flash=' . urlencode("Re-routed {$reRouted} decent-site lead(s) to the enhancement track."));
+                exit;
         }
     } catch (Throwable $e) {
         header('Location: ?tab=' . urlencode($_POST['tab'] ?? 'source') . '&error=' . urlencode($e->getMessage()));
@@ -134,7 +159,7 @@ $runId    = (int)($_GET['run_id']           ?? 0);
 $flashMsg = trim((string)($_GET['flash']   ?? ''));
 $errorMsg = trim((string)($_GET['error']   ?? ''));
 
-$counts = $pdo ? ho_pipeline_counts($pdo) : ['identified'=>0,'researched'=>0,'preview_ready'=>0,'pitched'=>0,'converted'=>0,'needs_contact'=>0,'excluded'=>0,'total'=>0];
+$counts = $pdo ? ho_pipeline_counts($pdo) : ['identified'=>0,'researched'=>0,'preview_ready'=>0,'enhancement_ready'=>0,'pitched'=>0,'converted'=>0,'needs_contact'=>0,'excluded'=>0,'total'=>0];
 $job    = ho_current_job($counts);
 if ($tab === '') $tab = $job;
 
@@ -149,6 +174,7 @@ $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_l
 $enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 25) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
 try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e) { $sendQueue = []; $dbError = $dbError ?? $e->getMessage(); }
+try { $enhancementQueue = $pdo ? ho_get_enhancement_ready($pdo) : []; } catch (Throwable) { $enhancementQueue = []; }
 try { $followupDue = $pdo ? ho_get_followup_due($pdo) : []; } catch (Throwable) { $followupDue = []; }
 try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
 
@@ -241,8 +267,9 @@ if (!empty($unresearched)) {
   <a href="?tab=research" class="cp-tab<?= $tab === 'research' ? ' is-active' : '' ?>">
     Research<?= $counts['identified'] > 0 ? '<span class="cp-badge">' . $counts['identified'] . '</span>' : '' ?>
   </a>
+  <?php $totalSend = ($counts['preview_ready'] ?? 0) + ($counts['enhancement_ready'] ?? 0); ?>
   <a href="?tab=send" class="cp-tab<?= $tab === 'send' ? ' is-active' : '' ?>">
-    Send<?= $counts['preview_ready'] > 0 ? '<span class="cp-badge cp-badge-hot">' . $counts['preview_ready'] . '</span>' : '' ?>
+    Send<?= $totalSend > 0 ? '<span class="cp-badge cp-badge-hot">' . $totalSend . '</span>' : '' ?>
   </a>
   <a href="?tab=sales" class="cp-tab<?= $tab === 'sales' ? ' is-active' : '' ?>">
     Sales<?= count($pendingOrders) > 0 ? '<span class="cp-badge cp-badge-win">' . count($pendingOrders) . '</span>' : '' ?>
@@ -730,6 +757,19 @@ if (!empty($unresearched)) {
   </script>
   <?php endif; ?>
 
+  <!-- ── Re-route decent-site leads ──────────────────────────────────────── -->
+  <?php if ($pdo): ?>
+  <section class="cp-section" style="margin-top:18px">
+    <h2 class="cp-sh">Enhancement track</h2>
+    <p class="cp-hint">Moves leads with a working decent site out of the site-build queue and into the enhancement track (contact forms, Google Business, booking, etc.).</p>
+    <form method="POST">
+      <input type="hidden" name="action" value="reroute_decent_sites">
+      <input type="hidden" name="tab" value="research">
+      <button class="cp-btn" type="submit">Re-route decent-site leads &rarr;</button>
+    </form>
+  </section>
+  <?php endif; ?>
+
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'send'): ?>
 
@@ -768,7 +808,7 @@ if (!empty($unresearched)) {
     </section>
   <?php endif; ?>
 
-  <?php if (empty($sendQueue)): ?>
+  <?php if (empty($sendQueue) && empty($enhancementQueue)): ?>
     <div class="cp-empty">No pitches ready. Finish research to generate previews.</div>
   <?php else: ?>
 
@@ -991,6 +1031,97 @@ if (!empty($unresearched)) {
       </div>
     </section>
 
+  <?php endif; ?>
+
+  <!-- ═══ ENHANCEMENT QUEUE ════════════════════════════════════════════════ -->
+  <?php if (!empty($enhancementQueue)): ?>
+  <section class="cp-section" style="margin-top:18px">
+    <h2 class="cp-sh"><?= count($enhancementQueue) ?> enhancement lead<?= count($enhancementQueue) !== 1 ? 's' : '' ?> — already have a website</h2>
+    <p class="cp-hint" style="margin-bottom:12px">These businesses have a working site but specific gaps. Pitch the gap, not a full build.</p>
+    <div class="cp-send-list">
+      <?php foreach ($enhancementQueue as $b):
+        $region     = $cityToRegion[(string)$b['location_city']] ?? '';
+        $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
+        $hasEmail   = (string)$b['email_address'] !== '';
+        $hasSiteUrl = (string)$b['website_url']   !== '';
+        $hasFb      = (string)$b['facebook_url']  !== '';
+        $hasPhone   = (string)$b['phone_number']  !== '';
+        $method     = (string)$b['best_contact_method'];
+        $eGaps      = (array)$b['enhancement_gaps'];
+
+        $gapLabels = [
+            'contact_form'    => 'No contact form',
+            'paid_leads'      => 'Paying Angi/Thumbtack',
+            'google_business' => 'No Google Business',
+            'tech_issues'     => 'Mobile/SSL issues',
+            'gbp_photos'      => 'Low GBP photos',
+            'stale_reviews'   => 'Stale reviews',
+        ];
+      ?>
+      <div class="cp-send-card cp-send-card-enhance" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+
+        <div class="cp-send-head">
+          <strong><?= ho_h((string)$b['business_name']) ?></strong>
+          <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+        </div>
+
+        <?php if (!empty($eGaps)): ?>
+        <div class="cp-card-badges" style="flex-wrap:wrap;gap:4px">
+          <?php foreach ($eGaps as $gk): ?>
+            <span class="cp-gap-badge"><?= ho_h($gapLabels[$gk] ?? $gk) ?></span>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <div class="cp-send-primary">
+          <?php if ($hasEmail): ?>
+            <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto_enhancement($b, $previewUrl)) ?>">
+              ✉&thinsp; Email <?= ho_h((string)$b['business_name']) ?>
+            </a>
+          <?php elseif ($hasFb): ?>
+            <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">Message on Facebook →</a>
+          <?php elseif ($hasSiteUrl): ?>
+            <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">Contact via Website →</a>
+          <?php elseif ($hasPhone): ?>
+            <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">Call <?= ho_h((string)$b['phone_number']) ?></a>
+          <?php else: ?>
+            <span class="cp-send-no-contact">No contact info on file</span>
+          <?php endif; ?>
+        </div>
+
+        <div class="cp-send-secondary">
+          <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+          <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
+          <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
+            <input type="hidden" name="action" value="disqualify_lead">
+            <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+            <button type="submit" class="cp-btn-ghost cp-btn-disqualify">Not a fit ✕</button>
+          </form>
+          <details class="cp-sent-wrap">
+            <summary class="cp-btn-outline">Mark Sent</summary>
+            <form method="POST" class="cp-sent-form">
+              <input type="hidden" name="action" value="mark_sent">
+              <input type="hidden" name="tab" value="send">
+              <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+              <select class="cp-select" name="sent_via">
+                <option value="email"<?= $method === 'email' ? ' selected' : '' ?>>Email</option>
+                <option value="facebook_dm"<?= $method === 'facebook' ? ' selected' : '' ?>>Facebook DM</option>
+                <option value="phone"<?= $method === 'phone' ? ' selected' : '' ?>>Phone</option>
+                <option value="website_form"<?= $method === 'website_form' ? ' selected' : '' ?>>Website Form</option>
+                <option value="other">Other</option>
+              </select>
+              <input class="cp-input" type="text" name="sent_to"
+                placeholder="email / handle / number"
+                value="<?= ho_h((string)($b['email_address'] ?: $b['phone_number'] ?: '')) ?>">
+              <button class="cp-btn-primary" type="submit">Confirm Sent</button>
+            </form>
+          </details>
+        </div>
+
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
   <?php endif; ?>
 
 <?php elseif ($tab === 'sales'): ?>

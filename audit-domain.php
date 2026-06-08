@@ -82,24 +82,38 @@ try {
     $pdo->prepare("UPDATE businesses SET website_url=?, updated_at=NOW() WHERE id=?")
         ->execute([$url, $bizId]);
 
-    // Auto-exclude if the site is decent or better — pitch is no longer valid
-    $excluded = false;
+    // Route decent sites to enhancement track, not excluded
+    $enhancement = false;
+    $excluded    = false;
     if (in_array($quality, ['decent', 'good'], true)) {
-        $pdo->prepare("
-            UPDATE businesses
-            SET pipeline_status='excluded', exclusion_reason='website_found_on_audit', updated_at=NOW()
-            WHERE id=? AND pipeline_status IN ('preview_ready','needs_contact','identified','researched')
-        ")->execute([$bizId]);
-        $excluded = true;
+        $fullRow = $pdo->prepare("
+            SELECT b.*, c.name AS category_name, c.slug AS category_slug,
+                   r.has_website, r.website_quality, r.booking_method,
+                   r.has_angi, r.has_thumbtack, r.has_google_business,
+                   r.mobile_friendly, r.has_ssl, r.gbp_photo_count,
+                   r.last_review_date, r.google_review_count
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            JOIN research_records r ON r.business_id = b.id
+            WHERE b.id = ?
+        ");
+        $fullRow->execute([$bizId]);
+        $fullRowData = $fullRow->fetch();
+        if ($fullRowData) {
+            $routed = ho_route_to_enhancement($pdo, $bizId, $fullRowData);
+            $enhancement = $routed;
+            $excluded    = !$routed;
+        }
     }
 
     echo json_encode([
-        'id'       => $bizId,
-        'domain'   => $domain,
-        'alive'    => true,
-        'quality'  => $quality,
-        'excluded' => $excluded,
-        'code'     => $code,
+        'id'          => $bizId,
+        'domain'      => $domain,
+        'alive'       => true,
+        'quality'     => $quality,
+        'enhancement' => $enhancement,
+        'excluded'    => $excluded,
+        'code'        => $code,
     ]);
 
 } catch (Throwable $e) {

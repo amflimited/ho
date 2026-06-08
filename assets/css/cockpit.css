@@ -656,10 +656,20 @@ a { color: inherit; }
 .cp-btn-outcome:active { filter: brightness(.93); }
 
 /* ── Send card contact-method accent ─────────────────────────────────────── */
-.cp-send-card-email { border-left: 4px solid var(--green); }
-.cp-send-card-fb    { border-left: 4px solid #1877f2; }
-.cp-send-card-phone { border-left: 4px solid #6aad7a; }
-.cp-send-card-none  { border-left: 4px solid var(--border); }
+.cp-send-card-email   { border-left: 4px solid var(--green); }
+.cp-send-card-fb      { border-left: 4px solid #1877f2; }
+.cp-send-card-phone   { border-left: 4px solid #6aad7a; }
+.cp-send-card-none    { border-left: 4px solid var(--border); }
+.cp-send-card-enhance { border-left: 4px solid #d97706; }
+
+/* ── Enhancement gap badges ──────────────────────────────────────────────── */
+.cp-gap-badge {
+  display: inline-block;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 2px 7px; border-radius: 20px;
+  background: rgba(217,119,6,.12); color: #92400e;
+  border: 1px solid rgba(217,119,6,.25);
+}
 
 /* ── Job flag refinement ─────────────────────────────────────────────────── */
 .cp-job-flag {

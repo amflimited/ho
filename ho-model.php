@@ -134,25 +134,27 @@ function ho_multi_market_ids(PDO $pdo, array $businesses): array {
 function ho_pipeline_counts(PDO $pdo): array {
     $row = $pdo->query("
         SELECT
-          SUM(pipeline_status = 'identified')    AS identified,
-          SUM(pipeline_status = 'researched')    AS researched,
-          SUM(pipeline_status = 'preview_ready') AS preview_ready,
-          SUM(pipeline_status = 'pitched')       AS pitched,
-          SUM(pipeline_status = 'converted')     AS converted,
-          SUM(pipeline_status = 'needs_contact') AS needs_contact,
-          SUM(pipeline_status = 'excluded')      AS excluded,
-          SUM(pipeline_status NOT IN ('excluded')) AS total
+          SUM(pipeline_status = 'identified')        AS identified,
+          SUM(pipeline_status = 'researched')        AS researched,
+          SUM(pipeline_status = 'preview_ready')     AS preview_ready,
+          SUM(pipeline_status = 'enhancement_ready') AS enhancement_ready,
+          SUM(pipeline_status = 'pitched')           AS pitched,
+          SUM(pipeline_status = 'converted')         AS converted,
+          SUM(pipeline_status = 'needs_contact')     AS needs_contact,
+          SUM(pipeline_status = 'excluded')          AS excluded,
+          SUM(pipeline_status NOT IN ('excluded'))   AS total
         FROM businesses
     ")->fetch();
     return [
-        'identified'   => (int)($row['identified']   ?? 0),
-        'researched'   => (int)($row['researched']   ?? 0),
-        'preview_ready'=> (int)($row['preview_ready']?? 0),
-        'pitched'      => (int)($row['pitched']      ?? 0),
-        'converted'     => (int)($row['converted']     ?? 0),
-        'needs_contact' => (int)($row['needs_contact'] ?? 0),
-        'excluded'      => (int)($row['excluded']      ?? 0),
-        'total'         => (int)($row['total']         ?? 0),
+        'identified'        => (int)($row['identified']        ?? 0),
+        'researched'        => (int)($row['researched']        ?? 0),
+        'preview_ready'     => (int)($row['preview_ready']     ?? 0),
+        'enhancement_ready' => (int)($row['enhancement_ready'] ?? 0),
+        'pitched'           => (int)($row['pitched']           ?? 0),
+        'converted'         => (int)($row['converted']         ?? 0),
+        'needs_contact'     => (int)($row['needs_contact']     ?? 0),
+        'excluded'          => (int)($row['excluded']          ?? 0),
+        'total'             => (int)($row['total']             ?? 0),
     ];
 }
 
@@ -709,11 +711,13 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
 
 function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
     $s = $pdo->prepare("
-        SELECT b.*, c.name AS category_name, c.typical_services,
+        SELECT b.*, c.name AS category_name, c.slug AS category_slug, c.typical_services,
                r.opportunity_summary, r.services_list, r.service_area_text,
                r.recommended_package, r.has_website, r.website_quality,
                r.has_google_business, r.google_review_count, r.google_rating,
-               r.has_facebook, r.facebook_activity, r.strengths, r.gaps
+               r.has_facebook, r.facebook_activity, r.strengths, r.gaps,
+               r.has_angi, r.has_thumbtack, r.booking_method,
+               r.mobile_friendly, r.has_ssl, r.gbp_photo_count, r.last_review_date
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN research_records r ON r.business_id = b.id
@@ -723,12 +727,10 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
     $row = $s->fetch();
     if (!$row) return false;
 
-    // Auto-exclude businesses that already have a solid web presence — not our target
+    // Businesses with a working decent site go to the enhancement track, not excluded
     $siteQ = (string)($row['website_quality'] ?? '');
     if ((bool)$row['has_website'] && in_array($siteQ, ['good', 'decent'], true)) {
-        $pdo->prepare("UPDATE businesses SET pipeline_status = 'excluded', exclusion_reason = 'has_good_website', updated_at = NOW() WHERE id = ?")
-            ->execute([$businessId]);
-        return false;
+        return ho_route_to_enhancement($pdo, $businessId, $row);
     }
 
     $services = json_decode((string)($row['services_list'] ?? '[]'), true);
@@ -853,6 +855,151 @@ function ho_website_tech_check(string $url): array {
         'has_ssl'        => $hasSsl,
         'mobile_friendly'=> (bool)preg_match('/name=["\']viewport["\']/i', $body),
     ];
+}
+
+// ─── Enhancement track ────────────────────────────────────────────────────────
+
+function ho_enhancement_gaps(array $row): array {
+    $gaps = [];
+
+    $booking = (string)($row['booking_method'] ?? 'unknown');
+    if (in_array($booking, ['phone','facebook','email'], true)) {
+        $gaps[] = 'contact_form';
+    }
+
+    if ((bool)($row['has_angi'] ?? false) || (bool)($row['has_thumbtack'] ?? false)) {
+        $gaps[] = 'paid_leads';
+    }
+
+    if (!(bool)($row['has_google_business'] ?? false)) {
+        $gaps[] = 'google_business';
+    }
+
+    $notMobile = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
+    $noSsl     = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
+    if ($notMobile || $noSsl) {
+        $gaps[] = 'tech_issues';
+    }
+
+    $gbpPhotos = isset($row['gbp_photo_count']) && $row['gbp_photo_count'] !== null
+        ? (int)$row['gbp_photo_count'] : null;
+    if ($gbpPhotos !== null && $gbpPhotos < 10) {
+        $gaps[] = 'gbp_photos';
+    }
+
+    $reviewCount    = (int)($row['google_review_count'] ?? 0);
+    $lastReviewDate = trim((string)($row['last_review_date'] ?? ''));
+    if ($lastReviewDate !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewDate, $m)) {
+        $ageMonths = ((int)date('Y') - (int)$m[1]) * 12 + ((int)date('n') - (int)$m[2]);
+        if ($ageMonths >= 6 && $reviewCount >= 3) {
+            $gaps[] = 'stale_reviews';
+        }
+    }
+
+    return $gaps;
+}
+
+function ho_route_to_enhancement(PDO $pdo, int $bizId, array $row): bool {
+    $gaps = ho_enhancement_gaps($row);
+    if (empty($gaps)) {
+        $pdo->prepare("UPDATE businesses SET pipeline_status='excluded', exclusion_reason='has_good_website', updated_at=NOW() WHERE id=?")
+            ->execute([$bizId]);
+        return false;
+    }
+
+    $catName     = strtolower((string)($row['category_name'] ?? 'business'));
+    $headline    = "A few things worth improving for your {$catName} business.";
+    $subheadline = "Your website is a good start. Here are specific things that could bring in more customers.";
+    $slug        = (string)($row['business_slug'] ?? '');
+
+    $pdo->prepare("
+        INSERT INTO previews
+          (business_id, preview_slug, preview_status, preview_type, headline, subheadline,
+           services_display, opportunity_statement, package_recommendation, generated_at)
+        VALUES (?, ?, 'ready', 'enhancement', ?, ?, '[]', ?, 'standard', NOW())
+        ON DUPLICATE KEY UPDATE
+          preview_status        = 'ready',
+          preview_type          = 'enhancement',
+          headline              = VALUES(headline),
+          subheadline           = VALUES(subheadline),
+          opportunity_statement = VALUES(opportunity_statement),
+          generated_at          = NOW()
+    ")->execute([$bizId, $slug, $headline, $subheadline, $subheadline]);
+
+    $hasAnyContact = (string)($row['email_address'] ?? '') !== ''
+        || (string)($row['phone_number']  ?? '') !== ''
+        || (string)($row['facebook_url']  ?? '') !== ''
+        || (string)($row['website_url']   ?? '') !== '';
+
+    $pdo->prepare("UPDATE businesses SET pipeline_status=?, updated_at=NOW() WHERE id=?")
+        ->execute([$hasAnyContact ? 'enhancement_ready' : 'needs_contact', $bizId]);
+
+    return true;
+}
+
+function ho_get_enhancement_ready(PDO $pdo): array {
+    $rows = $pdo->query("
+        SELECT b.id, b.business_name, b.business_slug, b.location_city,
+               b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
+               b.owner_first_name,
+               c.name AS category_name, c.slug AS category_slug,
+               p.headline, p.package_recommendation, p.view_count, p.last_viewed_at,
+               r.opportunity_summary, r.has_website, r.website_quality,
+               r.google_review_count, r.google_rating, r.facebook_activity,
+               r.booking_method, r.has_angi, r.has_thumbtack,
+               r.has_google_business, r.mobile_friendly, r.has_ssl,
+               r.gbp_photo_count, r.last_review_date, r.owner_age_band
+        FROM businesses b
+        JOIN categories c ON c.id = b.category_id
+        JOIN previews p ON p.business_id = b.id
+        LEFT JOIN research_records r ON r.business_id = b.id
+        WHERE b.pipeline_status = 'enhancement_ready'
+          AND p.preview_status = 'ready'
+          AND p.preview_type = 'enhancement'
+        ORDER BY b.updated_at DESC
+        LIMIT 50
+    ")->fetchAll();
+
+    foreach ($rows as &$row) {
+        $row['enhancement_gaps'] = ho_enhancement_gaps($row);
+    }
+    unset($row);
+    return $rows;
+}
+
+function ho_pitch_mailto_enhancement(array $biz, string $previewUrl): string {
+    $name      = (string)$biz['business_name'];
+    $city      = (string)$biz['location_city'];
+    $catLower  = strtolower((string)$biz['category_name']);
+    $email     = (string)($biz['email_address'] ?? '');
+    $firstName = trim((string)($biz['owner_first_name'] ?? ''));
+    $gaps      = $biz['enhancement_gaps'] ?? ho_enhancement_gaps($biz);
+
+    $hasAngi  = (bool)($biz['has_angi']      ?? false);
+    $hasThumb = (bool)($biz['has_thumbtack'] ?? false);
+
+    $subject = "A quick note for {$name}";
+
+    if (in_array('paid_leads', $gaps, true)) {
+        $platform = $hasAngi ? 'Angi' : 'Thumbtack';
+        $hook = "I noticed you\u{2019}re on {$platform} paying per lead. A contact form on your existing site sends you the same customers for free \u{2014} no per-job fees.";
+    } elseif (in_array('contact_form', $gaps, true)) {
+        $hook = "I noticed your {$catLower} business doesn\u{2019}t have a contact form. Anyone who found your site but didn\u{2019}t want to call just left \u{2014} a simple form captures those jobs.";
+    } elseif (in_array('google_business', $gaps, true)) {
+        $hook = "I looked up {$name} and you don\u{2019}t appear in Google Maps for {$catLower} in {$city}. That\u{2019}s fixable with a Google Business setup \u{2014} usually takes one afternoon.";
+    } elseif (in_array('tech_issues', $gaps, true)) {
+        $hook = "I checked your site and noticed some technical issues \u{2014} mobile friendliness or SSL \u{2014} that Google actively penalises in search rankings.";
+    } else {
+        $hook = "I looked at {$name} and noticed a few things that could bring in more customers without rebuilding anything.";
+    }
+
+    $greeting = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
+
+    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}\n\nI put a quick overview together:\n\n{$previewUrl}\n\nReply to this email or call \u{2014} I\u{2019}ll send a quote same day. No contracts, flat price.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+
+    return 'mailto:' . rawurlencode($email)
+        . '?subject=' . rawurlencode($subject)
+        . '&body='    . rawurlencode($body);
 }
 
 // ─── Send queue ───────────────────────────────────────────────────────────────
@@ -1243,7 +1390,7 @@ function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
         SELECT b.*, c.name AS category_name, c.slug AS category_slug, c.typical_services,
                p.id AS preview_id, p.headline, p.subheadline,
                p.services_display, p.opportunity_statement, p.package_recommendation,
-               p.preview_status, p.view_count,
+               p.preview_status, p.preview_type, p.view_count,
                r.has_website, r.website_quality, r.has_google_business,
                r.google_review_count, r.google_rating, r.has_facebook,
                r.facebook_activity, r.strengths, r.gaps, r.service_area_text,
@@ -1775,6 +1922,7 @@ Return exactly this JSON structure:
   "enrichment_results": [
     {
       "business_id": 0,
+      "raw_name": "Exact business name from the list above",
       "competitor_has_website": false,
       "competitor_name": "Name of their most obvious local competitor in the same city/category, or empty string",
       "competitor_website": "Competitor's website URL or empty string",
@@ -1815,12 +1963,25 @@ function ho_import_enrichment_json(PDO $pdo, string $rawJson): array {
 
     foreach ($results as $r) {
         if (!is_array($r)) continue;
-        $bizId = (int)($r['business_id'] ?? 0);
-        if ($bizId === 0) continue;
+        $bizId   = (int)($r['business_id'] ?? 0);
+        $rawName = trim((string)($r['raw_name'] ?? ''));
 
-        $s = $pdo->prepare("SELECT id FROM businesses WHERE id = ? LIMIT 1");
-        $s->execute([$bizId]);
-        if (!$s->fetch()) { $errors[] = "No business found for ID:{$bizId}"; continue; }
+        $bizRow = null;
+        if ($bizId > 0) {
+            $s = $pdo->prepare("SELECT id FROM businesses WHERE id = ? LIMIT 1");
+            $s->execute([$bizId]);
+            $bizRow = $s->fetch() ?: null;
+        }
+        if (!$bizRow && $rawName !== '') {
+            $s = $pdo->prepare("SELECT id FROM businesses WHERE LOWER(business_name) = LOWER(?) LIMIT 1");
+            $s->execute([$rawName]);
+            $bizRow = $s->fetch() ?: null;
+        }
+        if (!$bizRow) {
+            if ($bizId > 0 || $rawName !== '') $errors[] = "Not found: {$rawName}" . ($bizId > 0 ? " (ID:{$bizId})" : '');
+            continue;
+        }
+        $bizId = (int)$bizRow['id'];
 
         $validBooking = ['phone','facebook','email','form','app','unknown'];
         $validAgeBand = ['under35','35-55','55plus','unknown'];

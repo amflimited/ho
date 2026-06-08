@@ -70,6 +70,8 @@ if ($lastReviewDate !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewDate,
 $email        = $row ? trim((string)($row['email_address'] ?? '')) : '';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $seasonalNote = $row ? ho_seasonal_urgency_note($catSlug) : '';
+$isEnhancement = $row && isset($row['preview_type']) && $row['preview_type'] === 'enhancement';
+$enhancementGaps = ($isEnhancement && $row) ? ho_enhancement_gaps($row) : [];
 $design       = $row ? ho_design_direction($catSlug) : ['key' => 'default', 'name' => '', 'feel' => ''];
 $subdomain    = $row ? ho_suggest_subdomain($name) : '';
 $suggestedCom = $subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '';
@@ -223,12 +225,20 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-turn">
 <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
+    <?php if ($isEnhancement): ?>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I noticed a few things worth sharing.' : 'Hey &mdash; I noticed a few things worth sharing.' ?></p>
+    <?php else: ?>
     <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website preview for your business.' : 'I built a website preview for your business.' ?><?= ($ownerAgeBand === '55plus') ? ' No tech headaches &mdash; I handle everything.' : '' ?></p>
+    <?php endif; ?>
     <?php if ($angle !== ''): ?>
       <p class="fd-turn-angle"><?= ho_h($angle) ?></p>
     <?php endif; ?>
     <div class="fd-turn-actions">
+      <?php if ($isEnhancement): ?>
+      <a href="#what-i-can-add" class="fd-btn fd-btn-primary fd-turn-cta">See What I Found &darr;</a>
+      <?php else: ?>
       <a href="#preview" class="fd-btn fd-btn-primary fd-turn-cta">View Your Preview &darr;</a>
+      <?php endif; ?>
     </div>
   </section>
 
@@ -401,9 +411,61 @@ if ($paid && $row && $pdo !== null) {
       </div>
     <?php endif; ?>
 
+    <?php if (!$isEnhancement): ?>
     <p class="fd-why-scroll">I built something to fix that. See it below &darr;</p>
+    <?php endif; ?>
   </section>
 
+  <?php if ($isEnhancement): ?>
+  <!-- ── WHAT I CAN ADD (enhancement only) ──────────────────────────────── -->
+  <?php
+  $gapCards = [
+      'contact_form'    => ['icon'=>'📋','title'=>'Contact form / booking page',   'body'=>'Anyone who finds your site but doesn\'t want to call just leaves. A simple form captures those jobs.',        'price'=>'$99–$149'],
+      'paid_leads'      => ['icon'=>'💸','title'=>'Stop paying per lead',           'body'=>'A contact form on your own site sends you the same customers as Angi or Thumbtack — with no per-job fee.',     'price'=>'$99–$149'],
+      'google_business' => ['icon'=>'📍','title'=>'Google Business setup',          'body'=>'You\'re not showing in Google Maps searches right now. A verified profile changes that in days.',              'price'=>'$49'],
+      'tech_issues'     => ['icon'=>'⚡','title'=>'Site modernisation',             'body'=>'Mobile friendliness and SSL are Google ranking signals. Fixing them costs less than losing the ranking hits.',  'price'=>'$199–$499'],
+      'gbp_photos'      => ['icon'=>'📷','title'=>'More photos on your listing',    'body'=>'Businesses with 20+ Google photos get significantly more clicks. I can help you get there.',                   'price'=>'$49'],
+      'stale_reviews'   => ['icon'=>'⭐','title'=>'Review recency strategy',        'body'=>'Your last review was a while ago. Customers notice. I\'ll show you a simple system to keep fresh ones coming.', 'price'=>'included'],
+  ];
+  $shownGaps = array_intersect($enhancementGaps, array_keys($gapCards));
+  ?>
+  <?php if (!empty($shownGaps)): ?>
+  <section class="fd-card fd-reveal" id="what-i-can-add">
+    <p class="fd-kicker">What I can add</p>
+    <h2>Specific improvements, flat prices.</h2>
+    <div class="fd-module-list">
+      <?php foreach ($shownGaps as $i => $gk):
+        $gc = $gapCards[$gk];
+      ?>
+        <div class="fd-module fd-reveal" style="--reveal-delay:<?= $i * 80 ?>ms">
+          <span class="fd-module-num"><?= ho_h($gc['icon']) ?></span>
+          <div>
+            <strong><?= ho_h($gc['title']) ?> <span style="font-weight:400;color:#666;font-size:.9em"><?= ho_h($gc['price']) ?></span></strong>
+            <p><?= ho_h($gc['body']) ?></p>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- ── CONTACT CTA (enhancement only) ────────────────────────────────── -->
+  <section class="fd-card fd-offer fd-reveal" id="pricing">
+    <p class="fd-kicker">Let&rsquo;s talk</p>
+    <h2>No obligation. I&rsquo;ll send a quote same day.</h2>
+    <p>No contracts. Flat price. You decide what to add &mdash; I quote it and we go from there.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px">
+      <a class="fd-btn fd-btn-primary" href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Quick question from ' . $name) ?>">
+        Email Adam &rarr;
+      </a>
+      <a class="fd-btn fd-btn-secondary" href="tel:7654434321">(765) 443-4321</a>
+    </div>
+    <p class="fd-muted" style="margin-top:16px">Adam Ferree &middot; Hoosier Online &middot; New Castle, Indiana</p>
+  </section>
+
+  <?php endif; ?>
+
+  <?php if (!$isEnhancement): ?>
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <div id="preview"></div>
   <?php
@@ -520,7 +582,7 @@ if ($paid && $row && $pdo !== null) {
 
   <?php endif; ?>
 
-
+  <?php endif; // !$isEnhancement ?>
 
   <!-- ── WHO BUILT THIS ───────────────────────────────────────────────────── -->
   <section class="fd-card fd-trust fd-reveal" id="about">
@@ -547,6 +609,7 @@ if ($paid && $row && $pdo !== null) {
     </div>
   </section>
 
+  <?php if (!$isEnhancement): ?>
   <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
   <section class="fd-section fd-reveal" id="services">
     <div class="fd-section-head">
@@ -818,6 +881,8 @@ if ($paid && $row && $pdo !== null) {
     }
   }
   </script>
+
+  <?php endif; // !$isEnhancement ?>
 
   <footer class="fd-footer">
     <strong><a href="/">Hoosier Online</a></strong><br>
