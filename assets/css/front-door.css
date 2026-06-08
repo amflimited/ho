@@ -278,7 +278,7 @@ body.front-door-preview-page{
 /* ── THE TURN ── */
 .fd-turn{
   text-align:center;
-  padding:48px 20px 52px;
+  padding:28px 20px 32px;
   position:relative;overflow:hidden;
 }
 .fd-turn::before{
@@ -299,7 +299,7 @@ body.front-door-preview-page{
   position:relative;
 }
 .fd-turn-actions{
-  margin-top:28px;
+  margin-top:16px;
   display:flex;justify-content:center;
   position:relative;
 }
@@ -310,13 +310,13 @@ body.front-door-preview-page{
   letter-spacing:-.01em;
 }
 .fd-turn-eyebrow{
-  margin:0 0 18px;
+  margin:0 0 8px;
   font-size:12px;font-weight:800;letter-spacing:.13em;
   text-transform:uppercase;color:var(--fd-muted);
   position:relative;
 }
 .fd-turn-name{
-  margin:0 0 18px;
+  margin:0 0 10px;
   font-size:clamp(36px,10vw,86px);
   line-height:.92;letter-spacing:-.048em;color:var(--fd-ink);
   overflow-wrap:break-word;word-break:break-word;
@@ -1246,7 +1246,7 @@ body.front-door-preview-page{
 
 /* ── Hero angle subtitle ─────────────────────────────────────────────────── */
 .fd-turn-angle{
-  margin:12px auto 0;
+  margin:6px auto 0;
   max-width:420px;
   font-size:16px;line-height:1.5;
   color:var(--fd-muted);
