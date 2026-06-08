@@ -33,8 +33,9 @@ body.front-door-preview-page{
 }
 .fd-nav-cta{
   font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;
-  background:var(--fd-green);color:#fff;
-  padding:7px 16px;border-radius:20px;flex-shrink:0;
+  background:transparent;color:var(--fd-green);
+  border:1.5px solid var(--fd-green);
+  padding:6px 15px;border-radius:20px;flex-shrink:0;
 }
 
 .fd-shell{
