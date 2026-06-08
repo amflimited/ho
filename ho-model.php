@@ -520,7 +520,7 @@ For each business return exactly this JSON structure (one entry per business):
       "instagram_activity": "none",
       "services_list": ["service 1", "service 2"],
       "service_area_text": "City and surrounding area",
-      "opportunity_summary": "One sentence: why this business needs a front door.",
+      "opportunity_summary": "One or two sentences written directly to the owner (use 'you'/'your'), explaining why they need a website based on what you found. Be specific — mention their actual situation. Do NOT state the review count (that is shown separately). Example: 'Your reviews are strong but there is no website for customers to land on — every search that finds you hits a dead end.'",
       "strengths": ["thing working in their favor"],
       "gaps": ["thing missing or broken"],
       "recommended_package": "standard",
@@ -684,12 +684,9 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
 
     $headline = "Your {$catName} business deserves a front door.";
     $subheadline = trim((string)($row['opportunity_summary'] ?? ''))
-        ?: "We found {$row['business_name']} in {$city} and think we can help.";
+        ?: "Your {$catName} business in {$city} deserves a website that works as hard as you do.";
 
     $opportunity = $subheadline;
-    if ($row['has_google_business'] && $row['google_review_count'] > 0) {
-        $opportunity .= " You have {$row['google_review_count']} Google reviews — customers are finding you, but the path stops there.";
-    }
 
     $package = $row['recommended_package'] ?: 'standard';
 
