@@ -10,20 +10,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via SFTP
+      - name: Deploy via rsync
         env:
           SSHPASS: ${{ secrets.FTP_PASSWORD }}
         run: |
-          sudo apt-get install -y lftp sshpass
-          lftp -u "${{ secrets.FTP_USERNAME }},dummy" \
-            -e "set sftp:connect-program 'sshpass -e ssh -o StrictHostKeyChecking=no'; \
-                mirror --reverse --verbose \
-                  --exclude-glob .git/ \
-                  --exclude-glob .github/ \
-                  --exclude database.php \
-                  --exclude admin-secrets.php \
-                  --exclude stripe-config.php \
-                  --exclude porkbun-config.php \
-                  . /public_html/; \
-                bye" \
-            sftp://${{ secrets.FTP_HOST }}
+          sudo apt-get install -y rsync sshpass
+          rsync -az --checksum \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='database.php' \
+            --exclude='admin-secrets.php' \
+            --exclude='stripe-config.php' \
+            --exclude='porkbun-config.php' \
+            -e "sshpass -e ssh -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }}:/public_html/
