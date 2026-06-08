@@ -1,8 +1,4 @@
 ---
 deployment:
   tasks:
-    - /bin/find /home1/spofnkte/public_html -type d -exec chmod 755 {} \;
-    - /bin/find /home1/spofnkte/public_html -name "*.php" -exec chmod 644 {} \;
-    - /bin/find /home1/spofnkte/public_html -name "*.css" -exec chmod 644 {} \;
-    - /bin/find /home1/spofnkte/public_html -name "*.js" -exec chmod 644 {} \;
-    - /bin/find /home1/spofnkte/public_html -name ".htaccess" -exec chmod 644 {} \;
+    - echo deployed

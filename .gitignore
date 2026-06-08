@@ -7,4 +7,5 @@ private/
 *.local.php
 error_log
 *.log
+.ftpquota
 _fix.php
