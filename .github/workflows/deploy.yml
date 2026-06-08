@@ -9,18 +9,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Deploy via rsync
+      - name: Deploy changed files via SFTP
         env:
           SSHPASS: ${{ secrets.FTP_PASSWORD }}
         run: |
-          sudo apt-get install -y rsync sshpass
-          rsync -az --checksum \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='database.php' \
-            --exclude='admin-secrets.php' \
-            --exclude='stripe-config.php' \
-            --exclude='porkbun-config.php' \
-            -e "sshpass -e ssh -o StrictHostKeyChecking=no" \
-            ./ ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }}:/public_html/
+          sudo apt-get install -y lftp sshpass
+
+          BEFORE="${{ github.event.before }}"
+          SKIP='database\.php\|admin-secrets\.php\|stripe-config\.php\|porkbun-config\.php'
+
+          # Changed files in this push; fall back to all files on brand-new branch
+          if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            FILES=$(git diff --name-only "$BEFORE" HEAD | grep -v "$SKIP")
+          else
+            FILES=$(git ls-files | grep -v "$SKIP")
+          fi
+
+          [ -z "$FILES" ] && { echo "Nothing to deploy."; exit 0; }
+          echo "Deploying: $FILES"
+
+          BATCH=$(mktemp)
+          printf "set sftp:connect-program 'sshpass -e ssh -o StrictHostKeyChecking=no'\n" >> "$BATCH"
+          printf "open -u %s,dummy sftp://%s\n" "${{ secrets.FTP_USERNAME }}" "${{ secrets.FTP_HOST }}" >> "$BATCH"
+
+          declare -A DIRS_DONE
+          while IFS= read -r f; do
+            dir=$(dirname "$f")
+            if [ "$dir" != "." ] && [ -z "${DIRS_DONE[$dir]}" ]; then
+              printf "mkdir -p /public_html/%s\n" "$dir" >> "$BATCH"
+              DIRS_DONE[$dir]=1
+            fi
+            printf "put %s /public_html/%s\n" "$f" "$f" >> "$BATCH"
+          done <<< "$FILES"
+
+          printf "bye\n" >> "$BATCH"
+          lftp -f "$BATCH"
