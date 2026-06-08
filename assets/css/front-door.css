@@ -1,4 +1,4 @@
-/* v126 Front Door Preview */
+/* v127 Front Door Preview */
 :root{
   --fd-bg:#f4efe6;
   --fd-card:#fffaf1;
@@ -500,6 +500,13 @@ body.front-door-preview-page{
   font-size:12px;color:var(--fd-muted);line-height:1.5;
   font-style:italic;margin:0 2px;
 }
+.fd-avail-badge{
+  flex-shrink:0;
+  font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  border-radius:20px;padding:3px 10px;white-space:nowrap;
+}
+.fd-avail-yes{ background:rgba(47,94,54,.15);color:var(--fd-green); }
+.fd-avail-no{ background:rgba(181,18,34,.10);color:var(--fd-red); }
 
 /* ── "Your design: X ✓ Selected" confirmation row ───────────────────────── */
 .fd-chosen-label{

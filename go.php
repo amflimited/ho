@@ -43,9 +43,19 @@ $isManaged    = $package === 'managed';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $design       = $row ? ho_design_direction($catSlug) : ['key' => 'default', 'name' => '', 'feel' => ''];
 $subdomain    = $row ? ho_suggest_subdomain($name) : '';
+$ownDotCom    = $subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '';
 $modules      = ho_product_modules();
 $features     = ho_product_features();
 $angle        = $row ? ho_sales_angle($row) : '';
+
+// ── Porkbun domain availability check ────────────────────────────────────
+$domainCheck = null;
+if ($ownDotCom !== '' && $row) {
+    try {
+        require_once __DIR__ . '/porkbun.php';
+        $domainCheck = ho_porkbun_check($ownDotCom);
+    } catch (Throwable) {}
+}
 
 // Phone display + tel link
 $telRaw = preg_replace('/\D/', '', $phone) ?? '';
@@ -315,7 +325,16 @@ if ($paid && $row && $pdo !== null) {
   <?php endif; ?>
 
   <!-- ── CHOOSE YOUR ADDRESS ───────────────────────────────────────────────── -->
-  <?php $ownDotCom = str_replace('.hoosieronline.com', '.com', $subdomain); ?>
+  <?php
+  $availHtml = '';
+  if ($domainCheck !== null) {
+      if ($domainCheck['available']) {
+          $availHtml = '<span class="fd-avail-badge fd-avail-yes">✓ Available</span>';
+      } else {
+          $availHtml = '<span class="fd-avail-badge fd-avail-no">✗ Taken</span>';
+      }
+  }
+  ?>
   <div class="fd-addr-chooser fd-reveal">
     <p class="fd-kicker">Choose your address</p>
     <h2 class="fd-design-title">Where customers will find you.</h2>
@@ -338,13 +357,18 @@ if ($paid && $row && $pdo !== null) {
         <div class="fd-addr-body">
           <div class="fd-addr-head">
             <div class="fd-addr-url fd-addr-url-com"><?= ho_h($ownDotCom) ?></div>
-            <span class="fd-addr-tag fd-addr-tag-addon">+$25/yr</span>
+            <span class="fd-addr-tag fd-addr-tag-addon" id="fd-com-price-tag">+$25/yr</span>
+            <?= $availHtml ?>
           </div>
-          <p>Your own .com &mdash; looks more professional, easier to hand out. We register it and handle renewals. Included at no extra cost in <strong>Launch Ready</strong> &amp; <strong>Complete</strong>.</p>
+          <p>Your own .com &mdash; looks more professional, easier to hand out. We register it and handle renewals. <span id="fd-com-incl-note">Included at no extra cost in <strong>Launch Ready</strong> &amp; <strong>Complete</strong>.</span></p>
         </div>
       </label>
     </div>
+    <?php if ($domainCheck !== null && !$domainCheck['available']): ?>
+    <p class="fd-addr-note">That .com is taken, but don&rsquo;t worry &mdash; I&rsquo;ll find the closest available option and confirm with you before anything is registered.</p>
+    <?php else: ?>
     <p class="fd-addr-note">If <?= ho_h($ownDotCom) ?> isn&rsquo;t available, I&rsquo;ll find the closest option and confirm with you before anything is registered.</p>
+    <?php endif; ?>
   </div>
 
   <script>
@@ -354,13 +378,9 @@ if ($paid && $row && $pdo !== null) {
     var subRadio = subCard ? subCard.querySelector('input') : null;
     var comRadio = comCard ? comCard.querySelector('input') : null;
     function syncDomainAddon(wantCom) {
-      var cb  = document.querySelector('.fd-addon-list input[data-addon="domain"]');
-      var hid = document.getElementById('fd-h-domain');
-      if (cb)  { cb.checked = wantCom; }
-      if (hid) { hid.disabled = !wantCom; if (wantCom) hid.value = 'domain'; }
-      if (typeof fdUpdateTotal === 'function') fdUpdateTotal();
       if (subCard) subCard.classList.toggle('is-selected', !wantCom);
       if (comCard) comCard.classList.toggle('is-selected', wantCom);
+      if (typeof fdUpdateTotal === 'function') fdUpdateTotal();
     }
     if (subRadio) subRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(false); });
     if (comRadio) comRadio.addEventListener('change', function(){ if (this.checked) syncDomainAddon(true); });
@@ -427,10 +447,7 @@ if ($paid && $row && $pdo !== null) {
 
   <!-- ── PACKAGE CONFIGURATOR ────────────────────────────────────────────── -->
   <?php
-  $pkgCatalog    = ho_package_catalog();
-  $addonCatalog  = ho_addon_catalog();
   $bundles       = ho_bundle_presets();
-  $priceMap      = ho_addon_price_map();
   $defaultBundle = $isManaged ? 'managed' : 'launch';
   $defaultBData  = $bundles[$defaultBundle];
   $defaultPrice  = ho_bundle_price($defaultBundle);
@@ -467,59 +484,6 @@ if ($paid && $row && $pdo !== null) {
       <?php endforeach; ?>
     </div>
 
-    <!-- Customize toggle -->
-    <button type="button" class="fd-customize-btn" id="fd-customize-btn"
-            onclick="fdToggleCustomize()">+ Customize or add more items</button>
-
-    <!-- Full add-on list — hidden by default -->
-    <div id="fd-addon-area" hidden>
-      <p class="fd-addon-label" style="margin-top:4px">Base package:</p>
-      <div class="fd-pkg-options">
-        <?php foreach ($pkgCatalog as $pkgKey => $pkgData):
-          $pkgSel = $pkgKey === $defaultBData['pkg'];
-        ?>
-        <label class="fd-pkg-option<?= $pkgSel ? ' is-selected' : '' ?>">
-          <input type="radio" name="pkg_display" value="<?= ho_h($pkgKey) ?>"
-                 data-price="<?= (int)$pkgData['price'] ?>"
-                 <?= $pkgSel ? 'checked' : '' ?> onchange="fdUpdateTotal()">
-          <div class="fd-pkg-option-body">
-            <div class="fd-pkg-option-head">
-              <strong><?= ho_h($pkgData['label']) ?></strong>
-              <span class="fd-pkg-price-tag">$<?= number_format($pkgData['price']) ?></span>
-            </div>
-            <p><?= ho_h($pkgData['desc']) ?></p>
-          </div>
-        </label>
-        <?php endforeach; ?>
-      </div>
-
-      <p class="fd-addon-label" style="margin-top:16px">Add-ons:</p>
-      <div class="fd-addon-list">
-        <?php foreach ($addonCatalog as $cat): ?>
-        <p class="fd-addon-cat"><?= ho_h($cat['label']) ?></p>
-        <?php foreach ($cat['items'] as $addonKey => $addon):
-          $isChecked = in_array($addonKey, $defaultBData['addons'], true);
-          $desc = $addon['desc'];
-          if ($addonKey === 'domain') {
-              $ownDomain = str_replace('.hoosieronline.com', '.com', $subdomain);
-              $desc = 'Your own .com (e.g., ' . ho_h($ownDomain) . ') instead of .hoosieronline.com — we register it for you.';
-          }
-        ?>
-        <label class="fd-addon-item">
-          <input type="checkbox" data-price="<?= (int)$addon['price'] ?>"
-                 data-addon="<?= ho_h($addonKey) ?>"
-                 <?= $isChecked ? 'checked' : '' ?> onchange="fdUpdateTotal()">
-          <div class="fd-addon-body">
-            <strong><?= ho_h($addon['label']) ?></strong>
-            <span class="fd-addon-price">+$<?= number_format($addon['price']) ?><?= ho_h($addon['note']) ?></span>
-            <p><?= $desc ?></p>
-          </div>
-        </label>
-        <?php endforeach; ?>
-        <?php endforeach; ?>
-      </div>
-    </div>
-
     <!-- Total + form -->
     <div class="fd-total-row">
       <span>Your total:</span>
@@ -541,14 +505,10 @@ if ($paid && $row && $pdo !== null) {
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
       <input type="hidden" name="pkg"          id="fd-h-pkg"      value="<?= ho_h($defaultBData['pkg']) ?>">
-      <input type="hidden" name="template_key" id="fd-h-template" value="<?= ho_h($templateKey) ?>">
-      <input type="hidden" name="subdomain"                       value="<?= ho_h($subdomain) ?>">
-      <?php foreach ($addonCatalog as $cat): foreach ($cat['items'] as $addonKey => $addon):
-        $isChecked = in_array($addonKey, $defaultBData['addons'], true);
-      ?>
-      <input type="hidden" name="addons[]" id="fd-h-<?= ho_h($addonKey) ?>"
-             value="<?= ho_h($addonKey) ?>"<?= !$isChecked ? ' disabled' : '' ?>>
-      <?php endforeach; endforeach; ?>
+      <input type="hidden" name="template_key" id="fd-h-template" value="<?= ho_h($templateKey ?? '') ?>">
+      <input type="hidden" name="subdomain"    id="fd-h-subdomain" value="<?= ho_h($subdomain) ?>">
+      <!-- domain addon: enabled only when Standard pkg + .com address selected -->
+      <input type="hidden" name="addons[]" id="fd-h-domain" value="domain" disabled>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
         Yes, I Want This &rarr;
       </button>
@@ -564,75 +524,57 @@ if ($paid && $row && $pdo !== null) {
   </section>
 
   <script>
-  function fdSelectBundle(card) {
-    var addons = JSON.parse(card.dataset.addons || '[]');
-    var pkg    = card.dataset.pkg || 'standard';
+  var FD_PRICES = {standard: 199, launch: 399, managed: 649};
 
+  function fdSelectBundle(card) {
+    var pkg = card.dataset.pkg || 'standard';
     document.querySelectorAll('.fd-bundle-card').forEach(function(c) { c.classList.remove('is-selected'); });
     card.classList.add('is-selected');
-
-    var pkgRadio = document.querySelector('input[name="pkg_display"][value="' + pkg + '"]');
-    if (pkgRadio) pkgRadio.checked = true;
     var pkgHid = document.getElementById('fd-h-pkg');
     if (pkgHid) pkgHid.value = pkg;
-
-    document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
-      var r = el.querySelector('input[type="radio"]'); el.classList.toggle('is-selected', !!(r && r.checked));
-    });
-    document.querySelectorAll('.fd-addon-list input[type="checkbox"]').forEach(function(cb) {
-      var key = cb.dataset.addon;
-      cb.checked = addons.indexOf(key) !== -1;
-      var hid = document.getElementById('fd-h-' + key);
-      if (hid) { hid.disabled = !cb.checked; if (cb.checked) hid.value = key; }
-    });
-
     fdUpdateTotal();
   }
 
-  function fdToggleCustomize() {
-    var area = document.getElementById('fd-addon-area');
-    var btn  = document.getElementById('fd-customize-btn');
-    if (!area) return;
-    area.hidden = !area.hidden;
-    if (area.hidden) {
-      btn.textContent = '+ Customize or add more items';
-    } else {
-      fdUpdateCustomizeBtn();
-    }
-  }
-
-  function fdUpdateCustomizeBtn() {
-    var btn  = document.getElementById('fd-customize-btn');
-    var area = document.getElementById('fd-addon-area');
-    if (!btn || !area || area.hidden) return;
-    var count = document.querySelectorAll('.fd-addon-list input[type="checkbox"]:checked').length;
-    btn.textContent = count > 0
-      ? '− ' + count + ' add-on' + (count !== 1 ? 's' : '') + ' selected · hide'
-      : '− Hide customization';
-  }
-
   function fdUpdateTotal() {
-    var pkg  = document.querySelector('input[name="pkg_display"]:checked');
-    var base = pkg ? parseInt(pkg.dataset.price, 10) : <?= $pkgCatalog[$defaultBData['pkg']]['price'] ?>;
-    var addons = 0;
-    document.querySelectorAll('.fd-addon-list input[type="checkbox"]').forEach(function(cb) {
-      if (cb.checked) addons += parseInt(cb.dataset.price || '0', 10);
-      var hid = document.getElementById('fd-h-' + (cb.dataset.addon || ''));
-      if (hid) { hid.disabled = !cb.checked; if (cb.checked) hid.value = cb.dataset.addon; }
-    });
+    var pkgHid = document.getElementById('fd-h-pkg');
+    var pkg    = pkgHid ? pkgHid.value : '<?= ho_h($defaultBundle) ?>';
+    var base   = FD_PRICES[pkg] || <?= $defaultPrice ?>;
+
+    var comCard  = document.getElementById('fd-addr-com-card');
+    var comRadio = comCard ? comCard.querySelector('input') : null;
+    var wantCom  = !!(comRadio && comRadio.checked);
+
+    // Domain addon only applies to Standard package (Launch/Managed include .com)
+    var domainExtra = (pkg === 'standard' && wantCom) ? 25 : 0;
+    var domHid = document.getElementById('fd-h-domain');
+    if (domHid) {
+      var needAddon = (pkg === 'standard' && wantCom);
+      domHid.disabled = !needAddon;
+      if (needAddon) domHid.value = 'domain';
+    }
+
+    // Update the .com price tag: "Included" for Launch/Managed, "+$25/yr" for Standard
+    var comPriceTag = document.getElementById('fd-com-price-tag');
+    var comInclNote = document.getElementById('fd-com-incl-note');
+    if (comPriceTag) {
+      if (pkg !== 'standard') {
+        comPriceTag.textContent = 'Included';
+        comPriceTag.className = 'fd-addr-tag fd-addr-tag-free';
+      } else {
+        comPriceTag.textContent = '+$25/yr';
+        comPriceTag.className = 'fd-addr-tag fd-addr-tag-addon';
+      }
+    }
+    if (comInclNote) comInclNote.style.display = pkg === 'standard' ? '' : 'none';
+
+    var total = base + domainExtra;
     var totalEl = document.getElementById('fd-pkg-total');
     if (totalEl) {
-      totalEl.textContent = '$' + (base + addons).toLocaleString();
+      totalEl.textContent = '$' + total.toLocaleString();
       totalEl.classList.remove('fd-total-flash');
       void totalEl.offsetWidth;
       totalEl.classList.add('fd-total-flash');
     }
-    var pkgHid = document.getElementById('fd-h-pkg');
-    if (pkgHid && pkg) pkgHid.value = pkg.value;
-    document.querySelectorAll('.fd-pkg-option').forEach(function(el) {
-      var r = el.querySelector('input[type="radio"]'); el.classList.toggle('is-selected', !!(r && r.checked));
-    });
-    fdUpdateCustomizeBtn();
   }
   </script>
 
