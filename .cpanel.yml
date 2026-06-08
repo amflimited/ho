@@ -1,10 +1,8 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home1/spofnkte/public_html/
-    - git -C $DEPLOYPATH config core.fileMode false
-    - /bin/find $DEPLOYPATH -type d -exec chmod 755 {} \;
-    - /bin/find $DEPLOYPATH -name "*.php" -exec chmod 644 {} \;
-    - /bin/find $DEPLOYPATH -name "*.css" -exec chmod 644 {} \;
-    - /bin/find $DEPLOYPATH -name "*.js" -exec chmod 644 {} \;
-    - /bin/find $DEPLOYPATH -name ".htaccess" -exec chmod 644 {} \;
+    - /bin/find /home1/spofnkte/public_html -type d -exec chmod 755 {} \;
+    - /bin/find /home1/spofnkte/public_html -name "*.php" -exec chmod 644 {} \;
+    - /bin/find /home1/spofnkte/public_html -name "*.css" -exec chmod 644 {} \;
+    - /bin/find /home1/spofnkte/public_html -name "*.js" -exec chmod 644 {} \;
+    - /bin/find /home1/spofnkte/public_html -name ".htaccess" -exec chmod 644 {} \;
