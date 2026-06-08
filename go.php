@@ -48,6 +48,19 @@ $hasGoogle    = (bool)($row['has_google_business'] ?? false);
 $serviceArea  = (string)($row['service_area_text'] ?? ($city !== '' ? $city . ' & surrounding area' : 'Indiana'));
 $isManaged    = $package === 'managed';
 
+// ── New research fields ──────────────────────────────────────────────────────
+$compHasSite  = (bool)($row['competitor_has_website'] ?? false);
+$compName     = trim((string)($row['competitor_name']    ?? ''));
+$compWebsite  = trim((string)($row['competitor_website'] ?? ''));
+$bookingMethod= (string)($row['booking_method']    ?? 'unknown');
+$yearsInBiz   = (int)($row['years_in_business']    ?? 0);
+$hasAngi      = (bool)($row['has_angi']            ?? false);
+$hasThumbtak  = (bool)($row['has_thumbtack']       ?? false);
+$gbpPhotos    = isset($row['gbp_photo_count']) && $row['gbp_photo_count'] !== null ? (int)$row['gbp_photo_count'] : null;
+$notMobile    = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
+$noSsl        = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
+$seasonalNote = $row ? ho_seasonal_urgency_note($catSlug) : '';
+
 $email        = $row ? trim((string)($row['email_address'] ?? '')) : '';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $design       = $row ? ho_design_direction($catSlug) : ['key' => 'default', 'name' => '', 'feel' => ''];
@@ -264,6 +277,73 @@ if ($paid && $row && $pdo !== null) {
 
     <?php if (!empty($opp)): ?>
       <p class="fd-why"><?= ho_h($opp) ?></p>
+    <?php endif; ?>
+
+    <?php // ── Competitive pressure block ──────────────────────────────────── ?>
+    <?php if ($compHasSite && $compName !== ''): ?>
+    <div class="fd-signal fd-signal-comp">
+      <span class="fd-signal-icon" aria-hidden="true">⚠</span>
+      <div>
+        <strong><?= ho_h($compName) ?> has a website.</strong>
+        <?php if ($compWebsite !== ''): ?>
+          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find
+          <a href="<?= ho_h($compWebsite) ?>" target="_blank" rel="noopener"><?= ho_h(parse_url($compWebsite, PHP_URL_HOST) ?: $compName) ?></a>.
+        <?php else: ?>
+          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find <?= ho_h($compName) ?>.
+        <?php endif; ?>
+        You don&rsquo;t show up.
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php // ── Angi / Thumbtack ROI block ──────────────────────────────────── ?>
+    <?php if ($hasAngi || $hasThumbtak): ?>
+    <?php $platform = $hasAngi ? 'Angi' : 'Thumbtack'; ?>
+    <div class="fd-signal fd-signal-roi">
+      <span class="fd-signal-icon" aria-hidden="true">$</span>
+      <div>
+        <strong>You&rsquo;re paying <?= ho_h($platform) ?> for leads.</strong>
+        A website sends you the same customers for free — permanently. Most businesses break even within the first 2&ndash;3 jobs.
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php // ── Phone-only booking friction ─────────────────────────────────── ?>
+    <?php if ($bookingMethod === 'phone' && $googleCount >= 5): ?>
+    <div class="fd-signal fd-signal-friction">
+      <span class="fd-signal-icon" aria-hidden="true">📞</span>
+      <div>
+        <strong>Phone-only means silent lost jobs.</strong>
+        Every person who found you but didn&rsquo;t want to call became a competitor&rsquo;s customer. A contact form captures them.
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php // ── Technical issues on existing site ──────────────────────────── ?>
+    <?php if ($hasWebsite && ($notMobile || $noSsl)): ?>
+    <div class="fd-signal fd-signal-tech">
+      <span class="fd-signal-icon" aria-hidden="true">⚡</span>
+      <div>
+        <?php if ($notMobile && $noSsl): ?>
+          <strong>Your site isn&rsquo;t mobile-friendly and has no SSL.</strong> Google is actively penalising it in search rankings, and modern browsers flag it as insecure.
+        <?php elseif ($notMobile): ?>
+          <strong>Your site isn&rsquo;t mobile-friendly.</strong> Over 70% of local searches happen on phones. Google penalises sites that aren&rsquo;t optimised.
+        <?php else: ?>
+          <strong>Your site has no SSL certificate.</strong> Browsers flag it as &ldquo;Not Secure,&rdquo; which kills visitor confidence before they even read a word.
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <?php // ── Years in business credibility ───────────────────────────────── ?>
+    <?php if ($yearsInBiz >= 5 && (!$hasWebsite || $websiteQ === 'none')): ?>
+    <div class="fd-signal fd-signal-cred">
+      <span class="fd-signal-icon" aria-hidden="true">📅</span>
+      <div>
+        <strong><?= $yearsInBiz ?> years in business.</strong>
+        That credibility is completely invisible online right now. A website makes your track record the first thing customers see.
+      </div>
+    </div>
     <?php endif; ?>
 
     <?php if (!empty($strengths)): ?>
@@ -648,6 +728,12 @@ if ($paid && $row && $pdo !== null) {
       <li>I build <?= ho_h($name) ?>&rsquo;s site &mdash; live within 24 hours, guaranteed</li>
       <li><?php if ($hasExistingDomain): ?>We connect <?= ho_h($ownDotCom) ?> to your new site and you go live<?php elseif ($ownDotCom !== ''): ?><?= ho_h($ownDotCom) ?> goes live<?php else: ?><?= ho_h($name) ?> goes live<?php endif; ?> &mdash; customers can find and hire you</li>
     </ol>
+
+    <?php if ($seasonalNote !== ''): ?>
+    <div class="fd-seasonal-note">
+      <span aria-hidden="true">📅</span> <?= ho_h($seasonalNote) ?>
+    </div>
+    <?php endif; ?>
 
     <div class="fd-guarantee-box">
       <strong>30-day money-back guarantee.</strong>

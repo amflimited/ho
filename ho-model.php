@@ -495,11 +495,11 @@ function ho_generate_research_prompt(array $businesses): string {
     }
 
     return <<<PROMPT
-Research these Indiana local service businesses. Look each one up online — check their website, Google Business profile, Facebook, and Instagram.
+Research these Indiana local service businesses. For each one: check their website, Google Business profile, Facebook, Angi, Thumbtack, and search for their main local competitor.
 
 Businesses to research:
 {$list}
-For each business return exactly this JSON structure (one entry per business):
+Return exactly this JSON structure (one entry per business):
 
 {
   "research_results": [
@@ -520,23 +520,45 @@ For each business return exactly this JSON structure (one entry per business):
       "instagram_activity": "none",
       "services_list": ["service 1", "service 2"],
       "service_area_text": "City and surrounding area",
-      "opportunity_summary": "One or two sentences written directly to the owner (use 'you'/'your'), explaining why they need a website based on what you found. Be specific — mention their actual situation. Do NOT state the review count (that is shown separately). Example: 'Your reviews are strong but there is no website for customers to land on — every search that finds you hits a dead end.'",
-      "strengths": ["thing working in their favor"],
-      "gaps": ["thing missing or broken"],
+      "opportunity_summary": "One or two sentences written directly to the owner (use 'you'/'your'), explaining why they need a website. Be specific. Do NOT state the review count. Example: 'Your reviews are strong but there is no website for customers to land on.'",
+      "strengths": ["specific thing working in their favor"],
+      "gaps": ["specific thing missing or broken"],
       "recommended_package": "standard",
       "owner_first_name": "",
-      "is_franchise": false
+      "is_franchise": false,
+      "competitor_has_website": false,
+      "competitor_name": "Name of their most obvious local competitor, or empty string",
+      "competitor_website": "Competitor website URL or empty string",
+      "booking_method": "phone",
+      "last_review_date": "2024-03",
+      "years_in_business": null,
+      "has_angi": false,
+      "has_thumbtack": false,
+      "responds_to_reviews": false,
+      "gbp_photo_count": null,
+      "owner_age_band": "unknown"
     }
   ]
 }
 
 Rules:
-- business_id: copy the [ID:N] number exactly from the list above for each business
+- business_id: copy the [ID:N] number exactly
 - website_quality: "none" (no site), "poor" (barely works/outdated), "basic" (functional but simple), "decent" (reasonably complete)
-- facebook_activity / instagram_activity: "none" (no account), "dormant" (no posts in 3+ months), "active" (posting regularly)
-- recommended_package: "standard" ($499, most businesses) or "managed" ($999, businesses with more content to work with)
-- is_franchise: true if this is a national franchise, corporate chain, multi-location platform, or territory-licensed model (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, ServiceMaster, Junk King, MaidPro, TruGreen, Lawn Love). false for independent local owner-operators.
-- owner_first_name: first name of the owner/operator if findable on Google Business, website About page, or Facebook. Empty string if not found.
+- facebook_activity / instagram_activity: "none", "dormant" (no posts 3+ months), "active" (posting regularly)
+- recommended_package: "standard" ($499) or "managed" ($999, businesses needing more ongoing content)
+- is_franchise: true only for national chains/franchise models. false for independent local owner-operators.
+- owner_first_name: first name from GBP, About page, or Facebook. Empty string if not found.
+- competitor_has_website: true if you can find a direct local competitor in the same city/category that has a working website
+- competitor_name: the name of that competitor (one business, the most prominent). Empty if none found.
+- competitor_website: URL of that competitor's website. Empty if none.
+- booking_method: how they appear to currently accept work — "phone" (phone number only visible), "facebook" (DMs/Facebook messenger), "email" (email only), "form" (has a contact/quote form), "app" (uses Jobber/Housecall Pro/similar), "unknown"
+- last_review_date: approximate date of their most recent Google review in YYYY-MM format. Empty string if unknown.
+- years_in_business: integer if findable on GBP or their site. null if unknown.
+- has_angi: true if they have a listing on Angi/Angie's List
+- has_thumbtack: true if they have a Thumbtack profile
+- responds_to_reviews: true if the owner visibly responds to Google reviews (even occasionally)
+- gbp_photo_count: approximate number of photos on their Google Business profile. null if unknown.
+- owner_age_band: "under35", "35-55", "55plus", "unknown" — estimate from photos, LinkedIn, or About page
 - Return ONLY valid JSON, no explanation, no markdown fences.
 PROMPT;
 }
@@ -600,6 +622,23 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
         $igActivity        = in_array($r['instagram_activity']  ?? '', $validActivity, true) ? $r['instagram_activity']  : 'none';
         $package           = in_array($r['recommended_package'] ?? '', $validPackage,  true) ? $r['recommended_package'] : 'standard';
 
+        $validBooking  = ['phone','facebook','email','form','app','unknown'];
+        $validAgeBand  = ['under35','35-55','55plus','unknown'];
+        $bookingMethod = in_array($r['booking_method'] ?? '', $validBooking, true) ? $r['booking_method'] : 'unknown';
+        $ownerAgeBand  = in_array($r['owner_age_band'] ?? '', $validAgeBand,  true) ? $r['owner_age_band'] : 'unknown';
+        $lastReviewDate = substr(trim((string)($r['last_review_date'] ?? '')), 0, 20);
+        $yearsInBiz     = isset($r['years_in_business']) && $r['years_in_business'] !== null ? (int)$r['years_in_business'] : null;
+        $gbpPhotos      = isset($r['gbp_photo_count'])   && $r['gbp_photo_count']   !== null ? (int)$r['gbp_photo_count']   : null;
+        $compName       = substr(trim((string)($r['competitor_name']    ?? '')), 0, 200);
+        $compWebsite    = substr(trim((string)($r['competitor_website'] ?? '')), 0, 500);
+
+        // Auto-run technical check for existing sites
+        $techCheck = ['has_ssl' => null, 'mobile_friendly' => null];
+        $siteUrl   = trim((string)($r['website_url'] ?? ''));
+        if ((int)($r['has_website'] ?? 0) && $siteUrl !== '') {
+            try { $techCheck = ho_website_tech_check($siteUrl); } catch (Throwable) {}
+        }
+
         $upsert = $pdo->prepare("
             INSERT INTO research_records
               (business_id, has_website, website_quality, website_notes,
@@ -607,42 +646,52 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
                has_facebook, facebook_activity, facebook_notes,
                has_instagram, instagram_activity,
                services_list, service_area_text,
-               opportunity_summary, strengths, gaps,
-               recommended_package, research_status, research_method, researched_at)
+               opportunity_summary, strengths, gaps, recommended_package,
+               competitor_has_website, competitor_name, competitor_website,
+               booking_method, last_review_date, years_in_business,
+               has_angi, has_thumbtack, responds_to_reviews, gbp_photo_count,
+               owner_age_band, mobile_friendly, has_ssl,
+               research_status, research_method, researched_at)
             VALUES
-              (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'complete', 'gpt_assisted', NOW())
+              (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               'complete', 'gpt_assisted', NOW())
             ON DUPLICATE KEY UPDATE
-              has_website          = VALUES(has_website),
-              website_quality      = VALUES(website_quality),
-              website_notes        = VALUES(website_notes),
-              has_google_business  = VALUES(has_google_business),
-              google_review_count  = VALUES(google_review_count),
-              google_rating        = VALUES(google_rating),
-              google_notes         = VALUES(google_notes),
-              has_facebook         = VALUES(has_facebook),
-              facebook_activity    = VALUES(facebook_activity),
-              facebook_notes       = VALUES(facebook_notes),
-              has_instagram        = VALUES(has_instagram),
-              instagram_activity   = VALUES(instagram_activity),
-              services_list        = VALUES(services_list),
-              service_area_text    = VALUES(service_area_text),
-              opportunity_summary  = VALUES(opportunity_summary),
-              strengths            = VALUES(strengths),
-              gaps                 = VALUES(gaps),
-              recommended_package  = VALUES(recommended_package),
-              research_status      = 'complete',
-              researched_at        = NOW()
+              has_website=VALUES(has_website), website_quality=VALUES(website_quality),
+              website_notes=VALUES(website_notes), has_google_business=VALUES(has_google_business),
+              google_review_count=VALUES(google_review_count), google_rating=VALUES(google_rating),
+              google_notes=VALUES(google_notes), has_facebook=VALUES(has_facebook),
+              facebook_activity=VALUES(facebook_activity), facebook_notes=VALUES(facebook_notes),
+              has_instagram=VALUES(has_instagram), instagram_activity=VALUES(instagram_activity),
+              services_list=VALUES(services_list), service_area_text=VALUES(service_area_text),
+              opportunity_summary=VALUES(opportunity_summary), strengths=VALUES(strengths),
+              gaps=VALUES(gaps), recommended_package=VALUES(recommended_package),
+              competitor_has_website=VALUES(competitor_has_website),
+              competitor_name=VALUES(competitor_name), competitor_website=VALUES(competitor_website),
+              booking_method=VALUES(booking_method), last_review_date=VALUES(last_review_date),
+              years_in_business=VALUES(years_in_business), has_angi=VALUES(has_angi),
+              has_thumbtack=VALUES(has_thumbtack), responds_to_reviews=VALUES(responds_to_reviews),
+              gbp_photo_count=VALUES(gbp_photo_count), owner_age_band=VALUES(owner_age_band),
+              mobile_friendly=VALUES(mobile_friendly), has_ssl=VALUES(has_ssl),
+              research_status='complete', researched_at=NOW()
         ");
 
         $upsert->execute([
             $bizId,
-            (int)($r['has_website']        ?? 0), $websiteQuality, trim((string)($r['website_notes']  ?? '')),
-            (int)($r['has_google_business']?? 0), $reviews, $rating, trim((string)($r['google_notes'] ?? '')),
-            (int)($r['has_facebook']       ?? 0), $fbActivity, trim((string)($r['facebook_notes']     ?? '')),
-            (int)($r['has_instagram']      ?? 0), $igActivity,
-            $services, trim((string)($r['service_area_text']   ?? '')),
+            (int)($r['has_website']         ?? 0), $websiteQuality, trim((string)($r['website_notes']  ?? '')),
+            (int)($r['has_google_business']  ?? 0), $reviews, $rating, trim((string)($r['google_notes'] ?? '')),
+            (int)($r['has_facebook']         ?? 0), $fbActivity, trim((string)($r['facebook_notes']     ?? '')),
+            (int)($r['has_instagram']        ?? 0), $igActivity,
+            $services, trim((string)($r['service_area_text'] ?? '')),
             trim((string)($r['opportunity_summary'] ?? '')),
             $strengths, $gaps, $package,
+            (int)($r['competitor_has_website'] ?? 0), $compName, $compWebsite,
+            $bookingMethod, $lastReviewDate, $yearsInBiz,
+            (int)($r['has_angi']           ?? 0), (int)($r['has_thumbtack']       ?? 0),
+            (int)($r['responds_to_reviews'] ?? 0), $gbpPhotos,
+            $ownerAgeBand,
+            $techCheck['mobile_friendly'] === null ? null : (int)$techCheck['mobile_friendly'],
+            $techCheck['has_ssl']         === null ? null : (int)$techCheck['has_ssl'],
         ]);
 
         $ownerFirst = substr(trim((string)($r['owner_first_name'] ?? '')), 0, 100);
@@ -730,6 +779,74 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
     return true;
 }
 
+// ─── Seasonal urgency ─────────────────────────────────────────────────────────
+
+function ho_seasonal_urgency_note(string $catSlug): string {
+    $month = (int)date('n');
+    $peaks = [
+        'lawn'         => [3,4,5,6,7,8,9],
+        'landscap'     => [3,4,5,6,7,8,9],
+        'snow'         => [10,11,12,1,2],
+        'pressure'     => [4,5,6,7,8],
+        'gutter'       => [9,10,11],
+        'hvac'         => [4,5,9,10],
+        'window_clean' => [4,5,6,9],
+        'paint'        => [4,5,6,7,8,9],
+        'roof'         => [4,5,6,7,8,9],
+        'fence'        => [4,5,6,7,8,9],
+        'deck'         => [4,5,6,7,8],
+        'concrete'     => [4,5,6,7,8,9],
+        'tree'         => [3,4,5,6,9,10],
+        'pool'         => [4,5,6,7,8,9],
+        'pest'         => [4,5,6,7,8,9],
+    ];
+    foreach ($peaks as $keyword => $peakMonths) {
+        if (strpos($catSlug, $keyword) === false) continue;
+        $nearest = PHP_INT_MAX;
+        foreach ($peakMonths as $pm) {
+            $diff = ($pm - $month + 12) % 12;
+            if ($diff < $nearest) $nearest = $diff;
+        }
+        if ($nearest === 0) return "Your peak season is right now — every week without a site is missed work.";
+        if ($nearest === 1) return "Your busy season starts next month. A site launched now captures it from day one.";
+        if ($nearest === 2) return "Peak season is about 6 weeks out — the right time to have something live.";
+    }
+    return '';
+}
+
+// ─── Website technical check (SSL + mobile viewport) ─────────────────────────
+
+function ho_website_tech_check(string $url): array {
+    if ($url === '') return ['has_ssl' => null, 'mobile_friendly' => null];
+    if (!preg_match('#^https?://#i', $url)) $url = 'https://' . $url;
+
+    $sslUrl = preg_replace('#^http://#i', 'https://', $url);
+    $ch = curl_init($sslUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_NOBODY => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3,
+        CURLOPT_TIMEOUT => 6, CURLOPT_CONNECTTIMEOUT => 4,
+        CURLOPT_USERAGENT => 'Mozilla/5.0', CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    curl_exec($ch);
+    $hasSsl = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE) >= 200;
+    curl_close($ch);
+
+    $ch2 = curl_init($url);
+    curl_setopt_array($ch2, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3,
+        CURLOPT_TIMEOUT => 8, CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_USERAGENT => 'Mozilla/5.0', CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_RANGE => '0-12287',
+    ]);
+    $body = (string)curl_exec($ch2);
+    curl_close($ch2);
+
+    return [
+        'has_ssl'        => $hasSsl,
+        'mobile_friendly'=> (bool)preg_match('/name=["\']viewport["\']/i', $body),
+    ];
+}
+
 // ─── Send queue ───────────────────────────────────────────────────────────────
 
 function ho_is_freemail(string $email): bool {
@@ -749,9 +866,7 @@ function ho_fit_score(array $biz): int {
     $hasSite  = (bool)($biz['has_website'] ?? false);
     $siteQual = (string)($biz['website_quality'] ?? 'none');
 
-    // No real website = big opportunity
     if (!$hasSite || $siteQual === 'none') $score += 3;
-    // Solved their problem already = penalise
     if ($hasSite && in_array($siteQual, ['decent', 'good'], true)) $score -= 3;
 
     $reviews = (int)($biz['google_review_count'] ?? 0);
@@ -760,12 +875,31 @@ function ho_fit_score(array $biz): int {
     if ((string)($biz['facebook_activity'] ?? '') === 'active') $score += 1;
     if ((string)($biz['package_recommendation'] ?? '') === 'managed') $score += 1;
 
-    // Custom domain email = they own a domain, are brand-aware, still no site
     $email = (string)($biz['email_address'] ?? '');
     if ($email !== '') {
         $score += 1;
         if (!ho_is_freemail($email)) $score += 1;
     }
+
+    // Competitor has website → high urgency
+    if (!empty($biz['competitor_has_website'])) $score += 2;
+
+    // Paying for leads they could get free
+    if (!empty($biz['has_angi']) || !empty($biz['has_thumbtack'])) $score += 2;
+
+    // Established business = proven, stable, just never digitised
+    $years = (int)($biz['years_in_business'] ?? 0);
+    if ($years >= 5)  $score += 1;
+    if ($years >= 10) $score += 1;
+
+    // Phone-only = high friction, clear argument for contact form
+    if ((string)($biz['booking_method'] ?? '') === 'phone') $score += 1;
+    // Already has a form/app = less friction pain
+    if (in_array((string)($biz['booking_method'] ?? ''), ['form','app'], true)) $score -= 1;
+
+    // Bad tech signals on existing site (not mobile or no SSL) = redesign urgency
+    if ($hasSite && isset($biz['mobile_friendly']) && $biz['mobile_friendly'] === '0') $score += 1;
+    if ($hasSite && isset($biz['has_ssl'])         && $biz['has_ssl']         === '0') $score += 1;
 
     return max(0, $score);
 }
@@ -779,7 +913,9 @@ function ho_get_preview_ready(PDO $pdo): array {
                p.headline, p.package_recommendation, p.view_count, p.last_viewed_at,
                r.opportunity_summary, r.strengths, r.gaps,
                r.has_website, r.website_quality, r.google_review_count, r.google_rating,
-               r.facebook_activity
+               r.facebook_activity, r.competitor_has_website, r.competitor_name,
+               r.booking_method, r.years_in_business, r.has_angi, r.has_thumbtack,
+               r.mobile_friendly, r.has_ssl
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN previews p ON p.business_id = b.id
@@ -811,16 +947,34 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     $siteQual  = (string)($biz['website_quality'] ?? 'none');
     $reviews   = (int)($biz['google_review_count'] ?? 0);
 
+    $compHasSite = (bool)($biz['competitor_has_website'] ?? false);
+    $compName    = trim((string)($biz['competitor_name'] ?? ''));
+    $hasAngi     = (bool)($biz['has_angi']      ?? false);
+    $hasThumb    = (bool)($biz['has_thumbtack'] ?? false);
+    $booking     = (string)($biz['booking_method'] ?? 'unknown');
+    $years       = (int)($biz['years_in_business'] ?? 0);
+    $noSite      = !$hasSite || $siteQual === 'none';
+
     $subject = "A quick note for {$name}";
 
-    if ($opSum !== '') {
+    // Priority hooks: highest-urgency first
+    if ($compHasSite && $noSite && $compName !== '') {
+        $hook = "I noticed {$compName} has a website. When someone in {$city} searches for {$catLower} services, they\u{2019}re finding {$compName} \u{2014} not you. I built a quick mockup to show you what closing that gap could look like.";
+    } elseif ($hasAngi || $hasThumb) {
+        $platform = $hasAngi ? 'Angi' : 'Thumbtack';
+        $hook = "I noticed you\u{2019}re on {$platform} \u{2014} paying per lead for jobs you could be getting for free from a website. I put together a quick mockup to show you what that could look like.";
+    } elseif ($opSum !== '') {
         $hook = $opSum;
+    } elseif ($noSite && $reviews >= 10) {
+        $hook = "I noticed your {$reviews} Google reviews \u{2014} that\u{2019}s real social proof with nowhere to live. Right now customers who search for you find your Google listing and then... nothing. I built a mockup to show what fixing that looks like.";
     } elseif (!$hasSite || $siteQual === 'none') {
         $hook = "I noticed you don\u{2019}t have a dedicated website yet \u{2014} which actually means there\u{2019}s a real opportunity here.";
     } elseif ($siteQual === 'poor') {
         $hook = "I came across your website and could see the potential for something much more effective.";
     } elseif ($reviews >= 10) {
         $hook = "I noticed your {$reviews} Google reviews \u{2014} that\u{2019}s real social proof that deserves a better home online.";
+    } elseif ($years >= 5) {
+        $hook = "I came across {$name} \u{2014} {$years} years in business is real credibility. The opportunity is making sure that shows up online the way it deserves to.";
     } elseif (!empty($strengths)) {
         $hook = ucfirst(strtolower((string)$strengths[0])) . " \u{2014} that kind of thing deserves better visibility online.";
     } else {
@@ -1057,7 +1211,11 @@ function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
                p.preview_status, p.view_count,
                r.has_website, r.website_quality, r.has_google_business,
                r.google_review_count, r.google_rating, r.has_facebook,
-               r.facebook_activity, r.strengths, r.gaps, r.service_area_text
+               r.facebook_activity, r.strengths, r.gaps, r.service_area_text,
+               r.competitor_has_website, r.competitor_name, r.competitor_website,
+               r.booking_method, r.last_review_date, r.years_in_business,
+               r.has_angi, r.has_thumbtack, r.responds_to_reviews,
+               r.gbp_photo_count, r.owner_age_band, r.mobile_friendly, r.has_ssl
         FROM previews p
         JOIN businesses b ON b.id = p.business_id
         JOIN categories c ON c.id = b.category_id
@@ -1274,36 +1432,83 @@ function ho_bundle_price(string $key): int {
  * Always second-person. Never references the review count (shown in the badge).
  */
 function ho_why_text(array $row): string {
-    $hasWebsite = (bool)($row['has_website']        ?? false);
-    $hasGoogle  = (bool)($row['has_google_business'] ?? false);
-    $reviews    = (int)($row['google_review_count']  ?? 0);
-    $websiteQ   = (string)($row['website_quality']   ?? 'none');
-    $fbActive   = (string)($row['facebook_activity'] ?? 'none') === 'active';
+    $hasWebsite  = (bool)($row['has_website']          ?? false);
+    $hasGoogle   = (bool)($row['has_google_business']  ?? false);
+    $reviews     = (int)($row['google_review_count']   ?? 0);
+    $websiteQ    = (string)($row['website_quality']    ?? 'none');
+    $fbActive    = (string)($row['facebook_activity']  ?? 'none') === 'active';
+    $compHasSite = (bool)($row['competitor_has_website'] ?? false);
+    $compName    = trim((string)($row['competitor_name'] ?? ''));
+    $hasAngi     = (bool)($row['has_angi']             ?? false);
+    $hasThumb    = (bool)($row['has_thumbtack']        ?? false);
+    $booking     = (string)($row['booking_method']     ?? 'unknown');
+    $years       = (int)($row['years_in_business']     ?? 0);
+    $noSsl       = isset($row['has_ssl'])          && (string)$row['has_ssl']          === '0';
+    $notMobile   = isset($row['mobile_friendly'])  && (string)$row['mobile_friendly']  === '0';
+    $noSite      = !$hasWebsite || $websiteQ === 'none';
 
-    // Strong reviews + no or broken website — clearest pitch
-    if ($reviews >= 5 && in_array($websiteQ, ['none','poor'], true)) {
-        return 'Your reviews prove customers trust you — but anyone who searches for you right now hits a dead end. A website turns that proof into actual calls and quote requests.';
+    // Paying for leads they could get free — ROI is the hook
+    if (($hasAngi || $hasThumb) && $noSite) {
+        $platform = $hasAngi ? 'Angi' : 'Thumbtack';
+        return "You\u{2019}re paying {$platform} for leads you could get for free. A website captures the same customers \u{2014} every search, every time \u{2014} without paying per job.";
     }
-    // No website, but on Google
-    if ((!$hasWebsite || $websiteQ === 'none') && $hasGoogle) {
+
+    // Competitor has a site, you don\u{2019}t — competitive pressure
+    if ($compHasSite && $noSite && $compName !== '') {
+        return "When someone searches for your services in your area, {$compName} has a site for them to land on. You don\u{2019}t. That\u{2019}s the gap we close.";
+    }
+    if ($compHasSite && $noSite) {
+        return "Your competitors have websites. When someone searches for your services, they\u{2019}re finding those pages \u{2014} not you. That\u{2019}s the gap this fixes.";
+    }
+
+    // Strong reviews + no site — clearest proof-to-conversion pitch
+    if ($reviews >= 5 && $noSite) {
+        return "Your reviews prove customers trust you \u{2014} but anyone who searches right now hits a dead end. A website turns that proof into actual calls and quote requests.";
+    }
+
+    // Facebook-only = rented platform risk
+    if ($fbActive && $noSite) {
+        return "Your Facebook is active \u{2014} but Facebook is a rented platform. One algorithm change and your audience disappears. A website is yours permanently: no landlord, no algorithm.";
+    }
+
+    // No website, on Google
+    if ($noSite && $hasGoogle) {
         return "Your Google listing gets you found \u{2014} but there\u{2019}s nowhere for customers to land. A website gives them a reason to call you instead of moving on to the next result.";
     }
-    // No website, not on Google either
-    if (!$hasWebsite || $websiteQ === 'none') {
+
+    // No website at all
+    if ($noSite) {
         return "Right now there\u{2019}s no website for customers to find when they search for you. Every potential job that looks you up and can\u{2019}t find a clear page goes somewhere else.";
     }
-    // Poor website with decent reviews
-    if ($websiteQ === 'poor' && $reviews >= 5) {
-        return "Your reviews are solid, but your website isn\u{2019}t doing them justice. Customers who find it may not bother reaching out \u{2014} a better page would fix that.";
+
+    // Has site, but technical issues — redesign angle
+    if ($websiteQ === 'poor' && ($noSsl || $notMobile)) {
+        $issue = $notMobile ? "isn\u{2019}t mobile-friendly" : "doesn\u{2019}t have SSL";
+        return "Your current site {$issue} \u{2014} which means Google is actively pushing it down in search results. Most of your customers are searching on their phones.";
     }
-    // Poor website, few reviews
+
+    // Poor site with reviews
+    if ($websiteQ === 'poor' && $reviews >= 5) {
+        return "Your reviews are solid, but your website isn\u{2019}t doing them justice. Customers who find it may not bother reaching out \u{2014} a better page fixes that.";
+    }
     if ($websiteQ === 'poor') {
         return "Your current site is working against you \u{2014} it\u{2019}s outdated enough that customers who find it often move on before reaching out.";
     }
-    // Active social or strong reviews — upsell angle
+
+    // Phone-only booking friction
+    if ($booking === 'phone' && $reviews >= 10) {
+        return "You have the reviews to back it up \u{2014} but phone-only booking means anyone who doesn\u{2019}t want to call just moves on. A contact form captures those jobs.";
+    }
+
+    // Established + no site (credibility argument)
+    if ($years >= 5 && $noSite) {
+        return "You\u{2019}ve been doing this for {$years} years \u{2014} that credibility is completely invisible online. A website makes your track record the first thing customers see.";
+    }
+
     if ($fbActive || $reviews >= 15) {
         return "You have real activity and a following. The opportunity is making sure all of that points to one page that turns visitors into paying customers.";
     }
+
     return "Your business is doing solid work \u{2014} the online presence just hasn\u{2019}t caught up yet.";
 }
 

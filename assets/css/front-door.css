@@ -1488,3 +1488,60 @@ body.front-door-preview-page{
   word-break:break-all;
 }
 .fd-status-link:hover{ text-decoration:underline; }
+
+/* ── Signal cards (competitive pressure, ROI, friction, tech, cred) ─────── */
+.fd-signal{
+  display:flex;align-items:flex-start;gap:12px;
+  border-radius:14px;padding:13px 16px;
+  margin:10px 0;font-size:14px;line-height:1.5;
+  border:1px solid rgba(0,0,0,.08);
+}
+.fd-signal strong{ display:block;margin-bottom:2px; }
+.fd-signal-icon{ font-size:18px;flex-shrink:0;margin-top:1px; }
+
+.fd-signal-comp{
+  background:rgba(181,18,34,.06);
+  border-color:rgba(181,18,34,.18);
+  border-left:4px solid #b51222;
+}
+.fd-signal-comp strong{ color:#8b0e17; }
+
+.fd-signal-roi{
+  background:rgba(47,94,54,.07);
+  border-color:rgba(47,94,54,.18);
+  border-left:4px solid var(--fd-green);
+}
+.fd-signal-roi strong{ color:var(--fd-green); }
+
+.fd-signal-friction{
+  background:rgba(184,112,32,.07);
+  border-color:rgba(184,112,32,.20);
+  border-left:4px solid #b87020;
+}
+.fd-signal-friction strong{ color:#8b5500; }
+
+.fd-signal-tech{
+  background:rgba(184,112,32,.07);
+  border-color:rgba(184,112,32,.20);
+  border-left:4px solid #b87020;
+}
+.fd-signal-tech strong{ color:#8b5500; }
+
+.fd-signal-cred{
+  background:rgba(47,94,54,.07);
+  border-color:rgba(47,94,54,.18);
+  border-left:4px solid var(--fd-green);
+}
+.fd-signal-cred strong{ color:var(--fd-green); }
+
+/* ── Seasonal urgency note ───────────────────────────────────────────────── */
+.fd-seasonal-note{
+  background:rgba(184,112,32,.09);
+  border:1px solid rgba(184,112,32,.25);
+  border-radius:10px;
+  padding:10px 14px;
+  font-size:13px;font-weight:600;
+  color:#7a4800;
+  margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
