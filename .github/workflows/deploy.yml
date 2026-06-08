@@ -16,34 +16,29 @@ jobs:
         env:
           SSHPASS: ${{ secrets.FTP_PASSWORD }}
         run: |
-          sudo apt-get install -y lftp sshpass
+          sudo apt-get install -y sshpass
 
           BEFORE="${{ github.event.before }}"
-          SKIP='database\.php\|admin-secrets\.php\|stripe-config\.php\|porkbun-config\.php'
+          SKIP='(database\.php|admin-secrets\.php|stripe-config\.php|porkbun-config\.php|^\.github/)'
 
-          # Changed files in this push; fall back to all files on brand-new branch
           if git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-            FILES=$(git diff --name-only "$BEFORE" HEAD | grep -v "$SKIP")
+            FILES=$(git diff --name-only "$BEFORE" HEAD | grep -Ev "$SKIP")
           else
-            FILES=$(git ls-files | grep -v "$SKIP")
+            FILES=$(git ls-files | grep -Ev "$SKIP")
           fi
 
           [ -z "$FILES" ] && { echo "Nothing to deploy."; exit 0; }
           echo "Deploying: $FILES"
 
           BATCH=$(mktemp)
-          printf "set sftp:connect-program 'sshpass -e ssh -o StrictHostKeyChecking=no'\n" >> "$BATCH"
-          printf "open -u %s,dummy sftp://%s\n" "${{ secrets.FTP_USERNAME }}" "${{ secrets.FTP_HOST }}" >> "$BATCH"
-
-          declare -A DIRS_DONE
           while IFS= read -r f; do
             dir=$(dirname "$f")
-            if [ "$dir" != "." ] && [ -z "${DIRS_DONE[$dir]}" ]; then
-              printf "mkdir -p /public_html/%s\n" "$dir" >> "$BATCH"
-              DIRS_DONE[$dir]=1
-            fi
-            printf "put %s /public_html/%s\n" "$f" "$f" >> "$BATCH"
+            [ "$dir" != "." ] && echo "-mkdir /public_html/$dir" >> "$BATCH"
+            echo "put $f /public_html/$f" >> "$BATCH"
           done <<< "$FILES"
 
-          printf "bye\n" >> "$BATCH"
-          lftp -f "$BATCH"
+          sshpass -e sftp \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=60 \
+            -b "$BATCH" \
+            "${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }}"
