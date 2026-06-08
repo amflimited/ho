@@ -590,7 +590,15 @@ if (!empty($unresearched)) {
           $hasPhone   = (string)$b['phone_number']  !== '';
           $method     = (string)$b['best_contact_method'];
         ?>
-          <div class="cp-send-card" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+          <?php
+            $accentCls = match(true) {
+              $hasEmail  => 'cp-send-card-email',
+              $hasFb     => 'cp-send-card-fb',
+              $hasPhone  => 'cp-send-card-phone',
+              default    => 'cp-send-card-none',
+            };
+          ?>
+          <div class="cp-send-card <?= $accentCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
 
             <div class="cp-send-head">
               <div>
@@ -666,8 +674,9 @@ if (!empty($unresearched)) {
             $hasFb      = (string)$b['facebook_url'] !== '';
             $hasPhone   = (string)$b['phone_number'] !== '';
             $method     = (string)$b['best_contact_method'];
+            $accentCls2 = $hasFb ? 'cp-send-card-fb' : ($hasPhone ? 'cp-send-card-phone' : 'cp-send-card-none');
           ?>
-            <div class="cp-send-card" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+            <div class="cp-send-card <?= $accentCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
               <div class="cp-send-head">
                 <div>
                   <strong><?= ho_h((string)$b['business_name']) ?></strong>
