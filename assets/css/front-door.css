@@ -983,9 +983,11 @@ body.front-door-preview-page{
 .fd-os-value{
   font-size:14px;font-weight:700;color:var(--fd-ink);
   text-align:right;
+  min-width:0;overflow-wrap:break-word;word-break:break-all;
 }
 .fd-os-domain{
   color:var(--fd-green);font-family:monospace;font-size:13px;
+  overflow-wrap:break-word;word-break:break-all;
 }
 
 .fd-total-row{
