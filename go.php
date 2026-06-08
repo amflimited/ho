@@ -264,6 +264,7 @@ if ($paid && $row && $pdo !== null) {
       <span class="fd-chosen-check">✓ Selected</span>
     </div>
 
+    <div class="fd-phone-stage">
     <div class="fd-phone-frame">
       <div class="fd-phone-screen" id="fd-phone-screen">
         <?php foreach ($available as $k => $opt): ?>
@@ -273,6 +274,7 @@ if ($paid && $row && $pdo !== null) {
         <?php endforeach; ?>
       </div>
     </div>
+    </div><!-- /.fd-phone-stage -->
     <div class="fd-phone-hint">This choice carries into checkout &mdash; pick the one you want to launch with.</div>
   </section>
 
@@ -326,7 +328,7 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-card fd-trust fd-reveal" id="about">
     <p class="fd-kicker">Who built this</p>
     <div class="fd-trust-inner">
-      <div class="fd-trust-avatar" aria-hidden="true">A</div>
+      <div class="fd-trust-avatar" aria-hidden="true">AF</div>
       <div>
         <h2>Adam Ferree</h2>
         <p class="fd-trust-location">New Castle, Indiana</p>

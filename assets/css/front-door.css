@@ -1,4 +1,4 @@
-/* v131 Front Door Preview */
+/* v132 Front Door Preview */
 :root{
   --fd-bg:#f4efe6;
   --fd-card:#fffaf1;
@@ -1315,4 +1315,77 @@ body.front-door-preview-page{
 }
 .fd-sticky-btn{
   flex-shrink:0;min-height:42px;padding:0 20px;font-size:15px;font-weight:700;
+}
+
+/* ══ v132 visual punch ══════════════════════════════════════════════════════ */
+
+/* ── Hero CTA: gentle pulse to draw the eye ─────────────────────────────── */
+@keyframes fd-pulse{
+  0%,100%{ box-shadow:0 4px 18px rgba(47,94,54,.28); }
+  50%    { box-shadow:0 4px 34px rgba(47,94,54,.54),0 0 0 7px rgba(47,94,54,.11); }
+}
+.fd-turn-cta{ animation:fd-pulse 2.8s ease-in-out infinite; }
+
+/* ── Phone frame: ambient green glow ────────────────────────────────────── */
+.fd-phone-frame{
+  box-shadow:
+    inset 0 0 0 2px #3f3f46,
+    0 0 0 1px #000,
+    0 40px 100px rgba(0,0,0,.45),
+    0 0 70px rgba(47,94,54,.15);
+}
+@media(hover:hover){
+  .fd-phone-frame:hover{
+    box-shadow:
+      inset 0 0 0 2px #3f3f46,
+      0 0 0 1px #000,
+      0 50px 120px rgba(0,0,0,.50),
+      0 0 100px rgba(47,94,54,.26);
+    transition:box-shadow .4s ease;
+  }
+}
+
+/* ── Phone stage: spotlight behind the phone ────────────────────────────── */
+.fd-phone-stage{
+  position:relative;
+  display:flex;justify-content:center;
+  padding:24px 0 8px;
+}
+.fd-phone-stage::before{
+  content:'';
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 65% 80% at 50% 50%,rgba(47,94,54,.10),transparent 68%);
+  pointer-events:none;
+}
+
+/* ── Trust card: personal warmth, green top accent ──────────────────────── */
+.fd-trust{
+  border-top:4px solid var(--fd-green);
+  background:linear-gradient(160deg,rgba(47,94,54,.055) 0%,rgba(255,250,241,.96) 55%) !important;
+}
+
+/* ── Scarcity: amber urgency strip ──────────────────────────────────────── */
+.fd-scarcity{
+  color:#9a5800;
+  background:rgba(184,112,0,.09);
+  border:1px solid rgba(184,112,0,.24);
+  border-radius:10px;
+  padding:10px 16px;
+  font-style:normal;
+  font-size:13px;font-weight:700;
+  letter-spacing:.01em;
+}
+
+/* ── Gap intro: warmer darker emphasis ──────────────────────────────────── */
+.fd-gap-intro{
+  color:#6e2e00;
+  font-size:13px;font-weight:700;
+}
+
+/* ── Turn angle: stronger than muted ────────────────────────────────────── */
+.fd-turn-angle{ color:#5a4036; }
+
+/* ── Bundle selected: more dramatic lift ────────────────────────────────── */
+.fd-bundle-card.is-selected{
+  box-shadow:0 6px 32px rgba(47,94,54,.20),0 0 0 1px rgba(47,94,54,.15);
 }
