@@ -791,11 +791,6 @@ if ($paid && $row && $pdo !== null) {
     </form>
     <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
 
-    <a class="fd-btn fd-btn-secondary fd-questions-btn"
-       href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Question about my preview — ' . $name) ?>&body=<?= rawurlencode("Hi Adam,\n\nI have a question about the preview you built for " . $name . ".\n\n") ?>">
-      Have a question first? Email me &mdash; no pressure.
-    </a>
-
     <div class="fd-scarcity">I build one <?= ho_h(strtolower($catName)) ?> site per city &mdash; whoever says yes first in <?= ho_h($city) ?> gets it.</div>
   </section>
 
