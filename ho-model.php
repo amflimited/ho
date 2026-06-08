@@ -1330,3 +1330,89 @@ function ho_recent_source_runs(PDO $pdo, int $limit = 5): array {
         LIMIT {$limit}
     ")->fetchAll();
 }
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+function ho_create_order(PDO $pdo, int $businessId, ?int $previewId, string $slug, string $pkg, string $tplKey, string $domain): array {
+    // Idempotent: return existing order created in the last 2 hours for this business
+    $existing = $pdo->prepare("SELECT id, status_token FROM orders WHERE business_id = ? AND created_at > NOW() - INTERVAL 2 HOUR ORDER BY created_at DESC LIMIT 1");
+    $existing->execute([$businessId]);
+    $row = $existing->fetch();
+    if ($row) return ['id' => (int)$row['id'], 'token' => (string)$row['status_token']];
+
+    $token = bin2hex(random_bytes(32));
+    $pdo->prepare("
+        INSERT INTO orders (business_id, preview_id, slug, package, template_key, chosen_domain, status_token, token_expires_at, paid_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 72 HOUR), NOW())
+    ")->execute([$businessId, $previewId, $slug, $pkg, $tplKey, $domain, $token]);
+
+    return ['id' => (int)$pdo->lastInsertId(), 'token' => $token];
+}
+
+function ho_get_order_by_token(PDO $pdo, string $token): ?array {
+    $s = $pdo->prepare("
+        SELECT o.*, b.business_name, b.location_city, b.phone_number, b.email_address,
+               b.owner_first_name, c.name AS category_name
+        FROM orders o
+        JOIN businesses b ON b.id = o.business_id
+        JOIN categories c ON c.id = b.category_id
+        WHERE o.status_token = ? AND o.token_expires_at > NOW()
+        LIMIT 1
+    ");
+    $s->execute([$token]);
+    $row = $s->fetch();
+    return $row ?: null;
+}
+
+function ho_get_pending_orders(PDO $pdo): array {
+    return $pdo->query("
+        SELECT o.*, b.business_name, b.location_city, b.phone_number, b.email_address,
+               b.owner_first_name, c.name AS category_name
+        FROM orders o
+        JOIN businesses b ON b.id = o.business_id
+        JOIN categories c ON c.id = b.category_id
+        WHERE o.launch_status != 'complete'
+        ORDER BY o.paid_at DESC
+        LIMIT 50
+    ")->fetchAll();
+}
+
+function ho_update_order(PDO $pdo, int $orderId, array $updates): void {
+    $allowed = ['domain_status','hosting_status','design_status','launch_status','customer_note','internal_note'];
+    $sets = [];
+    $vals = [];
+    foreach ($allowed as $col) {
+        if (array_key_exists($col, $updates)) {
+            $sets[] = "{$col} = ?";
+            $vals[] = $updates[$col];
+        }
+    }
+    if (empty($sets)) return;
+    $vals[] = $orderId;
+    $pdo->prepare("UPDATE orders SET " . implode(', ', $sets) . " WHERE id = ?")->execute($vals);
+}
+
+function ho_generate_status_update_text(array $order, string $bizName, string $ownerFirst): string {
+    $greeting = $ownerFirst !== '' ? "Hi {$ownerFirst}," : "Hi,";
+    $domain   = $order['chosen_domain'] !== '' ? $order['chosen_domain'] : 'your new domain';
+    $statusUrl = 'https://hoosiersonline.com/status.php?token=' . $order['status_token'];
+
+    $lines = [];
+    $statusMap = [
+        'domain_status'  => ['label' => 'Domain registration',  'pending' => 'queued', 'in_progress' => 'in progress', 'complete' => 'done ✓'],
+        'hosting_status' => ['label' => 'Hosting setup',        'pending' => 'queued', 'in_progress' => 'in progress', 'complete' => 'done ✓'],
+        'design_status'  => ['label' => 'Site build',           'pending' => 'queued', 'in_progress' => 'in progress', 'complete' => 'done ✓'],
+        'launch_status'  => ['label' => 'Launch',               'pending' => 'queued', 'in_progress' => 'almost there', 'complete' => 'live ✓'],
+    ];
+    foreach ($statusMap as $col => $info) {
+        $val = (string)($order[$col] ?? 'pending');
+        $lines[] = "  {$info['label']}: {$info[$val]}";
+    }
+
+    $noteBlock = '';
+    if (!empty(trim((string)($order['customer_note'] ?? '')))) {
+        $noteBlock = "\n" . trim((string)$order['customer_note']) . "\n";
+    }
+
+    return "{$greeting}\n\nHere's a quick update on your {$bizName} website:\n\n" . implode("\n", $lines) . "\n{$noteBlock}\nTrack live: {$statusUrl}\n\n— Adam Ferree\nHoosier Online | adam@hoosieronline.com | (765) 443-4321";
+}

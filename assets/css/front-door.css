@@ -1466,3 +1466,25 @@ body.front-door-preview-page{
   font-size:14px;font-weight:900;color:var(--fd-green);
   line-height:1.4;margin-top:-1px;
 }
+
+/* ── Paid banner: status page link box ───────────────────────────────────── */
+.fd-status-link-box{
+  margin-top:14px;
+  background:rgba(47,94,54,.09);
+  border:1px solid rgba(47,94,54,.25);
+  border-radius:12px;
+  padding:12px 16px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.fd-status-link-label{
+  font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;
+  color:var(--fd-green);margin:0;
+}
+.fd-status-link{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:14px;font-weight:700;
+  color:var(--fd-green);text-decoration:none;
+  word-break:break-all;
+}
+.fd-status-link:hover{ text-decoration:underline; }

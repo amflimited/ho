@@ -85,6 +85,18 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 ho_mark_outcome($pdo, $logId, $outcome);
                 header('Location: ?tab=send&flash=' . urlencode('Follow-up recorded.'));
                 exit;
+
+            case 'update_order':
+                $orderId = (int)($_POST['order_id'] ?? 0);
+                if ($orderId === 0) throw new RuntimeException('Order ID missing.');
+                $allowed = ['domain_status','hosting_status','design_status','launch_status','customer_note','internal_note'];
+                $updates = [];
+                foreach ($allowed as $col) {
+                    if (isset($_POST[$col])) $updates[$col] = $_POST[$col];
+                }
+                ho_update_order($pdo, $orderId, $updates);
+                header('Location: ?tab=sales&flash=' . urlencode('Order updated.'));
+                exit;
         }
     } catch (Throwable $e) {
         header('Location: ?tab=' . urlencode($_POST['tab'] ?? 'source') . '&error=' . urlencode($e->getMessage()));
@@ -112,6 +124,7 @@ $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($n
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $sendQueue     = $pdo ? ho_get_preview_ready($pdo) : [];
 $followupDue   = $pdo ? ho_get_followup_due($pdo) : [];
+$pendingOrders = $pdo ? ho_get_pending_orders($pdo) : [];
 
 $coverage = $pdo ? ho_source_coverage($pdo) : [];
 
@@ -181,6 +194,9 @@ if (!empty($unresearched)) {
   </a>
   <a href="?tab=send" class="cp-tab<?= $tab === 'send' ? ' is-active' : '' ?>">
     Send<?= $counts['preview_ready'] > 0 ? '<span class="cp-badge cp-badge-hot">' . $counts['preview_ready'] . '</span>' : '' ?>
+  </a>
+  <a href="?tab=sales" class="cp-tab<?= $tab === 'sales' ? ' is-active' : '' ?>">
+    Sales<?= count($pendingOrders) > 0 ? '<span class="cp-badge cp-badge-win">' . count($pendingOrders) . '</span>' : '' ?>
   </a>
 </nav>
 
@@ -758,6 +774,98 @@ if (!empty($unresearched)) {
     </section>
 
   <?php endif; ?>
+
+<?php elseif ($tab === 'sales'): ?>
+
+<!-- ═══ SALES ═══════════════════════════════════════════════════════════════ -->
+
+<?php if (empty($pendingOrders)): ?>
+  <div class="cp-alert cp-alert-ok" style="margin-top:20px">No active orders — sales show here after customers pay.</div>
+<?php else: ?>
+  <div class="cp-section-head" style="margin-bottom:16px">
+    <strong><?= count($pendingOrders) ?> active order<?= count($pendingOrders) !== 1 ? 's' : '' ?></strong>
+  </div>
+  <?php foreach ($pendingOrders as $o):
+    $oId        = (int)$o['id'];
+    $oBiz       = (string)$o['business_name'];
+    $oCity      = (string)$o['location_city'];
+    $oFirst     = trim((string)($o['owner_first_name'] ?? ''));
+    $oPkg       = (string)$o['package'];
+    $oTpl       = (string)$o['template_key'];
+    $oDomain    = (string)$o['chosen_domain'];
+    $oEmail     = (string)($o['email_address'] ?? '');
+    $oPhone     = (string)($o['phone_number']  ?? '');
+    $oCat       = (string)$o['category_name'];
+    $oNote      = (string)($o['customer_note']  ?? '');
+    $oInternal  = (string)($o['internal_note']  ?? '');
+    $oToken     = (string)$o['status_token'];
+    $oStatusUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/status.php?token=' . $oToken;
+    $oPaidAt    = (string)($o['paid_at'] ?? '');
+    $hoursAgo   = $oPaidAt !== '' ? round((time() - strtotime($oPaidAt)) / 3600, 1) : 0;
+
+    $statuses    = ['domain_status','hosting_status','design_status','launch_status'];
+    $statLabels  = ['domain_status' => 'Domain','hosting_status' => 'Hosting','design_status' => 'Site build','launch_status' => 'Launch'];
+    $statOpts    = ['pending' => 'Pending','in_progress' => 'In progress','complete' => 'Complete'];
+
+    $updateMsg = ho_generate_status_update_text($o, $oBiz, $oFirst);
+  ?>
+  <div class="cp-order-card">
+    <div class="cp-order-head">
+      <div>
+        <strong class="cp-order-biz"><?= ho_h($oBiz) ?></strong>
+        <span class="cp-order-meta"><?= ho_h($oCity) ?> &middot; <?= ho_h($oCat) ?> &middot; paid <?= ho_h((string)$hoursAgo) ?>h ago</span>
+      </div>
+      <span class="cp-pkg cp-pkg-<?= ho_h($oPkg) ?>"><?= ho_h($oPkg) ?></span>
+    </div>
+
+    <div class="cp-order-specs">
+      <?php if ($oDomain !== ''): ?><div class="cp-order-spec"><span>Domain</span><strong><?= ho_h($oDomain) ?></strong></div><?php endif; ?>
+      <?php if ($oTpl   !== ''): ?><div class="cp-order-spec"><span>Design</span><strong><?= ho_h($oTpl) ?></strong></div><?php endif; ?>
+      <?php if ($oEmail !== ''): ?><div class="cp-order-spec"><span>Email</span><a href="mailto:<?= ho_h($oEmail) ?>"><?= ho_h($oEmail) ?></a></div><?php endif; ?>
+      <?php if ($oPhone !== ''): ?><div class="cp-order-spec"><span>Phone</span><a href="tel:<?= ho_h(preg_replace('/\D/','',$oPhone)) ?>"><?= ho_h($oPhone) ?></a></div><?php endif; ?>
+    </div>
+
+    <form method="POST" action="?tab=sales" class="cp-order-status-form">
+      <input type="hidden" name="action"   value="update_order">
+      <input type="hidden" name="order_id" value="<?= $oId ?>">
+      <div class="cp-order-statuses">
+        <?php foreach ($statuses as $sc): ?>
+        <label class="cp-order-stat-label"><?= ho_h($statLabels[$sc]) ?>
+          <select name="<?= $sc ?>" class="cp-select cp-order-stat-sel" onchange="this.form.submit()">
+            <?php foreach ($statOpts as $sv => $sl): ?>
+              <option value="<?= $sv ?>"<?= ($o[$sc] ?? 'pending') === $sv ? ' selected' : '' ?>><?= $sl ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <?php endforeach; ?>
+      </div>
+    </form>
+
+    <div class="cp-order-notes">
+      <form method="POST" action="?tab=sales" class="cp-order-note-form">
+        <input type="hidden" name="action"   value="update_order">
+        <input type="hidden" name="order_id" value="<?= $oId ?>">
+        <label class="cp-label">Customer note <span class="cp-order-note-hint">(shown on their status page)</span>
+          <textarea name="customer_note" class="cp-textarea cp-order-note-area" rows="2" placeholder="e.g. Domain is registered, starting build now..."><?= ho_h($oNote) ?></textarea>
+        </label>
+        <label class="cp-label" style="margin-top:8px">Internal note <span class="cp-order-note-hint">(Adam only)</span>
+          <textarea name="internal_note" class="cp-textarea cp-order-note-area" rows="2" placeholder="e.g. Registrar login saved in 1Password..."><?= ho_h($oInternal) ?></textarea>
+        </label>
+        <button type="submit" class="cp-btn-ghost" style="margin-top:6px">Save notes</button>
+      </form>
+    </div>
+
+    <div class="cp-order-footer">
+      <a href="<?= ho_h($oStatusUrl) ?>" target="_blank" class="cp-btn-ghost cp-order-status-link">View customer status page &rarr;</a>
+      <button class="cp-btn-ghost" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden">Generate update &darr;</button>
+      <div class="cp-order-update-box" hidden>
+        <p class="cp-label">Copy this and send to the customer:</p>
+        <textarea class="cp-textarea cp-order-update-area" rows="12" readonly onclick="this.select()"><?= ho_h($updateMsg) ?></textarea>
+      </div>
+    </div>
+  </div>
+  <?php endforeach; ?>
+<?php endif; ?>
 
 <?php endif; ?>
 

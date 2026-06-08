@@ -671,3 +671,90 @@ a { color: inherit; }
 
 /* ── Tab indicator animation ─────────────────────────────────────────────── */
 .cp-tab { transition: color .12s, border-color .12s; }
+
+/* ── Sales badge (green win counter on tab) ──────────────────────────────── */
+.cp-badge-win {
+  background: var(--green); color: #fff;
+  font-size: 11px; font-weight: 900;
+  border-radius: 10px; padding: 1px 7px;
+  min-width: 22px; text-align: center;
+  display: inline-block; margin-left: 4px;
+}
+
+/* ── Order card ──────────────────────────────────────────────────────────── */
+.cp-order-card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px;
+  margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.cp-order-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.cp-order-biz {
+  font-size: 18px; font-weight: 900; color: var(--ink); line-height: 1.2;
+  display: block;
+}
+.cp-order-meta {
+  font-size: 12px; color: var(--ink2); margin-top: 2px;
+  display: block;
+}
+
+/* ── Deliverable specs (domain, template, email, phone) ──────────────────── */
+.cp-order-specs {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.cp-order-spec {
+  flex: 1; min-width: 140px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.cp-order-spec span {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink2);
+}
+.cp-order-spec strong,
+.cp-order-spec a {
+  font-size: 13px; font-weight: 700; color: var(--ink);
+  word-break: break-all; text-decoration: none;
+}
+.cp-order-spec a:hover { text-decoration: underline; }
+
+/* ── Status dropdowns ────────────────────────────────────────────────────── */
+.cp-order-statuses {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;
+}
+.cp-order-stat-label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink2);
+}
+.cp-order-stat-sel {
+  font-size: 13px; font-weight: 600;
+}
+
+/* ── Notes section ───────────────────────────────────────────────────────── */
+.cp-order-notes { display: flex; flex-direction: column; gap: 0; }
+.cp-order-note-area { min-height: 54px; resize: vertical; }
+.cp-order-note-hint {
+  font-size: 10px; font-weight: 400; color: var(--ink2);
+  text-transform: none; letter-spacing: 0;
+}
+
+/* ── Footer row (status page link + generate button + update box) ─────────── */
+.cp-order-footer {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cp-order-status-link { font-size: 13px; }
+.cp-order-update-box { display: flex; flex-direction: column; gap: 6px; }
+.cp-order-update-area {
+  font-family: monospace; font-size: 12px; line-height: 1.55;
+  resize: vertical; min-height: 200px;
+}

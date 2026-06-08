@@ -94,15 +94,32 @@ $paid       = isset($_GET['paid']);
 $errCode    = trim((string)($_GET['err'] ?? ''));
 $stripeErr  = $errCode !== '';
 
-// ── Record template choice on successful payment ──────────────────────────
+// ── Record template choice + create order on successful payment ──────────────
+$statusToken = '';
 if ($paid && $row && $pdo !== null) {
-    $chosenTpl = trim((string)($_GET['tpl'] ?? ''));
+    $chosenTpl = substr(trim((string)($_GET['tpl'] ?? '')), 0, 80);
+    $paidPkg   = substr(trim((string)($_GET['pkg'] ?? '')), 0, 50);
+    $paidDom   = substr(trim((string)($_GET['dom'] ?? '')), 0, 200);
+
     if ($chosenTpl !== '') {
         try {
             $pdo->prepare("UPDATE previews SET selected_template = ? WHERE business_id = ?")
-                ->execute([substr($chosenTpl, 0, 80), (int)$row['id']]);
+                ->execute([$chosenTpl, (int)$row['id']]);
         } catch (Throwable) {}
     }
+
+    try {
+        $orderResult = ho_create_order(
+            $pdo,
+            (int)$row['id'],
+            isset($row['preview_id']) ? (int)$row['preview_id'] : null,
+            $slug,
+            $paidPkg !== '' ? $paidPkg : $package,
+            $chosenTpl,
+            $paidDom !== '' ? $paidDom : $ownDotCom
+        );
+        $statusToken = $orderResult['token'];
+    } catch (Throwable) {}
 }
 
 ?><!doctype html>
@@ -161,8 +178,17 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-card fd-paid-banner">
     <p class="fd-kicker">Payment received</p>
     <h2>You&rsquo;re in.</h2>
-    <p>Your site will be live within 24 hours. Watch your email for your URL. Check your Stripe receipt for a payment confirmation.</p>
-    <p class="fd-muted">Questions in the meantime? <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
+    <p>Your site will be live within 24 hours. I&rsquo;ll send you the link when it&rsquo;s ready. Check your Stripe receipt for a payment confirmation.</p>
+    <?php if ($statusToken !== ''): ?>
+    <div class="fd-status-link-box">
+      <p class="fd-status-link-label">Track your build progress:</p>
+      <a class="fd-status-link" href="/status.php?token=<?= ho_h($statusToken) ?>">
+        hoosiersonline.com/status.php?token=<?= ho_h(substr($statusToken, 0, 8)) ?>&hellip;
+      </a>
+      <p class="fd-muted">This link stays active for 72 hours. Bookmark it to check progress.</p>
+    </div>
+    <?php endif; ?>
+    <p class="fd-muted">Questions? <a href="tel:7654434321">(765) 443-4321</a> &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
   </section>
   <?php endif; ?>
 

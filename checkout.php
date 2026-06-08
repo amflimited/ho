@@ -91,7 +91,9 @@ try {
     $ownDotCom  = $chosenCom;
     $hasDomain  = $chosenCom !== '';
     $successUrl = $host . '/go.php?slug=' . rawurlencode($slug) . '&paid=1'
-        . ($templateKey !== '' ? '&tpl=' . rawurlencode($templateKey) : '');
+        . ($templateKey !== '' ? '&tpl=' . rawurlencode($templateKey) : '')
+        . ($pkg        !== '' ? '&pkg=' . rawurlencode($pkg)        : '')
+        . ($ownDotCom  !== '' ? '&dom=' . rawurlencode($ownDotCom)  : '');
 
     $params = [
         'mode'                    => 'payment',
