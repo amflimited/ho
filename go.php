@@ -48,17 +48,27 @@ $hasGoogle    = (bool)($row['has_google_business'] ?? false);
 $serviceArea  = (string)($row['service_area_text'] ?? ($city !== '' ? $city . ' & surrounding area' : 'Indiana'));
 $isManaged    = $package === 'managed';
 
+$email        = $row ? trim((string)($row['email_address'] ?? '')) : '';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $design       = $row ? ho_design_direction($catSlug) : ['key' => 'default', 'name' => '', 'feel' => ''];
 $subdomain    = $row ? ho_suggest_subdomain($name) : '';
-$ownDotCom    = $subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '';
+$suggestedCom = $subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '';
 $modules      = ho_product_modules();
 $features     = ho_product_features();
 $angle        = $row ? ho_sales_angle($row) : '';
 
-// ── Porkbun domain availability check ────────────────────────────────────
+// ── Detect custom domain email (they already own a domain) ────────────────
+$existingDomain = '';
+if ($email !== '' && !ho_is_freemail($email)) {
+    $parts = explode('@', strtolower($email));
+    $existingDomain = $parts[1] ?? '';
+}
+$hasExistingDomain = $existingDomain !== '';
+$ownDotCom = $hasExistingDomain ? $existingDomain : $suggestedCom;
+
+// ── Porkbun domain availability check (skip if they already have one) ─────
 $domainCheck = null;
-if ($ownDotCom !== '' && $row) {
+if (!$hasExistingDomain && $ownDotCom !== '' && $row) {
     try {
         require_once __DIR__ . '/porkbun.php';
         $domainCheck = ho_porkbun_check($ownDotCom);
@@ -467,6 +477,34 @@ if ($paid && $row && $pdo !== null) {
   ?>
   <section class="fd-card fd-addr-chooser fd-reveal">
     <p class="fd-kicker">Your web address</p>
+    <?php if ($hasExistingDomain): ?>
+    <h2>You already have a domain&nbsp;&mdash; let&rsquo;s use it.</h2>
+    <p class="fd-design-sub">Your site goes live at your existing address. No new registration needed.</p>
+
+    <div class="fd-addr-domain">
+      <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
+      <div class="fd-addr-badges">
+        <span class="fd-addr-tag" style="background:rgba(47,94,54,.12);color:var(--fd-green)">Already registered</span>
+      </div>
+    </div>
+
+    <div class="fd-domain-search">
+      <p class="fd-design-sub">Using a different address? Type it below.</p>
+      <div class="fd-domain-input-row">
+        <input type="text" id="fd-domain-input"
+               class="fd-domain-input"
+               value="<?= ho_h($domainInputVal) ?>"
+               placeholder="yourbusiness"
+               maxlength="63"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();fdCheckDomain();}">
+        <span class="fd-domain-tld">.com</span>
+        <button type="button" class="fd-domain-check-btn"
+                onclick="fdCheckDomain()">Check</button>
+      </div>
+      <div class="fd-domain-hint" id="fd-domain-hint">Using your own domain? We&rsquo;ll point it to your new site.</div>
+    </div>
+
+    <?php else: ?>
     <h2>Where customers will find you.</h2>
     <p class="fd-design-sub">Included free. We register it and handle renewals.</p>
 
@@ -500,6 +538,7 @@ if ($paid && $row && $pdo !== null) {
         }
       ?></div>
     </div>
+    <?php endif; ?>
   </section>
 
   <script>
@@ -592,7 +631,7 @@ if ($paid && $row && $pdo !== null) {
         <span class="fd-os-value" id="fd-os-design"><?= ho_h($available[$templateKey]['label'] ?? 'Not selected') ?></span>
       </div>
       <div class="fd-os-row">
-        <span class="fd-os-label">Your domain</span>
+        <span class="fd-os-label"><?= $hasExistingDomain ? 'Your existing domain' : 'Your domain' ?></span>
         <span class="fd-os-value fd-os-domain" id="fd-os-domain"><?= ho_h($ownDotCom ?: 'Not chosen yet') ?></span>
       </div>
     </div>
@@ -607,7 +646,7 @@ if ($paid && $row && $pdo !== null) {
     <ol class="fd-offer-steps">
       <li>You say yes &mdash; takes about 2 minutes to check out</li>
       <li>I build <?= ho_h($name) ?>&rsquo;s site &mdash; live within 24 hours, guaranteed</li>
-      <li><?= $ownDotCom !== '' ? ho_h($ownDotCom) . ' goes live' : ho_h($name) . ' goes live' ?> &mdash; customers can find and hire you</li>
+      <li><?php if ($hasExistingDomain): ?>We connect <?= ho_h($ownDotCom) ?> to your new site and you go live<?php elseif ($ownDotCom !== ''): ?><?= ho_h($ownDotCom) ?> goes live<?php else: ?><?= ho_h($name) ?> goes live<?php endif; ?> &mdash; customers can find and hire you</li>
     </ol>
 
     <div class="fd-guarantee-box">

@@ -732,18 +732,42 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
 
 // ─── Send queue ───────────────────────────────────────────────────────────────
 
+function ho_is_freemail(string $email): bool {
+    static $freemail = [
+        'gmail.com','yahoo.com','hotmail.com','outlook.com','aol.com',
+        'icloud.com','me.com','msn.com','live.com','comcast.net','att.net',
+        'verizon.net','sbcglobal.net','bellsouth.net','cox.net','charter.net',
+        'earthlink.net','protonmail.com','mail.com','yahoo.co.uk',
+        'hotmail.co.uk','live.co.uk',
+    ];
+    $parts = explode('@', strtolower(trim($email)));
+    return count($parts) !== 2 || in_array($parts[1], $freemail, true);
+}
+
 function ho_fit_score(array $biz): int {
-    $score = 0;
+    $score    = 0;
     $hasSite  = (bool)($biz['has_website'] ?? false);
     $siteQual = (string)($biz['website_quality'] ?? 'none');
+
+    // No real website = big opportunity
     if (!$hasSite || $siteQual === 'none') $score += 3;
+    // Solved their problem already = penalise
+    if ($hasSite && in_array($siteQual, ['decent', 'good'], true)) $score -= 3;
+
     $reviews = (int)($biz['google_review_count'] ?? 0);
     if ($reviews >= 10) $score += 2;
     if ($reviews >= 20) $score += 1;
     if ((string)($biz['facebook_activity'] ?? '') === 'active') $score += 1;
     if ((string)($biz['package_recommendation'] ?? '') === 'managed') $score += 1;
-    if ((string)($biz['email_address'] ?? '') !== '') $score += 1;
-    return $score;
+
+    // Custom domain email = they own a domain, are brand-aware, still no site
+    $email = (string)($biz['email_address'] ?? '');
+    if ($email !== '') {
+        $score += 1;
+        if (!ho_is_freemail($email)) $score += 1;
+    }
+
+    return max(0, $score);
 }
 
 function ho_get_preview_ready(PDO $pdo): array {
