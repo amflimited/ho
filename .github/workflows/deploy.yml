@@ -10,38 +10,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
-      - name: Deploy changed files via FTP
-        run: |
-          sudo apt-get install -y lftp
-
-          BEFORE="${{ github.event.before }}"
-          SKIP='(database\.php|admin-secrets\.php|stripe-config\.php|porkbun-config\.php|^\.github/)'
-
-          if git rev-parse --verify "$BEFORE" >/dev/null 2>&1; then
-            FILES=$(git diff --name-only "$BEFORE" HEAD | grep -Ev "$SKIP" || true)
-          else
-            FILES=$(git ls-files | grep -Ev "$SKIP" || true)
-          fi
-
-          [ -z "$FILES" ] && { echo "Nothing to deploy."; exit 0; }
-          echo "Deploying $(echo "$FILES" | wc -l) file(s)..."
-
-          BATCH=$(mktemp)
-          echo "open ftp://${{ secrets.FTP_HOST }}" >> "$BATCH"
-          echo "user ${{ secrets.FTP_USERNAME }} ${{ secrets.FTP_PASSWORD }}" >> "$BATCH"
-          echo "set ftp:passive-mode yes" >> "$BATCH"
-
-          declare -A DIRS_DONE
-          while IFS= read -r f; do
-            dir=$(dirname "$f")
-            if [ "$dir" != "." ] && [ -z "${DIRS_DONE[$dir]}" ]; then
-              echo "mkdir -p /public_html/$dir" >> "$BATCH"
-              DIRS_DONE[$dir]=1
-            fi
-            echo "put $f /public_html/$f" >> "$BATCH"
-          done <<< "$FILES"
-
-          echo "bye" >> "$BATCH"
-          lftp -f "$BATCH"
+      - name: Deploy changed files
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: public_html/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            **/database.php
+            **/admin-secrets.php
+            **/stripe-config.php
+            **/porkbun-config.php
