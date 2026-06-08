@@ -195,7 +195,8 @@ if ($paid && $row && $pdo !== null) {
         $sources[] = ['href' => $fbUrl, 'label' => 'Facebook page', 'class' => 'fd-rs-fb'];
     }
     if ($hasGoogle) {
-        $sources[] = ['href' => null, 'label' => 'Google Business', 'class' => 'fd-rs-google'];
+        $gQuery = rawurlencode($name . ' ' . $city . ' Indiana');
+        $sources[] = ['href' => 'https://www.google.com/search?q=' . $gQuery, 'label' => 'Google Business', 'class' => 'fd-rs-google'];
     }
     ?>
     <?php if (!empty($sources)): ?>
