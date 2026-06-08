@@ -172,7 +172,7 @@ if ($paid && $row && $pdo !== null) {
     <span>Keep reading</span>
   </div>
 
-  <div class="fd-intro-note">A <strong>Front Door site</strong> is a focused one-page website &mdash; live in a week, built around your business, designed to turn searches into calls.</div>
+  <div class="fd-intro-note">A <strong>Front Door site</strong> is a focused one-page website &mdash; live within 24 hours, built around your business, designed to turn searches into calls.</div>
 
   <!-- ── WHY I REACHED OUT ─────────────────────────────────────────────────── -->
   <section class="fd-card fd-why-card fd-reveal">
@@ -409,7 +409,7 @@ if ($paid && $row && $pdo !== null) {
               <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
             </div>
           </div>
-          <p>Hosted on hoosieronline.com. Live within a week, no annual fee, no renewals to worry about.</p>
+          <p>Hosted on hoosieronline.com. Live within 24 hours, no annual fee, no renewals to worry about.</p>
         </div>
       </label>
 
@@ -562,7 +562,7 @@ if ($paid && $row && $pdo !== null) {
     <p class="fd-kicker" style="margin-top:24px;margin-bottom:10px">What happens next</p>
     <ol class="fd-offer-steps">
       <li>You say yes &mdash; takes about 2 minutes to check out</li>
-      <li>I build your site and send you the link within a week</li>
+      <li>I build your site and it&rsquo;s live within 24 hours &mdash; guaranteed</li>
       <li>You go live &mdash; customers can find and contact you</li>
     </ol>
 
