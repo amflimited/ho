@@ -173,10 +173,7 @@ if ($paid && $row && $pdo !== null) {
 </head>
 <body class="front-door-preview-page">
 
-<nav class="fd-nav">
-  <a class="fd-nav-brand" href="/">Hoosier Online</a>
-  <a class="fd-nav-cta" href="#preview">See Preview</a>
-</nav>
+
 
 <main class="fd-shell">
 
