@@ -813,6 +813,7 @@ if (!empty($unresearched)) {
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
               <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
                 <input type="hidden" name="action" value="disqualify_lead">
                 <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
