@@ -213,9 +213,12 @@ if ($paid && $row && $pdo !== null) {
     // Build the "we looked up" source chips
     $sources = [];
     if ($hasWebsite && $websiteUrl !== '') {
-        $domain = parse_url($websiteUrl, PHP_URL_HOST) ?: $websiteUrl;
-        $domain = ltrim($domain, 'www.');
-        $sources[] = ['href' => $websiteUrl, 'label' => ho_h($domain), 'class' => 'fd-rs-site'];
+        $wHost = strtolower(ltrim(parse_url($websiteUrl, PHP_URL_HOST) ?: $websiteUrl, 'www.'));
+        $suggestedHost = strtolower(ltrim($ownDotCom, 'www.'));
+        // Only show as a real site if it's not the same as the domain we're about to offer
+        if ($wHost !== $suggestedHost) {
+            $sources[] = ['href' => $websiteUrl, 'label' => ho_h($wHost), 'class' => 'fd-rs-site'];
+        }
     }
     if ($hasFacebook && $fbUrl !== '') {
         $sources[] = ['href' => $fbUrl, 'label' => 'Facebook page', 'class' => 'fd-rs-fb'];
