@@ -43,7 +43,7 @@ try {
     }
 
     // ── Model ──────────────────────────────────────────────────────────────────
-    require_once __DIR__ . '/database.php';
+    require_once __DIR__ . '/../database.php';
     require_once __DIR__ . '/ho-model.php';
 
     $pkg    = trim((string)($_POST['pkg']   ?? ''));

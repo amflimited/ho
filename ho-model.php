@@ -1,13 +1,11 @@
 <?php
 declare(strict_types=1);
-error_reporting(E_ALL); ini_set('display_errors', '1');
-
 /**
  * Hoosier Online Model v2
  * All database and business logic for the cockpit and preview.
  */
 
-require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/../database.php';
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 

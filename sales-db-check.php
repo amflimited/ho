@@ -1,5 +1,5 @@
 <?php
-declare(strict_types=1);require __DIR__.'/admin-core.php';require __DIR__.'/database.php';$result=null;try{$pdo=ho_db();$tables=$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);$result=['ok'=>true,'tables'=>$tables];}catch(Throwable $e){$result=['ok'=>false,'message'=>$e->getMessage()];}ho_admin_render_start(
+declare(strict_types=1);require __DIR__.'/admin-core.php';require __DIR__.'/../database.php';$result=null;try{$pdo=ho_db();$tables=$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);$result=['ok'=>true,'tables'=>$tables];}catch(Throwable $e){$result=['ok'=>false,'message'=>$e->getMessage()];}ho_admin_render_start(
     'tools',
     'System Check',
     'Tool',
