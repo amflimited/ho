@@ -160,7 +160,7 @@ if (!empty($unresearched)) {
   <link rel="icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Inter:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="/assets/css/cockpit.css">
+  <link rel="stylesheet" href="/assets/css/cockpit.css?v=<?= filemtime(__DIR__ . '/assets/css/cockpit.css') ?>">
 </head>
 <body>
 
