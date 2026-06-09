@@ -625,7 +625,7 @@ try {
 $knownExclusionsJson = json_encode($knownExclusions, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 $prompt = <<<PROMPT
-Find up to 25 NEW candidate businesses for Hoosier Online.
+Find up to 15 NEW candidate businesses for Hoosier Online.
 
 Goal:
 Generate a source candidate batch that can be pasted into the Hoosier Online admin import tool.
@@ -701,7 +701,7 @@ Return ONLY valid JSON in this exact structure:
     "category": "local_service",
     "target_area": "New Castle, IN",
     "source_method": "manual_gpt_assisted_candidate_search",
-    "count_requested": 25,
+    "count_requested": 15,
     "notes": "Candidate batch only. Not outreach-ready until triaged/refined."
   },
   "candidates": [
@@ -729,7 +729,7 @@ Return ONLY valid JSON in this exact structure:
 }
 
 Important:
-- Return 10 to 25 candidates if possible.
+- Return 8 to 15 candidates if possible.
 - The JSON must be directly pasteable into Hoosier Online Prospects → Paste Results Here or Sales Research.
 - Keep notes short.
 - Do not use markdown.
