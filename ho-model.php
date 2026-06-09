@@ -498,78 +498,182 @@ function ho_generate_research_prompt(array $businesses): string {
     foreach ($businesses as $i => $b) {
         $n = $i + 1;
         $list .= "{$n}. [ID:{$b['id']}] {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN";
-        if ($b['website_url']     !== '') $list .= " — website: {$b['website_url']}";
-        if ($b['facebook_url']    !== '') $list .= " — facebook: {$b['facebook_url']}";
-        if ($b['google_business_url'] !== '') $list .= " — google: {$b['google_business_url']}";
+        if (($b['website_url']         ?? '') !== '') $list .= " — website: {$b['website_url']}";
+        if (($b['facebook_url']        ?? '') !== '') $list .= " — facebook: {$b['facebook_url']}";
+        if (($b['google_business_url'] ?? '') !== '') $list .= " — google: {$b['google_business_url']}";
         $list .= "\n";
     }
 
     return <<<PROMPT
-Research these Indiana local service businesses. For each one: check their website, Google Business profile, Facebook, Angi, Thumbtack, and search for their main local competitor.
+Research these Indiana local service businesses for Hoosier Online lead qualification. For each one, check every public source: their website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, and BBB. Search Google for each business name + city + Indiana to find anything not immediately linked.
 
 Businesses to research:
 {$list}
-Return exactly this JSON structure (one entry per business):
+Return ONLY valid JSON — no markdown fences, no explanations. One entry per business:
 
 {
   "research_results": [
     {
       "business_id": 0,
       "raw_name": "Exact business name from the list above",
-      "has_website": true,
+
+      "has_website": false,
       "website_quality": "none",
-      "website_notes": "brief note or empty string",
+      "website_notes": "",
+      "has_contact_form": null,
+      "has_online_booking": null,
+      "has_photo_gallery": null,
+      "has_about_page": null,
+      "has_faq_page": null,
+      "has_pricing_page": null,
+      "has_video_on_site": null,
+      "has_online_payment": null,
+      "site_appears_outdated": null,
+      "has_blog": null,
+      "has_testimonials_section": null,
+      "has_live_chat": null,
+
       "has_google_business": false,
       "google_review_count": 0,
       "google_rating": 0.0,
-      "google_notes": "brief note or empty string",
+      "google_notes": "",
+      "has_gbp_posts": null,
+      "gbp_services_listed": null,
+      "gbp_hours_listed": null,
+      "gbp_photo_count": null,
+      "responds_to_reviews": false,
+      "last_review_date": "",
+
       "has_facebook": false,
       "facebook_activity": "none",
-      "facebook_notes": "brief note or empty string",
+      "facebook_notes": "",
+      "facebook_page_type": "none",
+      "facebook_last_post_months": null,
+      "facebook_follower_band": null,
+      "facebook_has_cta_button": null,
+
       "has_instagram": false,
       "instagram_activity": "none",
-      "services_list": ["service 1", "service 2"],
-      "service_area_text": "City and surrounding area",
-      "opportunity_summary": "One or two sentences written directly to the owner (use 'you'/'your'), explaining why they need a website. Be specific. Do NOT state the review count. Example: 'Your reviews are strong but there is no website for customers to land on.'",
-      "strengths": ["specific thing working in their favor"],
-      "gaps": ["specific thing missing or broken"],
-      "recommended_package": "standard",
-      "owner_first_name": "",
-      "is_franchise": false,
-      "competitor_has_website": false,
-      "competitor_name": "Name of their most obvious local competitor, or empty string",
-      "competitor_website": "Competitor website URL or empty string",
-      "booking_method": "phone",
-      "last_review_date": "2024-03",
-      "years_in_business": null,
+      "instagram_is_business": null,
+      "instagram_follower_band": null,
+      "instagram_last_post_months": null,
+
+      "has_yelp": false,
+      "yelp_claimed": null,
+      "yelp_review_count": null,
+      "yelp_rating": null,
       "has_angi": false,
       "has_thumbtack": false,
-      "responds_to_reviews": false,
-      "gbp_photo_count": null,
-      "owner_age_band": "unknown"
+      "has_youtube": false,
+      "has_nextdoor_listing": false,
+      "has_bbb_listing": false,
+
+      "logo_quality": "none",
+      "has_before_after_photos": false,
+      "has_professional_email": false,
+      "is_licensed_insured_visible": false,
+      "has_service_guarantee": false,
+
+      "services_list": ["service 1", "service 2"],
+      "service_area_text": "City and surrounding area",
+      "booking_method": "phone",
+      "years_in_business": null,
+      "owner_first_name": "",
+      "owner_age_band": "unknown",
+      "target_customer_type": "unknown",
+      "is_franchise": false,
+
+      "competitor_has_website": false,
+      "competitor_name": "",
+      "competitor_website": "",
+      "competitor_google_rating": null,
+      "competitor_review_count": null,
+
+      "opportunity_summary": "1-2 sentences to the owner using you/your. Be specific about their biggest gap. Do NOT state review count as a number.",
+      "strengths": ["specific thing working in their favor"],
+      "gaps": ["specific thing missing or broken"],
+      "recommended_package": "standard"
     }
   ]
 }
 
-Rules:
-- business_id: copy the [ID:N] number exactly
-- website_quality: "none" (no site), "poor" (barely works/outdated), "basic" (functional but simple), "decent" (reasonably complete)
-- facebook_activity / instagram_activity: "none", "dormant" (no posts 3+ months), "active" (posting regularly)
-- recommended_package: "standard" ($499) or "managed" ($999, businesses needing more ongoing content)
-- is_franchise: true only for national chains/franchise models. false for independent local owner-operators.
+FIELD RULES:
+
+business_id: Copy the [ID:N] number exactly.
+
+WEBSITE — set all website sub-fields to null when has_website=false:
+- website_quality: "none" | "poor" (barely works/outdated) | "basic" (functional but simple) | "decent" (reasonably complete)
+- has_contact_form: true if a contact/quote/inquiry form exists on the site
+- has_online_booking: true if they have appointment scheduling (Calendly, Acuity, time-slot form, etc.)
+- has_photo_gallery: true if a gallery or portfolio section with project photos exists
+- has_about_page: true if an About/About Us page exists
+- has_faq_page: true if an FAQ page exists
+- has_pricing_page: true if any pricing information is visible (even rough ranges)
+- has_video_on_site: true if any video is embedded on the site
+- has_online_payment: true if they accept payment online (PayPal, Square, Stripe checkout, etc.)
+- site_appears_outdated: true if the site looks dated (old design, copyright 2+ years ago, no recent content)
+- has_blog: true if they have a blog or news section with posts
+- has_testimonials_section: true if the site has a testimonials or reviews section
+- has_live_chat: true if a live chat widget is present (Intercom, Tawk, Drift, etc.)
+
+GOOGLE BUSINESS — set GBP sub-fields to null when has_google_business=false:
+- google_review_count / google_rating: from their GBP listing
+- has_gbp_posts: true if they have made GBP posts/updates
+- gbp_services_listed: true if the Services section on their GBP is filled out
+- gbp_hours_listed: true if business hours are set on their GBP
+- gbp_photo_count: approximate total photo count on GBP (integer or null if unknown)
+- responds_to_reviews: true if the owner visibly replies to Google reviews (even occasionally)
+- last_review_date: most recent Google review date as YYYY-MM. Empty string if unknown.
+
+FACEBOOK — set facebook sub-fields to null when has_facebook=false:
+- facebook_activity: "none" | "dormant" (no posts 3+ months) | "active" (posting regularly)
+- facebook_page_type: "none" | "personal" (personal profile used for business) | "business" (proper business page)
+- facebook_last_post_months: approximate months since last post (integer). null if no page.
+- facebook_follower_band: "micro" (1-200) | "small" (201-1000) | "medium" (1001-5000) | "large" (5000+). null if no page.
+- facebook_has_cta_button: true if the page has a CTA button (Call Now, Get Quote, Book Now). null if no business page.
+
+INSTAGRAM — set instagram sub-fields to null when has_instagram=false:
+- instagram_activity: "none" | "dormant" | "active"
+- instagram_is_business: true if they use a business/creator account (shows contact info/category)
+- instagram_follower_band: same bands as Facebook. null if no account.
+- instagram_last_post_months: approximate months since last post. null if no account.
+
+YELP — set yelp_claimed/yelp_review_count/yelp_rating to null when has_yelp=false:
+- yelp_claimed: true if listing appears claimed (owner responded, updated info, shows as verified)
+- yelp_review_count / yelp_rating: from their Yelp listing
+
+OTHER PLATFORMS:
+- has_angi / has_thumbtack: true if they have a profile/listing on those platforms
+- has_youtube: true if they have a YouTube channel with videos
+- has_nextdoor_listing: true if they appear on Nextdoor (Neighborhood Favorites or sponsored)
+- has_bbb_listing: true if they have a BBB listing
+
+BRANDING & TRUST:
+- logo_quality: "none" (no visible logo) | "basic" (text/clip art/low quality) | "professional" (clean custom logo)
+- has_before_after_photos: true if before/after or project transformation photos appear anywhere (website, GBP, Facebook)
+- has_professional_email: true if they use a custom-domain email (john@theirbusiness.com). false if Gmail/Yahoo/Hotmail/etc.
+- is_licensed_insured_visible: true if licensing, insurance, or bonding info is visibly displayed
+- has_service_guarantee: true if they explicitly offer a satisfaction guarantee or warranty
+
+BUSINESS INTELLIGENCE:
+- booking_method: "phone" | "facebook" | "email" | "form" | "app" (Jobber/HouseCall/etc.) | "unknown"
+- years_in_business: integer if findable on GBP or site. null if unknown.
 - owner_first_name: first name from GBP, About page, or Facebook. Empty string if not found.
-- competitor_has_website: true if you can find a direct local competitor in the same city/category that has a working website
-- competitor_name: the name of that competitor (one business, the most prominent). Empty if none found.
-- competitor_website: URL of that competitor's website. Empty if none.
-- booking_method: how they appear to currently accept work — "phone" (phone number only visible), "facebook" (DMs/Facebook messenger), "email" (email only), "form" (has a contact/quote form), "app" (uses Jobber/Housecall Pro/similar), "unknown"
-- last_review_date: approximate date of their most recent Google review in YYYY-MM format. Empty string if unknown.
-- years_in_business: integer if findable on GBP or their site. null if unknown.
-- has_angi: true if they have a listing on Angi/Angie's List
-- has_thumbtack: true if they have a Thumbtack profile
-- responds_to_reviews: true if the owner visibly responds to Google reviews (even occasionally)
-- gbp_photo_count: approximate number of photos on their Google Business profile. null if unknown.
-- owner_age_band: "under35", "35-55", "55plus", "unknown" — estimate from photos, LinkedIn, or About page
-- Return ONLY valid JSON, no explanation, no markdown fences.
+- owner_age_band: "under35" | "35-55" | "55plus" | "unknown" — estimate from photos/LinkedIn/About
+- target_customer_type: "residential" | "commercial" | "both" | "unknown"
+- is_franchise: true ONLY for national chains/franchise models. false for all local owner-operators.
+
+COMPETITOR (one primary local competitor in same city/category):
+- competitor_name: most prominent direct local competitor. Empty if none clearly found.
+- competitor_website: that competitor's own website URL. Empty if none.
+- competitor_google_rating: that competitor's Google star rating. null if unknown.
+- competitor_review_count: that competitor's Google review count. null if unknown.
+
+AI ASSESSMENT:
+- opportunity_summary: 1-2 sentences to the owner using you/your. Be specific. Do NOT state review count as a number.
+- strengths: specific things working in their favor (strong reviews, active Facebook, area reputation, etc.)
+- gaps: specific things missing or broken (no website, no contact form, inactive social, paying Angi, etc.)
+- recommended_package: "standard" ($499 site build) | "managed" ($999, businesses that need ongoing content)
 PROMPT;
 }
 
@@ -589,14 +693,12 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
 
         $bizRow = null;
 
-        // 1. Match on the database ID echoed back by GPT — most reliable
+        // Match on echoed-back ID first, then name fallback
         if ($bizId > 0) {
             $s = $pdo->prepare("SELECT id FROM businesses WHERE id = ? LIMIT 1");
             $s->execute([$bizId]);
             $bizRow = $s->fetch() ?: null;
         }
-
-        // 2. Case-insensitive name match as fallback (handles GPT name variations)
         if (!$bizRow && $name !== '') {
             $s = $pdo->prepare("SELECT id FROM businesses WHERE LOWER(business_name) = LOWER(?) LIMIT 1");
             $s->execute([$name]);
@@ -610,39 +712,52 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
 
         $bizId = (int)$bizRow['id'];
 
-        // Auto-exclude franchises flagged by GPT, add to permanent blocklist
         if ((bool)($r['is_franchise'] ?? false)) {
             ho_mark_excluded($pdo, $bizId, 'franchise', true);
             continue;
         }
 
-        $services  = json_encode(array_values((array)($r['services_list']  ?? [])), JSON_UNESCAPED_SLASHES);
-        $strengths = json_encode(array_values((array)($r['strengths']       ?? [])), JSON_UNESCAPED_SLASHES);
-        $gaps      = json_encode(array_values((array)($r['gaps']            ?? [])), JSON_UNESCAPED_SLASHES);
+        // Arrow functions auto-capture $r from enclosing scope
+        $nbool = fn($k) => isset($r[$k]) && $r[$k] !== null ? (int)(bool)$r[$k] : null;
+        $nint  = fn($k) => isset($r[$k]) && $r[$k] !== null && is_numeric($r[$k]) ? (int)$r[$k] : null;
+        $ndec  = fn($k, $min = 0.0, $max = 5.0) => isset($r[$k]) && $r[$k] !== null && is_numeric($r[$k])
+            ? max($min, min($max, (float)$r[$k])) : null;
+
+        $services  = json_encode(array_values((array)($r['services_list'] ?? [])), JSON_UNESCAPED_SLASHES);
+        $strengths = json_encode(array_values((array)($r['strengths']     ?? [])), JSON_UNESCAPED_SLASHES);
+        $gaps      = json_encode(array_values((array)($r['gaps']          ?? [])), JSON_UNESCAPED_SLASHES);
 
         $rating  = max(0.0, min(5.0, (float)($r['google_rating']      ?? 0)));
         $reviews = max(0,           (int)($r['google_review_count'] ?? 0));
 
-        $validQuality  = ['none','poor','basic','decent'];
-        $validActivity = ['none','dormant','active'];
-        $validPackage  = ['standard','managed'];
+        $validQuality   = ['none','poor','basic','decent'];
+        $validActivity  = ['none','dormant','active'];
+        $validPackage   = ['standard','managed'];
+        $validBooking   = ['phone','facebook','email','form','app','unknown'];
+        $validAgeBand   = ['under35','35-55','55plus','unknown'];
+        $validFbPgType  = ['none','personal','business'];
+        $validFollowBand= ['micro','small','medium','large'];
+        $validLogoQual  = ['none','basic','professional'];
+        $validCustType  = ['residential','commercial','both','unknown'];
 
-        $websiteQuality    = in_array($r['website_quality']     ?? '', $validQuality,  true) ? $r['website_quality']     : 'none';
-        $fbActivity        = in_array($r['facebook_activity']   ?? '', $validActivity, true) ? $r['facebook_activity']   : 'none';
-        $igActivity        = in_array($r['instagram_activity']  ?? '', $validActivity, true) ? $r['instagram_activity']  : 'none';
-        $package           = in_array($r['recommended_package'] ?? '', $validPackage,  true) ? $r['recommended_package'] : 'standard';
+        $websiteQuality     = in_array($r['website_quality']       ?? '', $validQuality,    true) ? $r['website_quality']       : 'none';
+        $fbActivity         = in_array($r['facebook_activity']     ?? '', $validActivity,   true) ? $r['facebook_activity']     : 'none';
+        $igActivity         = in_array($r['instagram_activity']    ?? '', $validActivity,   true) ? $r['instagram_activity']    : 'none';
+        $package            = in_array($r['recommended_package']   ?? '', $validPackage,    true) ? $r['recommended_package']   : 'standard';
+        $bookingMethod      = in_array($r['booking_method']        ?? '', $validBooking,    true) ? $r['booking_method']        : 'unknown';
+        $ownerAgeBand       = in_array($r['owner_age_band']        ?? '', $validAgeBand,    true) ? $r['owner_age_band']        : 'unknown';
+        $fbPageType         = in_array($r['facebook_page_type']    ?? '', $validFbPgType,   true) ? $r['facebook_page_type']   : 'none';
+        $fbFollowerBand     = in_array($r['facebook_follower_band'] ?? '', $validFollowBand, true) ? $r['facebook_follower_band'] : null;
+        $igFollowerBand     = in_array($r['instagram_follower_band'] ?? '', $validFollowBand,true) ? $r['instagram_follower_band'] : null;
+        $logoQuality        = in_array($r['logo_quality']          ?? '', $validLogoQual,   true) ? $r['logo_quality']          : 'none';
+        $targetCustType     = in_array($r['target_customer_type']  ?? '', $validCustType,   true) ? $r['target_customer_type']  : 'unknown';
 
-        $validBooking  = ['phone','facebook','email','form','app','unknown'];
-        $validAgeBand  = ['under35','35-55','55plus','unknown'];
-        $bookingMethod = in_array($r['booking_method'] ?? '', $validBooking, true) ? $r['booking_method'] : 'unknown';
-        $ownerAgeBand  = in_array($r['owner_age_band'] ?? '', $validAgeBand,  true) ? $r['owner_age_band'] : 'unknown';
         $lastReviewDate = substr(trim((string)($r['last_review_date'] ?? '')), 0, 20);
-        $yearsInBiz     = isset($r['years_in_business']) && $r['years_in_business'] !== null ? (int)$r['years_in_business'] : null;
-        $gbpPhotos      = isset($r['gbp_photo_count'])   && $r['gbp_photo_count']   !== null ? (int)$r['gbp_photo_count']   : null;
+        $yearsInBiz     = isset($r['years_in_business']) && $r['years_in_business'] !== null && is_numeric($r['years_in_business']) ? (int)$r['years_in_business'] : null;
+        $gbpPhotos      = $nint('gbp_photo_count');
         $compName       = substr(trim((string)($r['competitor_name']    ?? '')), 0, 200);
         $compWebsite    = substr(trim((string)($r['competitor_website'] ?? '')), 0, 500);
 
-        // Auto-run technical check for existing sites
         $techCheck = ['has_ssl' => null, 'mobile_friendly' => null];
         $siteUrl   = trim((string)($r['website_url'] ?? ''));
         if ((int)($r['has_website'] ?? 0) && $siteUrl !== '') {
@@ -651,55 +766,120 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
 
         $upsert = $pdo->prepare("
             INSERT INTO research_records
-              (business_id, has_website, website_quality, website_notes,
+              (business_id,
+               has_website, website_quality, website_notes,
+               has_contact_form, has_online_booking, has_photo_gallery, has_about_page,
+               has_faq_page, has_pricing_page, has_video_on_site, has_online_payment,
+               site_appears_outdated, has_blog, has_testimonials_section, has_live_chat,
                has_google_business, google_review_count, google_rating, google_notes,
+               has_gbp_posts, gbp_services_listed, gbp_hours_listed, gbp_photo_count,
+               responds_to_reviews, last_review_date,
                has_facebook, facebook_activity, facebook_notes,
+               facebook_page_type, facebook_last_post_months, facebook_follower_band, facebook_has_cta_button,
                has_instagram, instagram_activity,
-               services_list, service_area_text,
-               opportunity_summary, strengths, gaps, recommended_package,
+               instagram_is_business, instagram_follower_band, instagram_last_post_months,
+               has_yelp, yelp_claimed, yelp_review_count, yelp_rating,
+               has_angi, has_thumbtack, has_youtube, has_nextdoor_listing, has_bbb_listing,
+               logo_quality, has_before_after_photos, has_professional_email,
+               is_licensed_insured_visible, has_service_guarantee,
+               services_list, service_area_text, booking_method, years_in_business,
+               owner_age_band, target_customer_type,
                competitor_has_website, competitor_name, competitor_website,
-               booking_method, last_review_date, years_in_business,
-               has_angi, has_thumbtack, responds_to_reviews, gbp_photo_count,
-               owner_age_band, mobile_friendly, has_ssl,
+               competitor_google_rating, competitor_review_count,
+               opportunity_summary, strengths, gaps, recommended_package,
+               mobile_friendly, has_ssl,
                research_status, research_method, researched_at)
             VALUES
-              (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               'complete', 'gpt_assisted', NOW())
+              (?,
+               ?,?,?,  ?,?,?,?,  ?,?,?,?,  ?,?,?,?,
+               ?,?,?,?,  ?,?,?,?,  ?,?,
+               ?,?,?,  ?,?,?,?,
+               ?,?,  ?,?,?,
+               ?,?,?,?,  ?,?,?,?,?,
+               ?,?,?,  ?,?,
+               ?,?,?,?,  ?,?,
+               ?,?,?,  ?,?,
+               ?,?,?,?,  ?,?,
+               'complete','gpt_assisted',NOW())
             ON DUPLICATE KEY UPDATE
               has_website=VALUES(has_website), website_quality=VALUES(website_quality),
-              website_notes=VALUES(website_notes), has_google_business=VALUES(has_google_business),
+              website_notes=VALUES(website_notes),
+              has_contact_form=VALUES(has_contact_form), has_online_booking=VALUES(has_online_booking),
+              has_photo_gallery=VALUES(has_photo_gallery), has_about_page=VALUES(has_about_page),
+              has_faq_page=VALUES(has_faq_page), has_pricing_page=VALUES(has_pricing_page),
+              has_video_on_site=VALUES(has_video_on_site), has_online_payment=VALUES(has_online_payment),
+              site_appears_outdated=VALUES(site_appears_outdated), has_blog=VALUES(has_blog),
+              has_testimonials_section=VALUES(has_testimonials_section), has_live_chat=VALUES(has_live_chat),
+              has_google_business=VALUES(has_google_business),
               google_review_count=VALUES(google_review_count), google_rating=VALUES(google_rating),
-              google_notes=VALUES(google_notes), has_facebook=VALUES(has_facebook),
-              facebook_activity=VALUES(facebook_activity), facebook_notes=VALUES(facebook_notes),
+              google_notes=VALUES(google_notes),
+              has_gbp_posts=VALUES(has_gbp_posts), gbp_services_listed=VALUES(gbp_services_listed),
+              gbp_hours_listed=VALUES(gbp_hours_listed), gbp_photo_count=VALUES(gbp_photo_count),
+              responds_to_reviews=VALUES(responds_to_reviews), last_review_date=VALUES(last_review_date),
+              has_facebook=VALUES(has_facebook), facebook_activity=VALUES(facebook_activity),
+              facebook_notes=VALUES(facebook_notes), facebook_page_type=VALUES(facebook_page_type),
+              facebook_last_post_months=VALUES(facebook_last_post_months),
+              facebook_follower_band=VALUES(facebook_follower_band),
+              facebook_has_cta_button=VALUES(facebook_has_cta_button),
               has_instagram=VALUES(has_instagram), instagram_activity=VALUES(instagram_activity),
+              instagram_is_business=VALUES(instagram_is_business),
+              instagram_follower_band=VALUES(instagram_follower_band),
+              instagram_last_post_months=VALUES(instagram_last_post_months),
+              has_yelp=VALUES(has_yelp), yelp_claimed=VALUES(yelp_claimed),
+              yelp_review_count=VALUES(yelp_review_count), yelp_rating=VALUES(yelp_rating),
+              has_angi=VALUES(has_angi), has_thumbtack=VALUES(has_thumbtack),
+              has_youtube=VALUES(has_youtube), has_nextdoor_listing=VALUES(has_nextdoor_listing),
+              has_bbb_listing=VALUES(has_bbb_listing),
+              logo_quality=VALUES(logo_quality), has_before_after_photos=VALUES(has_before_after_photos),
+              has_professional_email=VALUES(has_professional_email),
+              is_licensed_insured_visible=VALUES(is_licensed_insured_visible),
+              has_service_guarantee=VALUES(has_service_guarantee),
               services_list=VALUES(services_list), service_area_text=VALUES(service_area_text),
-              opportunity_summary=VALUES(opportunity_summary), strengths=VALUES(strengths),
-              gaps=VALUES(gaps), recommended_package=VALUES(recommended_package),
+              booking_method=VALUES(booking_method), years_in_business=VALUES(years_in_business),
+              owner_age_band=VALUES(owner_age_band), target_customer_type=VALUES(target_customer_type),
               competitor_has_website=VALUES(competitor_has_website),
               competitor_name=VALUES(competitor_name), competitor_website=VALUES(competitor_website),
-              booking_method=VALUES(booking_method), last_review_date=VALUES(last_review_date),
-              years_in_business=VALUES(years_in_business), has_angi=VALUES(has_angi),
-              has_thumbtack=VALUES(has_thumbtack), responds_to_reviews=VALUES(responds_to_reviews),
-              gbp_photo_count=VALUES(gbp_photo_count), owner_age_band=VALUES(owner_age_band),
+              competitor_google_rating=VALUES(competitor_google_rating),
+              competitor_review_count=VALUES(competitor_review_count),
+              opportunity_summary=VALUES(opportunity_summary), strengths=VALUES(strengths),
+              gaps=VALUES(gaps), recommended_package=VALUES(recommended_package),
               mobile_friendly=VALUES(mobile_friendly), has_ssl=VALUES(has_ssl),
               research_status='complete', researched_at=NOW()
         ");
 
         $upsert->execute([
             $bizId,
-            (int)($r['has_website']         ?? 0), $websiteQuality, trim((string)($r['website_notes']  ?? '')),
-            (int)($r['has_google_business']  ?? 0), $reviews, $rating, trim((string)($r['google_notes'] ?? '')),
-            (int)($r['has_facebook']         ?? 0), $fbActivity, trim((string)($r['facebook_notes']     ?? '')),
-            (int)($r['has_instagram']        ?? 0), $igActivity,
-            $services, trim((string)($r['service_area_text'] ?? '')),
-            trim((string)($r['opportunity_summary'] ?? '')),
-            $strengths, $gaps, $package,
+            // Website
+            (int)($r['has_website'] ?? 0), $websiteQuality, substr(trim((string)($r['website_notes'] ?? '')), 0, 500),
+            $nbool('has_contact_form'), $nbool('has_online_booking'), $nbool('has_photo_gallery'), $nbool('has_about_page'),
+            $nbool('has_faq_page'), $nbool('has_pricing_page'), $nbool('has_video_on_site'), $nbool('has_online_payment'),
+            $nbool('site_appears_outdated'), $nbool('has_blog'), $nbool('has_testimonials_section'), $nbool('has_live_chat'),
+            // GBP
+            (int)($r['has_google_business'] ?? 0), $reviews, $rating, substr(trim((string)($r['google_notes'] ?? '')), 0, 500),
+            $nbool('has_gbp_posts'), $nbool('gbp_services_listed'), $nbool('gbp_hours_listed'), $gbpPhotos,
+            (int)($r['responds_to_reviews'] ?? 0), $lastReviewDate,
+            // Facebook
+            (int)($r['has_facebook'] ?? 0), $fbActivity, substr(trim((string)($r['facebook_notes'] ?? '')), 0, 500),
+            $fbPageType, $nint('facebook_last_post_months'), $fbFollowerBand, $nbool('facebook_has_cta_button'),
+            // Instagram
+            (int)($r['has_instagram'] ?? 0), $igActivity,
+            $nbool('instagram_is_business'), $igFollowerBand, $nint('instagram_last_post_months'),
+            // Yelp & platforms
+            (int)($r['has_yelp'] ?? 0), $nbool('yelp_claimed'), $nint('yelp_review_count'), $ndec('yelp_rating'),
+            (int)($r['has_angi'] ?? 0), (int)($r['has_thumbtack'] ?? 0),
+            (int)($r['has_youtube'] ?? 0), (int)($r['has_nextdoor_listing'] ?? 0), (int)($r['has_bbb_listing'] ?? 0),
+            // Branding
+            $logoQuality, (int)($r['has_before_after_photos'] ?? 0), (int)($r['has_professional_email'] ?? 0),
+            (int)($r['is_licensed_insured_visible'] ?? 0), (int)($r['has_service_guarantee'] ?? 0),
+            // Business intelligence
+            $services, substr(trim((string)($r['service_area_text'] ?? '')), 0, 500),
+            $bookingMethod, $yearsInBiz, $ownerAgeBand, $targetCustType,
+            // Competitor
             (int)($r['competitor_has_website'] ?? 0), $compName, $compWebsite,
-            $bookingMethod, $lastReviewDate, $yearsInBiz,
-            (int)($r['has_angi']           ?? 0), (int)($r['has_thumbtack']       ?? 0),
-            (int)($r['responds_to_reviews'] ?? 0), $gbpPhotos,
-            $ownerAgeBand,
+            $ndec('competitor_google_rating'), $nint('competitor_review_count'),
+            // AI assessment
+            substr(trim((string)($r['opportunity_summary'] ?? '')), 0, 1000), $strengths, $gaps, $package,
+            // Tech check
             $techCheck['mobile_friendly'] === null ? null : (int)$techCheck['mobile_friendly'],
             $techCheck['has_ssl']         === null ? null : (int)$techCheck['has_ssl'],
         ]);
@@ -723,9 +903,15 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
                r.opportunity_summary, r.services_list, r.service_area_text,
                r.recommended_package, r.has_website, r.website_quality,
                r.has_google_business, r.google_review_count, r.google_rating,
-               r.has_facebook, r.facebook_activity, r.strengths, r.gaps,
+               r.has_facebook, r.facebook_activity, r.facebook_last_post_months,
+               r.strengths, r.gaps,
                r.has_angi, r.has_thumbtack, r.booking_method,
-               r.mobile_friendly, r.has_ssl, r.gbp_photo_count, r.last_review_date
+               r.mobile_friendly, r.has_ssl, r.gbp_photo_count, r.last_review_date,
+               r.has_online_booking, r.site_appears_outdated,
+               r.has_gbp_posts, r.gbp_services_listed, r.gbp_hours_listed,
+               r.has_before_after_photos, r.has_photo_gallery, r.has_testimonials_section,
+               r.has_professional_email, r.is_licensed_insured_visible,
+               r.has_yelp, r.yelp_claimed
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN research_records r ON r.business_id = b.id
@@ -872,59 +1058,105 @@ function ho_enhancement_gaps(array $row): array {
     $reviewCount = (int)($row['google_review_count'] ?? 0);
     $notMobile   = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
     $noSsl       = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
+    $hasGBP      = (bool)($row['has_google_business'] ?? false);
+    $hasFacebook = (bool)($row['has_facebook'] ?? false);
 
     $found = [];
 
+    // Technical site issues (SSL/mobile)
+    if ($notMobile || $noSsl) $found[] = 'tech_issues';
+
+    // No contact/quote form — leads can only call or DM
     $booking = (string)($row['booking_method'] ?? 'unknown');
-    if (in_array($booking, ['phone','facebook','email'], true)) {
-        $found[] = 'contact_form';
+    if (in_array($booking, ['phone','facebook','email'], true)) $found[] = 'contact_form';
+
+    // No online booking/scheduling system
+    if (isset($row['has_online_booking']) && (string)$row['has_online_booking'] === '0') $found[] = 'online_booking';
+
+    // Site looks old and dated
+    if (isset($row['site_appears_outdated']) && (string)$row['site_appears_outdated'] === '1') $found[] = 'site_outdated';
+
+    // Paying Angi or Thumbtack per lead
+    if ((bool)($row['has_angi'] ?? false) || (bool)($row['has_thumbtack'] ?? false)) $found[] = 'paid_leads';
+
+    // Not on Google Maps at all
+    if (!$hasGBP) $found[] = 'google_business';
+
+    // GBP exists but profile is incomplete
+    if ($hasGBP) {
+        $missingPosts    = isset($row['has_gbp_posts'])       && (string)$row['has_gbp_posts']       === '0';
+        $missingServices = isset($row['gbp_services_listed']) && (string)$row['gbp_services_listed'] === '0';
+        $missingHours    = isset($row['gbp_hours_listed'])    && (string)$row['gbp_hours_listed']    === '0';
+        if ($missingPosts || $missingServices || $missingHours) $found[] = 'gbp_incomplete';
     }
 
-    if ((bool)($row['has_angi'] ?? false) || (bool)($row['has_thumbtack'] ?? false)) {
-        $found[] = 'paid_leads';
-    }
-
-    if (!(bool)($row['has_google_business'] ?? false)) {
-        $found[] = 'google_business';
-    }
-
-    if ($notMobile || $noSsl) {
-        $found[] = 'tech_issues';
-    }
-
+    // GBP photo count under 10
     $gbpPhotos = isset($row['gbp_photo_count']) && $row['gbp_photo_count'] !== null
         ? (int)$row['gbp_photo_count'] : null;
-    if ($gbpPhotos !== null && $gbpPhotos < 10) {
-        $found[] = 'gbp_photos';
-    }
+    if ($gbpPhotos !== null && $gbpPhotos < 10) $found[] = 'gbp_photos';
 
+    // No recent reviews (stale)
     $lastReviewDate = trim((string)($row['last_review_date'] ?? ''));
     if ($lastReviewDate !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewDate, $m)) {
         $ageMonths = ((int)date('Y') - (int)$m[1]) * 12 + ((int)date('n') - (int)$m[2]);
-        if ($ageMonths >= 6 && $reviewCount >= 3) {
-            $found[] = 'stale_reviews';
-        }
+        if ($ageMonths >= 6 && $reviewCount >= 3) $found[] = 'stale_reviews';
+    }
+
+    // No before/after or project photos anywhere
+    if (isset($row['has_before_after_photos']) && (string)$row['has_before_after_photos'] === '0') $found[] = 'no_before_after';
+
+    // No photo gallery on site
+    if (isset($row['has_photo_gallery']) && (string)$row['has_photo_gallery'] === '0') $found[] = 'no_gallery';
+
+    // No testimonials section on site
+    if (isset($row['has_testimonials_section']) && (string)$row['has_testimonials_section'] === '0') $found[] = 'no_testimonials';
+
+    // Facebook page exists but is dormant
+    if ($hasFacebook) {
+        $fbMonths  = isset($row['facebook_last_post_months']) && $row['facebook_last_post_months'] !== null
+            ? (int)$row['facebook_last_post_months'] : null;
+        $fbDormant = (string)($row['facebook_activity'] ?? '') === 'dormant';
+        if ($fbDormant || ($fbMonths !== null && $fbMonths > 3)) $found[] = 'dead_facebook';
+    }
+
+    // Using a freemail address (looks unprofessional)
+    if (isset($row['has_professional_email']) && (string)$row['has_professional_email'] === '0') $found[] = 'freemail';
+
+    // No licensing/insurance info visible — trust gap
+    if (isset($row['is_licensed_insured_visible']) && (string)$row['is_licensed_insured_visible'] === '0') $found[] = 'no_trust_signals';
+
+    // Yelp listing exists but unclaimed — reputation risk
+    if ((bool)($row['has_yelp'] ?? false) && isset($row['yelp_claimed']) && (string)$row['yelp_claimed'] === '0') {
+        $found[] = 'yelp_unclaimed';
     }
 
     if (empty($found)) return [];
 
-    // Priority order: lower number = shown first
-    // Default: contact_form leads; tech_issues jumps to #1 when BOTH mobile+SSL broken
     $priority = [
-        'contact_form'    => 1,
-        'tech_issues'     => 2,
-        'paid_leads'      => 3,
-        'google_business' => 4,
-        'gbp_photos'      => 5,
-        'stale_reviews'   => 6,
+        'contact_form'    =>  1,
+        'tech_issues'     =>  2,
+        'online_booking'  =>  3,
+        'site_outdated'   =>  4,
+        'paid_leads'      =>  5,
+        'google_business' =>  6,
+        'gbp_incomplete'  =>  7,
+        'gbp_photos'      =>  8,
+        'stale_reviews'   =>  9,
+        'no_before_after' => 10,
+        'no_gallery'      => 11,
+        'no_testimonials' => 12,
+        'dead_facebook'   => 13,
+        'freemail'        => 14,
+        'no_trust_signals'=> 15,
+        'yelp_unclaimed'  => 16,
     ];
 
+    // tech_issues jumps to position 0 when BOTH mobile AND SSL are broken
     if ($notMobile && $noSsl && in_array('tech_issues', $found, true)) {
         $priority['tech_issues'] = 0;
     }
 
     usort($found, fn($a, $b) => ($priority[$a] ?? 99) <=> ($priority[$b] ?? 99));
-
     return $found;
 }
 
@@ -975,10 +1207,15 @@ function ho_get_enhancement_ready(PDO $pdo): array {
                c.name AS category_name, c.slug AS category_slug,
                p.headline, p.package_recommendation, p.view_count, p.last_viewed_at,
                r.opportunity_summary, r.has_website, r.website_quality,
-               r.google_review_count, r.google_rating, r.facebook_activity,
+               r.google_review_count, r.google_rating, r.facebook_activity, r.facebook_last_post_months,
                r.booking_method, r.has_angi, r.has_thumbtack,
                r.has_google_business, r.mobile_friendly, r.has_ssl,
-               r.gbp_photo_count, r.last_review_date, r.owner_age_band
+               r.gbp_photo_count, r.last_review_date, r.owner_age_band,
+               r.has_online_booking, r.site_appears_outdated,
+               r.has_gbp_posts, r.gbp_services_listed, r.gbp_hours_listed,
+               r.has_before_after_photos, r.has_photo_gallery, r.has_testimonials_section,
+               r.has_professional_email, r.is_licensed_insured_visible,
+               r.has_yelp, r.yelp_claimed
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN previews p ON p.business_id = b.id
@@ -2005,11 +2242,11 @@ function ho_generate_enrichment_prompt(array $businesses): string {
     }
 
     return <<<PROMPT
-These Indiana local service businesses have already been researched. We need a few ADDITIONAL data points for each one. Look them up and fill in ONLY these specific fields — do not re-assess website quality or review counts.
+These Indiana local service businesses have already been researched. Fill in the MISSING fields below — only the ones not yet collected. Do not re-assess website quality, review counts, or services.
 
 Businesses:
 {$list}
-Return exactly this JSON structure:
+Return ONLY valid JSON — no markdown fences, no explanations:
 
 {
   "enrichment_results": [
@@ -2017,33 +2254,57 @@ Return exactly this JSON structure:
       "business_id": 0,
       "raw_name": "Exact business name from the list above",
       "competitor_has_website": false,
-      "competitor_name": "Name of their most obvious local competitor in the same city/category, or empty string",
-      "competitor_website": "Competitor's website URL or empty string",
+      "competitor_name": "",
+      "competitor_website": "",
+      "competitor_google_rating": null,
+      "competitor_review_count": null,
       "booking_method": "phone",
-      "last_review_date": "2024-03",
+      "last_review_date": "",
       "years_in_business": null,
       "has_angi": false,
       "has_thumbtack": false,
+      "has_youtube": false,
+      "has_nextdoor_listing": false,
+      "has_bbb_listing": false,
       "responds_to_reviews": false,
       "gbp_photo_count": null,
-      "owner_age_band": "unknown"
+      "has_gbp_posts": null,
+      "gbp_services_listed": null,
+      "gbp_hours_listed": null,
+      "has_yelp": false,
+      "yelp_claimed": null,
+      "yelp_review_count": null,
+      "yelp_rating": null,
+      "logo_quality": "none",
+      "has_before_after_photos": false,
+      "has_professional_email": false,
+      "is_licensed_insured_visible": false,
+      "has_service_guarantee": false,
+      "target_customer_type": "unknown",
+      "owner_age_band": "unknown",
+      "owner_first_name": ""
     }
   ]
 }
 
 Rules:
 - business_id: copy the [ID:N] number exactly
-- competitor_has_website: true if a direct local competitor in the same city has a working website
-- competitor_name: single most prominent competitor. Empty if none clearly found.
-- competitor_website: that competitor's URL. Empty if none.
-- booking_method: how they appear to accept work — "phone", "facebook", "email", "form", "app", "unknown"
-- last_review_date: most recent Google review date as YYYY-MM. Empty if unknown.
-- years_in_business: integer from GBP or their site. 0 if unknown — never return null.
-- has_angi / has_thumbtack: true if they have a listing on those platforms
-- responds_to_reviews: true if the owner visibly replies to Google reviews
-- gbp_photo_count: approximate count of photos on Google Business. null if unknown.
-- owner_age_band: "under35", "35-55", "55plus", "unknown"
-- Return ONLY valid JSON, no explanation, no markdown fences.
+- competitor_name / competitor_website: most prominent direct local competitor. Empty if none found.
+- competitor_google_rating / competitor_review_count: that competitor's Google stats. null if unknown.
+- booking_method: "phone" | "facebook" | "email" | "form" | "app" | "unknown"
+- last_review_date: most recent Google review as YYYY-MM. Empty if unknown.
+- years_in_business: integer from GBP or site. null if unknown.
+- has_gbp_posts: true if GBP has posts/updates. null if no GBP profile.
+- gbp_services_listed: true if GBP Services section is filled out. null if no GBP.
+- gbp_hours_listed: true if GBP has hours set. null if no GBP.
+- has_yelp: true if they have a Yelp listing. yelp_claimed/yelp_review_count/yelp_rating are null if has_yelp=false.
+- logo_quality: "none" | "basic" | "professional"
+- has_before_after_photos: true if before/after photos appear on their website, GBP, or Facebook
+- has_professional_email: true if they use a custom-domain email. false if Gmail/Yahoo/Hotmail/etc.
+- is_licensed_insured_visible: true if licensing or insurance info is visibly displayed
+- has_service_guarantee: true if they offer a satisfaction guarantee or warranty
+- target_customer_type: "residential" | "commercial" | "both" | "unknown"
+- owner_age_band: "under35" | "35-55" | "55plus" | "unknown"
 PROMPT;
 }
 
@@ -2076,41 +2337,88 @@ function ho_import_enrichment_json(PDO $pdo, string $rawJson): array {
         }
         $bizId = (int)$bizRow['id'];
 
-        $validBooking = ['phone','facebook','email','form','app','unknown'];
-        $validAgeBand = ['under35','35-55','55plus','unknown'];
-        $bookingMethod  = in_array($r['booking_method']  ?? '', $validBooking, true) ? $r['booking_method'] : 'unknown';
-        $ownerAgeBand   = in_array($r['owner_age_band']  ?? '', $validAgeBand,  true) ? $r['owner_age_band'] : 'unknown';
+        $nbool = fn($k) => isset($r[$k]) && $r[$k] !== null ? (int)(bool)$r[$k] : null;
+        $nint  = fn($k) => isset($r[$k]) && $r[$k] !== null && is_numeric($r[$k]) ? (int)$r[$k] : null;
+        $ndec  = fn($k, $min = 0.0, $max = 5.0) => isset($r[$k]) && $r[$k] !== null && is_numeric($r[$k])
+            ? max($min, min($max, (float)$r[$k])) : null;
+
+        $validBooking   = ['phone','facebook','email','form','app','unknown'];
+        $validAgeBand   = ['under35','35-55','55plus','unknown'];
+        $validLogoQual  = ['none','basic','professional'];
+        $validCustType  = ['residential','commercial','both','unknown'];
+
+        $bookingMethod  = in_array($r['booking_method']      ?? '', $validBooking,  true) ? $r['booking_method']      : 'unknown';
+        $ownerAgeBand   = in_array($r['owner_age_band']      ?? '', $validAgeBand,  true) ? $r['owner_age_band']      : 'unknown';
+        $logoQuality    = in_array($r['logo_quality']        ?? '', $validLogoQual, true) ? $r['logo_quality']        : 'none';
+        $targetCustType = in_array($r['target_customer_type'] ?? '', $validCustType,true) ? $r['target_customer_type'] : 'unknown';
+
         $lastReviewDate = substr(trim((string)($r['last_review_date'] ?? '')), 0, 20);
-        // 0 = enrichment ran but couldn't determine; NULL = never been through enrichment
-        $yearsInBiz     = isset($r['years_in_business']) && is_numeric($r['years_in_business']) ? (int)$r['years_in_business'] : 0;
-        $gbpPhotos      = isset($r['gbp_photo_count'])   && $r['gbp_photo_count']   !== null ? (int)$r['gbp_photo_count']   : null;
+        $yearsInBiz     = isset($r['years_in_business']) && is_numeric($r['years_in_business']) ? (int)$r['years_in_business'] : null;
+        $gbpPhotos      = $nint('gbp_photo_count');
         $compName       = substr(trim((string)($r['competitor_name']    ?? '')), 0, 200);
         $compWebsite    = substr(trim((string)($r['competitor_website'] ?? '')), 0, 500);
 
         try {
             $pdo->prepare("
                 UPDATE research_records SET
-                  competitor_has_website = ?,
-                  competitor_name        = ?,
-                  competitor_website     = ?,
-                  booking_method         = ?,
-                  last_review_date       = ?,
-                  years_in_business      = ?,
-                  has_angi               = ?,
-                  has_thumbtack          = ?,
-                  responds_to_reviews    = ?,
-                  gbp_photo_count        = ?,
-                  owner_age_band         = ?
+                  competitor_has_website   = ?,
+                  competitor_name          = ?,
+                  competitor_website       = ?,
+                  competitor_google_rating = ?,
+                  competitor_review_count  = ?,
+                  booking_method           = ?,
+                  last_review_date         = ?,
+                  years_in_business        = ?,
+                  has_angi                 = ?,
+                  has_thumbtack            = ?,
+                  has_youtube              = ?,
+                  has_nextdoor_listing     = ?,
+                  has_bbb_listing          = ?,
+                  responds_to_reviews      = ?,
+                  gbp_photo_count          = ?,
+                  has_gbp_posts            = ?,
+                  gbp_services_listed      = ?,
+                  gbp_hours_listed         = ?,
+                  has_yelp                 = ?,
+                  yelp_claimed             = ?,
+                  yelp_review_count        = ?,
+                  yelp_rating              = ?,
+                  logo_quality             = ?,
+                  has_before_after_photos  = ?,
+                  has_professional_email   = ?,
+                  is_licensed_insured_visible = ?,
+                  has_service_guarantee    = ?,
+                  target_customer_type     = ?,
+                  owner_age_band           = ?
                 WHERE business_id = ?
             ")->execute([
                 (int)($r['competitor_has_website'] ?? 0), $compName, $compWebsite,
+                $ndec('competitor_google_rating'), $nint('competitor_review_count'),
                 $bookingMethod, $lastReviewDate, $yearsInBiz,
-                (int)($r['has_angi']            ?? 0),
-                (int)($r['has_thumbtack']        ?? 0),
-                (int)($r['responds_to_reviews']  ?? 0),
-                $gbpPhotos, $ownerAgeBand,
+                (int)($r['has_angi']             ?? 0),
+                (int)($r['has_thumbtack']         ?? 0),
+                (int)($r['has_youtube']           ?? 0),
+                (int)($r['has_nextdoor_listing']  ?? 0),
+                (int)($r['has_bbb_listing']       ?? 0),
+                (int)($r['responds_to_reviews']   ?? 0),
+                $gbpPhotos,
+                $nbool('has_gbp_posts'), $nbool('gbp_services_listed'), $nbool('gbp_hours_listed'),
+                (int)($r['has_yelp']              ?? 0),
+                $nbool('yelp_claimed'), $nint('yelp_review_count'), $ndec('yelp_rating'),
+                $logoQuality,
+                (int)($r['has_before_after_photos']     ?? 0),
+                (int)($r['has_professional_email']      ?? 0),
+                (int)($r['is_licensed_insured_visible'] ?? 0),
+                (int)($r['has_service_guarantee']       ?? 0),
+                $targetCustType, $ownerAgeBand,
                 $bizId,
             ]);
+            // Update owner first name on the business if returned and not already set
+            $ownerFirst = substr(trim((string)($r['owner_first_name'] ?? '')), 0, 100);
+            if ($ownerFirst !== '') {
+                $pdo->prepare("UPDATE businesses SET owner_first_name = ? WHERE id = ? AND (owner_first_name IS NULL OR owner_first_name = '')")
+                    ->execute([$ownerFirst, $bizId]);
+            }
             $updated++;
         } catch (Throwable $e) {
             $errors[] = "ID:{$bizId} — " . $e->getMessage();
