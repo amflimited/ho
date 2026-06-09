@@ -537,6 +537,59 @@ if ($paid && $row && $pdo !== null) {
           'title' => 'Get fresh reviews coming in',
           'body'  => 'Your most recent review is ' . ($reviewAgeMonths !== null ? $reviewAgeMonths . ' months' : 'a while') . ' old. Customers read recency as a signal that you\'re still active and taking jobs. A simple follow-up system keeps new reviews coming without you having to chase them.',
       ],
+      'online_booking' => [
+          'icon'  => '📅',
+          'title' => 'Let people book you without the phone tag',
+          'body'  => 'Right now booking means a call back and forth to find a time. Half the people who\'d book never get past that. A simple "pick a time" button on your site lets them lock in a slot while they\'re still thinking about it — and it shows up on your calendar automatically.',
+      ],
+      'site_outdated' => [
+          'icon'  => '✨',
+          'title' => 'Bring the look up to date',
+          'body'  => 'Your site works, but it reads a few years behind — and customers judge whether you\'re still sharp by how it looks. A clean refresh on what\'s already there makes ' . ho_h($name) . ' feel current and trustworthy without rebuilding from scratch.',
+      ],
+      'gbp_incomplete' => [
+          'icon'  => '📋',
+          'title' => 'Finish filling out your Google profile',
+          'body'  => 'Your Google Business profile is missing pieces — services, hours, or regular posts. Google rewards complete profiles with better placement, and customers skip listings that look half-finished. Filling it in is quick and pushes you up in the local results.',
+      ],
+      'no_before_after' => [
+          'icon'  => '🔁',
+          'title' => 'Show the before & after',
+          'body'  => 'For ' . ho_h(strtolower($catName)) . ', the transformation is the sell. People want to see the messy "before" turn into the clean "after" — it\'s the most convincing thing you can show. A handful of real job photos side by side does more than any sales pitch.',
+      ],
+      'no_gallery' => [
+          'icon'  => '🖼️',
+          'title' => 'Put your work on display',
+          'body'  => 'There\'s nowhere on your site to actually see your work. A simple photo gallery of real jobs lets a stranger picture you doing theirs — that\'s what turns a browser into a call. You\'ve done the work; this just shows it off.',
+      ],
+      'no_testimonials' => [
+          'icon'  => '💬',
+          'title' => 'Put your happy customers up front',
+          'body'  => ($googleCount >= 10
+              ? 'You\'ve clearly got customers who\'d vouch for you — but a visitor on your site never sees a word of it. '
+              : 'A few words from past customers is the cheapest trust you can buy. ')
+              . 'Pulling real quotes onto your site reassures the person on the fence right when they\'re deciding.',
+      ],
+      'dead_facebook' => [
+          'icon'  => '📘',
+          'title' => 'Wake your Facebook back up',
+          'body'  => 'Your Facebook page has gone quiet, and a lot of people check it to see if you\'re still active before they reach out. A dormant page reads like a closed business. A light, steady posting rhythm keeps it looking alive — without it becoming another job for you.',
+      ],
+      'freemail' => [
+          'icon'  => '✉️',
+          'title' => 'Get an email that matches your business',
+          'body'  => 'You\'re running on a personal email address. A professional one' . ($ownDotCom !== '' ? ' like you@' . ho_h($ownDotCom) : ' on your own domain') . ' looks more established the second a customer sees it — and it keeps your business mail separate from your personal inbox.',
+      ],
+      'no_trust_signals' => [
+          'icon'  => '🛡️',
+          'title' => 'Show that you\'re licensed & insured',
+          'body'  => 'Nowhere on your site does it say you\'re licensed, insured, or bonded — and for someone letting a stranger onto their property, that\'s the first thing they look for. Displaying it plainly removes the biggest hesitation before they call.',
+      ],
+      'yelp_unclaimed' => [
+          'icon'  => '🔖',
+          'title' => 'Claim your Yelp listing',
+          'body'  => 'There\'s a Yelp listing for you that you don\'t control — which means you can\'t respond to reviews, fix wrong info, or add photos. Claiming it puts you back in charge of what people see when your name comes up there.',
+      ],
   ];
 
   // Build fix items in the priority order gaps were sorted into, attaching the

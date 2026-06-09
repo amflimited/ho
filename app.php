@@ -1069,11 +1069,21 @@ if (!empty($unresearched)) {
         <?php if (!empty($enhancementQueue)):
           $gapLabels = [
               'contact_form'    => 'No contact form',
+              'online_booking'  => 'No online booking',
+              'site_outdated'   => 'Outdated site',
+              'tech_issues'     => 'Mobile/SSL issues',
               'paid_leads'      => 'Paying Angi/Thumbtack',
               'google_business' => 'No Google Business',
-              'tech_issues'     => 'Mobile/SSL issues',
+              'gbp_incomplete'  => 'GBP incomplete',
               'gbp_photos'      => 'Low GBP photos',
               'stale_reviews'   => 'Stale reviews',
+              'no_before_after' => 'No before/after',
+              'no_gallery'      => 'No gallery',
+              'no_testimonials' => 'No testimonials',
+              'dead_facebook'   => 'Dead Facebook',
+              'freemail'        => 'Personal email',
+              'no_trust_signals'=> 'No license/insurance',
+              'yelp_unclaimed'  => 'Yelp unclaimed',
           ];
           foreach ($enhancementQueue as $b):
             $region     = $cityToRegion[(string)$b['location_city']] ?? '';
