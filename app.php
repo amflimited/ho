@@ -173,6 +173,19 @@ $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($n
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 25) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
+$enrichmentTotal  = 0;
+if ($pdo && !empty($enrichmentBatch)) {
+    try {
+        $enrichmentTotal = (int)$pdo->query("
+            SELECT COUNT(*) FROM businesses b
+            JOIN research_records r ON r.business_id = b.id
+            WHERE r.research_status = 'complete'
+              AND (r.competitor_name = '' OR r.competitor_name IS NULL
+                OR r.booking_method = 'unknown' OR r.booking_method IS NULL
+                OR r.years_in_business IS NULL)
+        ")->fetchColumn();
+    } catch (Throwable) {}
+}
 try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e) { $sendQueue = []; $dbError = $dbError ?? $e->getMessage(); }
 try { $enhancementQueue = $pdo ? ho_get_enhancement_ready($pdo) : []; } catch (Throwable) { $enhancementQueue = []; }
 try { $followupDue = $pdo ? ho_get_followup_due($pdo) : []; } catch (Throwable) { $followupDue = []; }
@@ -598,7 +611,12 @@ if (!empty($unresearched)) {
   <?php if (!empty($enrichmentBatch)): ?>
   <section class="cp-section" style="margin-top:18px">
     <h2 class="cp-sh">Enrich existing leads</h2>
-    <p class="cp-hint"><?= count($enrichmentBatch) ?> already-researched lead<?= count($enrichmentBatch) !== 1 ? 's' : '' ?> are missing the new signal fields (competitor, booking method, years, Angi/Thumbtack). This is a shorter prompt — just the new fields, won&rsquo;t overwrite anything.</p>
+    <p class="cp-hint">
+      <strong><?= $enrichmentTotal ?> lead<?= $enrichmentTotal !== 1 ? 's' : '' ?> still need enrichment</strong> &mdash;
+      showing <?= count($enrichmentBatch) ?> in this batch.
+      Missing fields: competitor, booking method, years in business, Angi/Thumbtack.
+      Shorter prompt &mdash; won&rsquo;t overwrite existing research.
+    </p>
 
     <div class="cp-step" style="margin-bottom:6px">Step 1</div>
     <h3 class="cp-sh" style="font-size:14px;margin-bottom:6px">Copy this prompt</h3>
