@@ -214,6 +214,29 @@ a { color: inherit; }
 .cp-copy:hover  { background: #3a7244; }
 .cp-copy:active { background: #245028; }
 
+/* ── ONE-TAP GPT ROUND TRIP ──────────────────────────────────────────────── */
+.cp-gpt-btn {
+  display: block; text-align: center; margin-top: 8px;
+  padding: 13px 16px;
+  background: var(--green); color: var(--white);
+  border-radius: 10px;
+  font-size: 15px; font-weight: 800; text-decoration: none;
+  transition: background .15s;
+}
+.cp-gpt-btn:hover  { background: #3a7244; }
+.cp-gpt-btn:active { background: #245028; }
+.cp-paste-btn {
+  display: block; width: 100%; margin-bottom: 8px;
+  padding: 13px 16px;
+  background: var(--white); color: var(--green);
+  border: 2px solid var(--green); border-radius: 10px;
+  font-family: var(--fn); font-size: 15px; font-weight: 800;
+  cursor: pointer; transition: background .15s;
+}
+.cp-paste-btn:active   { background: rgba(42, 122, 53, .08); }
+.cp-paste-btn:disabled { opacity: .75; cursor: default; }
+.cp-paste-note { font-size: 13px; font-weight: 700; margin: -2px 0 8px; }
+
 /* ── BACK LINK ───────────────────────────────────────────────────────────── */
 .cp-back {
   display: block; text-align: center; margin-top: 12px;

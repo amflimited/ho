@@ -165,6 +165,19 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// ─── One-tap GPT round trip ───────────────────────────────────────────────────
+// Renders an "Ask ChatGPT" deep link that opens the ChatGPT app with the prompt
+// already typed into the composer (universal link ?q=). Falls back to copy-only
+// guidance when the encoded prompt exceeds a safe URL length.
+function cp_gpt_row(string $prompt): string {
+    $url = 'https://chatgpt.com/?hints=search&q=' . rawurlencode($prompt);
+    if (strlen($url) > 30000) {
+        return '<p class="cp-hint" style="margin-top:6px">This batch is too big for one-tap send &mdash; tap Copy, then paste into ChatGPT.</p>';
+    }
+    return '<a class="cp-gpt-btn" href="' . ho_h($url) . '" target="_blank" rel="noopener">🚀 Ask ChatGPT &mdash; one tap, nothing to copy</a>'
+         . '<p class="cp-hint" style="margin-top:4px;text-align:center">Opens ChatGPT with the prompt pre-filled &mdash; just hit send. If it arrives cut off, use Copy.</p>';
+}
+
 // ─── Load state ───────────────────────────────────────────────────────────────
 $tab      = trim((string)($_GET['tab']     ?? ''));
 $runId    = (int)($_GET['run_id']           ?? 0);
@@ -344,6 +357,7 @@ if (!empty($unresearched)) {
         <pre id="srcPrompt" class="cp-prompt"><?= ho_h($sourcePrompt) ?></pre>
         <button class="cp-copy" onclick="doCopy('srcPrompt',this)">Copy</button>
       </div>
+      <?= cp_gpt_row($sourcePrompt) ?>
     </section>
 
     <section class="cp-section">
@@ -353,6 +367,8 @@ if (!empty($unresearched)) {
         <input type="hidden" name="action" value="import_sourcing">
         <input type="hidden" name="tab" value="source">
         <input type="hidden" name="run_id" value="<?= $runId ?>">
+        <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'candidates','candidate')">📋 Paste &amp; Import &mdash; one tap</button>
+        <div class="cp-paste-note" hidden></div>
         <textarea class="cp-textarea" name="result_json" rows="7" placeholder='{"candidates":[{"raw_name":"…","city":"…","state":"IN",…}]}'></textarea>
         <button class="cp-btn-primary" type="submit">Import &amp; Add to Pipeline</button>
       </form>
@@ -534,6 +550,7 @@ if (!empty($unresearched)) {
         <pre id="resPrompt" class="cp-prompt"><?= ho_h($researchPrompt) ?></pre>
         <button class="cp-copy" onclick="doCopy('resPrompt',this)">Copy</button>
       </div>
+      <?= cp_gpt_row($researchPrompt) ?>
     </section>
 
     <section class="cp-section">
@@ -542,6 +559,8 @@ if (!empty($unresearched)) {
       <form method="POST">
         <input type="hidden" name="action" value="import_research">
         <input type="hidden" name="tab" value="research">
+        <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'research_results','result')">📋 Paste &amp; Import &mdash; one tap</button>
+        <div class="cp-paste-note" hidden></div>
         <textarea class="cp-textarea" name="result_json" rows="7" placeholder='{"research_results":[{"raw_name":"…",…}]}'></textarea>
         <button class="cp-btn-primary" type="submit">Import Research</button>
       </form>
@@ -612,9 +631,12 @@ if (!empty($unresearched)) {
       <pre id="contactPrompt" class="cp-prompt"><?= ho_h($needsContactPrompt) ?></pre>
       <button class="cp-copy" onclick="doCopy('contactPrompt',this)">Copy</button>
     </div>
+    <?= cp_gpt_row($needsContactPrompt) ?>
     <form method="POST">
       <input type="hidden" name="action" value="import_contact_research">
       <input type="hidden" name="tab" value="research">
+      <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'contacts','contact')">📋 Paste &amp; Import &mdash; one tap</button>
+      <div class="cp-paste-note" hidden></div>
       <textarea class="cp-textarea" name="result_json" rows="5" placeholder='{"contacts":[{"raw_name":"…","email":"…","website_url":"…"}]}'></textarea>
       <button class="cp-btn-primary" type="submit">Import Contact Info</button>
     </form>
@@ -651,12 +673,15 @@ if (!empty($unresearched)) {
       <pre id="enrichPrompt" class="cp-prompt"><?= ho_h($enrichmentPrompt) ?></pre>
       <button class="cp-copy" onclick="doCopy('enrichPrompt',this)">Copy</button>
     </div>
+    <?= cp_gpt_row($enrichmentPrompt) ?>
 
     <div class="cp-step" style="margin:14px 0 6px">Step 2</div>
     <h3 class="cp-sh" style="font-size:14px;margin-bottom:6px">Paste ChatGPT&rsquo;s result</h3>
     <form method="POST">
       <input type="hidden" name="action" value="import_enrichment">
       <input type="hidden" name="tab"    value="research">
+      <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'enrichment_results','result')">📋 Paste &amp; Import &mdash; one tap</button>
+      <div class="cp-paste-note" hidden></div>
       <textarea name="result_json" class="cp-textarea" rows="6"
                 placeholder='{"enrichment_results":[...]}'></textarea>
       <button type="submit" class="cp-btn" style="margin-top:8px">Import enrichment data</button>
@@ -1450,6 +1475,57 @@ function doCopy(id, btn) {
     btn.textContent = 'Copied!';
     setTimeout(function(){ btn.textContent = orig; }, 2000);
   });
+}
+
+// One-tap import: read clipboard, find the JSON in GPT's reply (strips code
+// fences and chatter), validate, report the count, fill the form, submit.
+async function hoPasteImport(btn, key, noun) {
+  var form = btn.closest('form');
+  var ta   = form.querySelector('textarea[name="result_json"]');
+  var note = form.querySelector('.cp-paste-note');
+  function say(msg, ok) {
+    if (!note) return;
+    note.hidden = false;
+    note.textContent = msg;
+    note.style.color = ok ? '#2a7a35' : '#a33327';
+  }
+  var txt = '';
+  try { txt = await navigator.clipboard.readText(); }
+  catch (e) {
+    say('Couldn’t read the clipboard — paste manually below, then tap Import.', false);
+    if (ta) ta.focus();
+    return;
+  }
+  txt = (txt || '').trim();
+  if (!txt) { say('Clipboard is empty — copy ChatGPT’s reply first.', false); return; }
+  if (ta) ta.value = txt;
+
+  // Best-effort extraction: drop ``` fences, then take the outermost {...} or [...]
+  var clean = txt.replace(/```[a-zA-Z]*\n?/g, '').trim();
+  var parsed = null;
+  var a = clean.indexOf('{'), b = clean.lastIndexOf('}');
+  if (a !== -1 && b > a) { try { parsed = JSON.parse(clean.slice(a, b + 1)); } catch (e) {} }
+  if (!parsed) {
+    var a2 = clean.indexOf('['), b2 = clean.lastIndexOf(']');
+    if (a2 !== -1 && b2 > a2) { try { parsed = JSON.parse(clean.slice(a2, b2 + 1)); } catch (e) {} }
+  }
+  var n = null;
+  if (parsed) {
+    if (Array.isArray(parsed)) n = parsed.length;
+    else if (Array.isArray(parsed[key])) n = parsed[key].length;
+  }
+  if (n === null) {
+    say('Pasted below, but it doesn’t look like valid JSON — check it, then tap Import.', false);
+    return;
+  }
+  if (n === 0) {
+    say('Pasted, but found 0 ' + noun + 's — check below before importing.', false);
+    return;
+  }
+  say('✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' found — importing…', true);
+  btn.disabled = true;
+  btn.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' — importing…';
+  form.submit();
 }
 function applyFilters() {
   var cat    = document.getElementById('filterCat')    ? document.getElementById('filterCat').value    : '';
