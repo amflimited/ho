@@ -1466,11 +1466,11 @@ function ho_suggest_subdomain(string $name): string {
 /** The five Front Door modules every build includes (from product.php). */
 function ho_product_modules(): array {
     return [
-        ['title' => 'Your Front Page',     'desc' => 'Your name, what you do, where you work, and one clear button to reach you — understood in seconds.'],
-        ['title' => 'Services & Offers',   'desc' => 'Everything customers can hire you for, laid out clean so nothing gets missed.'],
-        ['title' => 'Proof & Photos',      'desc' => 'Your work, before-and-afters, and reviews — so new customers trust you before they call.'],
-        ['title' => 'Contact & Requests',  'desc' => 'A simple form that sends jobs straight to you. No app, no login, no friction for the customer.'],
-        ['title' => 'Booking & Payment',   'desc' => 'Let customers request a time and pay a deposit when it makes sense — only when you want it.'],
+        ['icon' => '📱', 'title' => 'Your Front Page',      'desc' => 'Your name, trade, and city — visible the moment someone lands. One clear call-to-action. Most customers make up their mind in under 5 seconds. This page is built to win those 5 seconds.'],
+        ['icon' => '🔧', 'title' => 'Your Services',         'desc' => 'Not a bulleted list — a proper section laying out exactly what you offer and what customers should expect. When they can picture the job before they call, they call already sold.'],
+        ['icon' => '📸', 'title' => 'Your Work on Display',  'desc' => 'Real job photos, before-and-afters, and your Google reviews pulled into one place. A stranger can see you do good work before they ever pick up the phone. That\'s trust built before hello.'],
+        ['icon' => '📬', 'title' => 'Contact & Job Requests','desc' => 'When someone finds you at 10pm and doesn\'t want to call, a form means they don\'t just leave — they send the job to you. You wake up to a lead. Without it, that\'s a competitor\'s job, not yours.'],
+        ['icon' => '📅', 'title' => 'Booking & Deposit',     'desc' => 'Want customers to pick a time and pay a small deposit to lock in the job? Wired in. Reduces no-shows and filters serious customers from tire-kickers. Optional — completely your call.'],
     ];
 }
 

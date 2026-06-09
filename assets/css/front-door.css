@@ -397,8 +397,16 @@ body.front-door-preview-page{
   font-weight:950;font-size:14px;
   box-shadow:0 4px 12px rgba(47,94,54,.30);
 }
+.fd-module-icon{
+  flex-shrink:0;
+  width:44px;
+  font-size:28px;
+  line-height:1;
+  text-align:center;
+  padding-top:2px;
+}
 .fd-module strong{display:block;font-size:17px;color:var(--fd-ink);margin:2px 0 4px}
-.fd-module p{margin:0;font-size:14px;line-height:1.45;color:var(--fd-muted)}
+.fd-module p{margin:0;font-size:14px;line-height:1.5;color:var(--fd-muted)}
 
 /* ── FEATURE CHECKLIST ── */
 .fd-feature-list{
