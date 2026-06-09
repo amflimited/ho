@@ -856,7 +856,8 @@ if (!empty($unresearched)) {
           $region     = $cityToRegion[(string)$b['location_city']] ?? '';
           $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
           $hasEmail   = (string)$b['email_address'] !== '';
-          $hasSiteUrl = (string)$b['website_url']   !== '';
+          $_siteUrl   = (string)$b['website_url'];
+          $hasSiteUrl = $_siteUrl !== '' && !preg_match('#\b(angi\.com|thumbtack\.com)\b#i', $_siteUrl);
           $hasFb      = (string)$b['facebook_url']  !== '';
           $hasPhone   = (string)$b['phone_number']  !== '';
           $method     = (string)$b['best_contact_method'];
@@ -1044,7 +1045,8 @@ if (!empty($unresearched)) {
             $region     = $cityToRegion[(string)$b['location_city']] ?? '';
             $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
             $hasEmail   = (string)$b['email_address'] !== '';
-            $hasSiteUrl = (string)$b['website_url']   !== '';
+            $_siteUrl   = (string)$b['website_url'];
+            $hasSiteUrl = $_siteUrl !== '' && !preg_match('#\b(angi\.com|thumbtack\.com)\b#i', $_siteUrl);
             $hasFb      = (string)$b['facebook_url']  !== '';
             $hasPhone   = (string)$b['phone_number']  !== '';
             $method     = (string)$b['best_contact_method'];

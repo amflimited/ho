@@ -946,10 +946,11 @@ function ho_route_to_enhancement(PDO $pdo, int $bizId, array $row): bool {
           generated_at          = NOW()
     ")->execute([$bizId, $slug, $headline, $subheadline, $subheadline]);
 
+    $_contactSiteUrl = (string)($row['website_url'] ?? '');
     $hasAnyContact = (string)($row['email_address'] ?? '') !== ''
         || (string)($row['phone_number']  ?? '') !== ''
         || (string)($row['facebook_url']  ?? '') !== ''
-        || (string)($row['website_url']   ?? '') !== '';
+        || ($_contactSiteUrl !== '' && !preg_match('#\b(angi\.com|thumbtack\.com)\b#i', $_contactSiteUrl));
 
     $pdo->prepare("UPDATE businesses SET pipeline_status=?, updated_at=NOW() WHERE id=?")
         ->execute([$hasAnyContact ? 'enhancement_ready' : 'needs_contact', $bizId]);
