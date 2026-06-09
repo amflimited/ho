@@ -1049,14 +1049,24 @@ function ho_pitch_mailto_enhancement(array $biz, string $previewUrl): string {
 
 function ho_is_freemail(string $email): bool {
     static $freemail = [
-        'gmail.com','yahoo.com','hotmail.com','outlook.com','aol.com',
-        'icloud.com','me.com','msn.com','live.com','comcast.net','att.net',
-        'verizon.net','sbcglobal.net','bellsouth.net','cox.net','charter.net',
-        'earthlink.net','protonmail.com','mail.com','yahoo.co.uk',
-        'hotmail.co.uk','live.co.uk',
+        'gmail.com','googlemail.com',
+        'yahoo.com','yahoo.co.uk','yahoo.ca','yahoo.com.au','yahoo.fr',
+        'yahoo.de','yahoo.es','yahoo.it','myyahoo.com','ymail.com','rocketmail.com',
+        'hotmail.com','hotmail.co.uk','hotmail.fr','hotmail.de',
+        'outlook.com','live.com','live.co.uk','msn.com',
+        'aol.com','icloud.com','me.com',
+        'comcast.net','att.net','verizon.net','sbcglobal.net',
+        'bellsouth.net','cox.net','charter.net','earthlink.net',
+        'protonmail.com','proton.me','pm.me',
+        'fastmail.com','fastmail.fm','mail.com',
     ];
     $parts = explode('@', strtolower(trim($email)));
-    return count($parts) !== 2 || in_array($parts[1], $freemail, true);
+    if (count($parts) !== 2) return true;
+    $domain = $parts[1];
+    if (in_array($domain, $freemail, true)) return true;
+    // Catch any remaining Yahoo / Hotmail / Live / Outlook variants by base domain
+    if (preg_match('/^(yahoo|ymail|rocketmail|hotmail|live|outlook)\./i', $domain)) return true;
+    return false;
 }
 
 function ho_fit_score(array $biz): int {
