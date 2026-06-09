@@ -860,43 +860,63 @@ function ho_website_tech_check(string $url): array {
 // ─── Enhancement track ────────────────────────────────────────────────────────
 
 function ho_enhancement_gaps(array $row): array {
-    $gaps = [];
+    $reviewCount = (int)($row['google_review_count'] ?? 0);
+    $notMobile   = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
+    $noSsl       = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
+
+    $found = [];
 
     $booking = (string)($row['booking_method'] ?? 'unknown');
     if (in_array($booking, ['phone','facebook','email'], true)) {
-        $gaps[] = 'contact_form';
+        $found[] = 'contact_form';
     }
 
     if ((bool)($row['has_angi'] ?? false) || (bool)($row['has_thumbtack'] ?? false)) {
-        $gaps[] = 'paid_leads';
+        $found[] = 'paid_leads';
     }
 
     if (!(bool)($row['has_google_business'] ?? false)) {
-        $gaps[] = 'google_business';
+        $found[] = 'google_business';
     }
 
-    $notMobile = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
-    $noSsl     = isset($row['has_ssl'])         && (string)$row['has_ssl']         === '0';
     if ($notMobile || $noSsl) {
-        $gaps[] = 'tech_issues';
+        $found[] = 'tech_issues';
     }
 
     $gbpPhotos = isset($row['gbp_photo_count']) && $row['gbp_photo_count'] !== null
         ? (int)$row['gbp_photo_count'] : null;
     if ($gbpPhotos !== null && $gbpPhotos < 10) {
-        $gaps[] = 'gbp_photos';
+        $found[] = 'gbp_photos';
     }
 
-    $reviewCount    = (int)($row['google_review_count'] ?? 0);
     $lastReviewDate = trim((string)($row['last_review_date'] ?? ''));
     if ($lastReviewDate !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewDate, $m)) {
         $ageMonths = ((int)date('Y') - (int)$m[1]) * 12 + ((int)date('n') - (int)$m[2]);
         if ($ageMonths >= 6 && $reviewCount >= 3) {
-            $gaps[] = 'stale_reviews';
+            $found[] = 'stale_reviews';
         }
     }
 
-    return $gaps;
+    if (empty($found)) return [];
+
+    // Priority order: lower number = shown first
+    // Default: contact_form leads; tech_issues jumps to #1 when BOTH mobile+SSL broken
+    $priority = [
+        'contact_form'    => 1,
+        'tech_issues'     => 2,
+        'paid_leads'      => 3,
+        'google_business' => 4,
+        'gbp_photos'      => 5,
+        'stale_reviews'   => 6,
+    ];
+
+    if ($notMobile && $noSsl && in_array('tech_issues', $found, true)) {
+        $priority['tech_issues'] = 0;
+    }
+
+    usort($found, fn($a, $b) => ($priority[$a] ?? 99) <=> ($priority[$b] ?? 99));
+
+    return $found;
 }
 
 function ho_route_to_enhancement(PDO $pdo, int $bizId, array $row): bool {
@@ -978,20 +998,33 @@ function ho_pitch_mailto_enhancement(array $biz, string $previewUrl): string {
     $hasAngi  = (bool)($biz['has_angi']      ?? false);
     $hasThumb = (bool)($biz['has_thumbtack'] ?? false);
 
-    $subject = "A quick note for {$name}";
+    // Gaps are already sorted by priority — lead with the top gap
+    $topGap   = $gaps[0] ?? '';
+    $platform = $hasAngi ? 'Angi' : 'Thumbtack';
+    $reviewCount = (int)($biz['google_review_count'] ?? 0);
 
-    if (in_array('paid_leads', $gaps, true)) {
-        $platform = $hasAngi ? 'Angi' : 'Thumbtack';
-        $hook = "I noticed you\u{2019}re on {$platform} paying per lead. A contact form on your existing site sends you the same customers for free \u{2014} no per-job fees.";
-    } elseif (in_array('contact_form', $gaps, true)) {
-        $hook = "I noticed your {$catLower} business doesn\u{2019}t have a contact form. Anyone who found your site but didn\u{2019}t want to call just left \u{2014} a simple form captures those jobs.";
-    } elseif (in_array('google_business', $gaps, true)) {
-        $hook = "I looked up {$name} and you don\u{2019}t appear in Google Maps for {$catLower} in {$city}. That\u{2019}s fixable with a Google Business setup \u{2014} usually takes one afternoon.";
-    } elseif (in_array('tech_issues', $gaps, true)) {
-        $hook = "I checked your site and noticed some technical issues \u{2014} mobile friendliness or SSL \u{2014} that Google actively penalises in search rankings.";
-    } else {
-        $hook = "I looked at {$name} and noticed a few things that could bring in more customers without rebuilding anything.";
+    switch ($topGap) {
+        case 'contact_form':
+            if ($reviewCount >= 20) {
+                $hook = "I looked up {$name} and saw {$reviewCount} Google reviews \u{2014} people clearly find you and trust you. But there\u{2019}s no way to reach you in writing. Anyone who found you outside business hours and didn\u{2019}t want to call just left. A simple contact form captures those jobs instead of handing them to a competitor.";
+            } else {
+                $hook = "I noticed your {$catLower} business doesn\u{2019}t have a way for customers to reach you in writing. Anyone who found your site but didn\u{2019}t want to call just left \u{2014} a simple contact form captures those jobs instead.";
+            }
+            break;
+        case 'tech_issues':
+            $hook = "I checked the {$name} site and it has issues Google actively penalises \u{2014} not mobile-friendly, no SSL, or both. That means competitors are ranking above you in search right now, not because they\u{2019}re better, but because their site doesn\u{2019}t have those flags. Worth fixing.";
+            break;
+        case 'paid_leads':
+            $hook = "I noticed {$name} is listed on {$platform}. Customers who find you there contact {$platform} first \u{2014} {$platform} decides whether you\u{2019}re visible and whether your price competes. A contact form on your own site means they reach you directly, with no platform in the way.";
+            break;
+        case 'google_business':
+            $hook = "I looked up {$name} and you don\u{2019}t appear in Google Maps for {$catLower} in {$city}. That\u{2019}s the search that turns into calls. It\u{2019}s fixable with a Google Business setup \u{2014} usually one afternoon.";
+            break;
+        default:
+            $hook = "I looked at {$name} and noticed a few specific things that could bring in more customers without rebuilding anything.";
     }
+
+    $subject = "A quick note for {$name}";
 
     $greeting = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 

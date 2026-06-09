@@ -455,33 +455,55 @@ if ($paid && $row && $pdo !== null) {
   <?php if ($isEnhancement): ?>
   <!-- ── WHAT I'D FIX (enhancement only) — contact-first, no checkout ─────── -->
   <?php
-  $platform = $hasAngi ? 'Angi' : ($hasThumbtak ? 'Thumbtack' : 'a lead site');
+  $platform = $hasAngi ? 'Angi' : ($hasThumbtak ? 'Thumbtack' : 'a lead platform');
+
+  // Fix card definitions keyed by gap — copy respects the business's actual data
+  $fixDefs = [
+      'contact_form' => [
+          'icon'  => '📬',
+          'title' => 'Add a way to reach you in writing',
+          'body'  => $googleCount >= 20
+              ? 'You have ' . number_format($googleCount) . ' Google reviews — people clearly find you and trust you. But there\'s no way to reach you in writing. Anyone who found you outside business hours and didn\'t want to call just left. A contact form captures that job instead.'
+              : 'Right now anyone who doesn\'t want to call has no way to send you the job. The 11pm searcher, the person who wants to put their request in writing — they leave. A simple form sends those leads straight to your inbox.',
+      ],
+      'tech_issues' => [
+          'icon'  => '🛠️',
+          'title' => 'Fix what\'s hurting your Google ranking',
+          'body'  => ($notMobile && $noSsl)
+              ? 'Your site isn\'t mobile-friendly and has no SSL. Google penalises both, and every major browser warns visitors "Not Secure" before they read a word. Competitors are ranking above you right now because of these two flags — not because they\'re better.'
+              : ($notMobile
+                  ? 'Your site isn\'t mobile-friendly, and over 70% of local searches happen on a phone. Google actively ranks mobile-ready sites higher, which means competitors appear above you in search every day this isn\'t fixed.'
+                  : 'Your site has no SSL certificate. Every major browser flags it as "Not Secure" before a visitor reads a single word. That warning alone sends most people back to search results.'),
+      ],
+      'paid_leads' => [
+          'icon'  => '💸',
+          'title' => 'Own the customer — not just a listing on ' . ho_h($platform),
+          'body'  => 'You\'re listed on ' . ho_h($platform) . '. Customers who find you there go through ' . ho_h($platform) . ' first — ' . ho_h($platform) . ' controls whether you\'re visible and whether your price competes. A contact form on your own site means they reach you directly, no platform in the way.',
+      ],
+      'google_business' => [
+          'icon'  => '📍',
+          'title' => 'Get on Google Maps',
+          'body'  => 'You\'re not showing in Maps for ' . ho_h(strtolower($catName)) . ' in ' . ho_h($city) . ' right now. That\'s the search that turns into calls. Getting your Google Business profile verified usually takes one afternoon and puts you in front of people actively looking.',
+      ],
+      'gbp_photos' => [
+          'icon'  => '📸',
+          'title' => 'Show your work on Google',
+          'body'  => 'Listings with 20+ photos get significantly more clicks than those with a handful. Customers want to see the work before they commit. I\'d help you get real job photos onto your listing so you\'re giving them a reason to choose you.',
+      ],
+      'stale_reviews' => [
+          'icon'  => '⭐',
+          'title' => 'Get fresh reviews coming in',
+          'body'  => 'Your most recent review is ' . ($reviewAgeMonths !== null ? $reviewAgeMonths . ' months' : 'a while') . ' old. Customers read recency as a signal that you\'re still active and taking jobs. A simple follow-up system keeps new reviews coming without you having to chase them.',
+      ],
+  ];
+
+  // Build fix items in the priority order gaps were sorted into
   $fixItems = [];
-  if (in_array('tech_issues', $enhancementGaps, true)) {
-      $techBody = ($notMobile && $noSsl)
-          ? 'Your site isn\'t mobile-friendly and has no SSL — Google penalises both, and browsers warn visitors before they read a word. I\'d clean both up so you stop losing the ranking and the trust.'
-          : ($notMobile
-              ? 'Your site isn\'t mobile-friendly, and 70% of your customers are on a phone. I\'d fix that so Google stops ranking competitors above you.'
-              : 'Your site has no SSL, so browsers flag it "Not Secure." I\'d get that fixed so visitors stop bouncing before they read a word.');
-      $fixItems[] = ['icon'=>'🛠️','title'=>'Fix the issues holding your site back','body'=>$techBody];
-  }
-  if (in_array('contact_form', $enhancementGaps, true)) {
-      $fixItems[] = ['icon'=>'📬','title'=>'Add a way to reach you in writing','body'=>'Right now anyone who doesn\'t want to call has no way to send you the job. I\'d add a simple contact form so those leads land in your inbox instead of walking to a competitor.'];
-  }
-  if (in_array('paid_leads', $enhancementGaps, true)) {
-      $fixItems[] = ['icon'=>'💸','title'=>'Get you off per-lead fees','body'=>'You\'re listed on ' . ho_h($platform) . '. I\'d set your own site up to catch those same searches directly — so you keep the customer and stop paying for the introduction.'];
-  }
-  if (in_array('google_business', $enhancementGaps, true)) {
-      $fixItems[] = ['icon'=>'📍','title'=>'Get you onto Google Maps','body'=>'You\'re not showing in Maps for ' . ho_h(strtolower($catName)) . ' in ' . ho_h($city) . '. I\'d get your Google Business profile verified so you show up where people actually search.'];
-  }
-  if (in_array('gbp_photos', $enhancementGaps, true)) {
-      $fixItems[] = ['icon'=>'📸','title'=>'Build out your Google photos','body'=>'Listings with 20+ photos get far more calls. I\'d help you get real job photos up so customers can see your work before they decide.'];
-  }
-  if (in_array('stale_reviews', $enhancementGaps, true)) {
-      $fixItems[] = ['icon'=>'⭐','title'=>'Get fresh reviews flowing','body'=>'Customers read recency, not just the star count. I\'d set you up with a simple way to keep new reviews coming so you don\'t look quiet.'];
+  foreach ($enhancementGaps as $gk) {
+      if (isset($fixDefs[$gk])) $fixItems[] = $fixDefs[$gk];
   }
   if (empty($fixItems)) {
-      $fixItems[] = ['icon'=>'📬','title'=>'A few things worth tightening up','body'=>'I looked over your site and spotted a handful of small things that quietly cost you jobs. Easiest to walk you through them on a quick call.'];
+      $fixItems[] = ['icon'=>'📬','title'=>'A few things worth tightening up','body'=>'I looked over your site and spotted specific things that quietly cost you jobs. Easiest to walk through them on a quick call.'];
   }
   ?>
   <section class="fd-card fd-reveal" id="what-i-can-add">
