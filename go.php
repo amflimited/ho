@@ -34,6 +34,21 @@ if (empty($services) && $row) {
 $gaps      = $row ? (array)json_decode((string)($row['gaps']      ?? '[]'), true) : [];
 $strengths = $row ? (array)json_decode((string)($row['strengths'] ?? '[]'), true) : [];
 
+// Filter gap items that contradict structured data fields
+$gaps = array_values(array_filter($gaps, function(mixed $g) use ($row): bool {
+    $txt = strtolower((string)$g);
+    // Structured field says they have a website — drop "no website" AI gap text
+    if ((bool)($row['has_website'] ?? false) && (
+        str_contains($txt, 'no website') ||
+        str_contains($txt, 'no standalone website') ||
+        str_contains($txt, 'no web presence') ||
+        str_contains($txt, 'without a website') ||
+        str_contains($txt, 'doesn\'t have a website') ||
+        str_contains($txt, 'does not have a website')
+    )) return false;
+    return true;
+}));
+
 $websiteUrl  = $row ? trim((string)($row['website_url']   ?? '')) : '';
 $fbUrl       = $row ? trim((string)($row['facebook_url']  ?? '')) : '';
 $hasWebsite  = $row ? (bool)($row['has_website']          ?? false) : false;
