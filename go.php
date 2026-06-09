@@ -26,6 +26,7 @@ $subhead    = $row ? (string)$row['subheadline']            : '';
 $package    = $row ? (string)$row['package_recommendation'] : 'standard';
 $phone      = $row ? (string)($row['phone_number'] ?? '')   : '';
 $ownerFirst = $row ? trim((string)($row['owner_first_name'] ?? '')) : '';
+$hi = $ownerFirst !== '' ? $ownerFirst : $name;
 
 $services = $row ? (array)json_decode((string)($row['services_display'] ?? '[]'), true) : [];
 if (empty($services) && $row) {
@@ -315,17 +316,27 @@ if ($paid && $row && $pdo !== null) {
     <?php endif; ?>
 
     <?php if ($isEnhancement): ?>
-      <p class="fd-why" style="color:var(--fd-ink);font-weight:500;margin-bottom:14px">You already have a website — I looked it over. Here&rsquo;s what I noticed.</p>
+      <p class="fd-why" style="color:var(--fd-ink);font-weight:500;margin-bottom:14px"><?= $ownerFirst !== '' ? ho_h($ownerFirst) . ', you' : 'You' ?> already have a website &mdash; I looked it over. Here&rsquo;s what I noticed.</p>
     <?php endif; ?>
 
     <?php if ($googleCount > 0): ?>
+    <?php
+    $ratingNote = '';
+    if ($googleRating >= 4.7 && $googleCount >= 20) {
+        $ratingNote = 'That&rsquo;s an exceptional rating &mdash; top-tier for a ' . ho_h(strtolower($catName)) . ' business in Indiana.';
+    } elseif ($googleRating >= 4.5 && $googleCount >= 10) {
+        $ratingNote = 'Well above average. That reputation deserves to be the first thing customers see &mdash; not buried inside a Google listing.';
+    } elseif ($googleRating < 4.0 && $googleCount >= 5) {
+        $ratingNote = 'Room to grow &mdash; the next customers who find you will shape the next five reviews. A site makes it easy to send happy ones straight to Google.';
+    }
+    ?>
     <div class="fd-rating-block">
       <div class="fd-rating-badge">
         <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
         <strong><?= number_format($googleRating, 1) ?></strong>
         <span class="fd-rating-count"><?= number_format($googleCount) ?> Google reviews</span>
       </div>
-      <p class="fd-rating-source">Your live rating pulled directly from Google.</p>
+      <p class="fd-rating-source">Your live rating pulled directly from Google.<?= $ratingNote !== '' ? ' ' . $ratingNote : '' ?></p>
     </div>
     <?php endif; ?>
 
@@ -599,8 +610,8 @@ if ($paid && $row && $pdo !== null) {
 
   <section class="fd-card fd-reveal">
     <p class="fd-kicker">Your website &mdash; live preview</p>
-    <h2 class="fd-design-title">This is exactly what we build. Pick your look.</h2>
-    <p class="fd-design-sub">Not a mockup. Not a template. This is the real <?= ho_h($name) ?> site — built and ready to go live the moment you say yes.</p>
+    <h2 class="fd-design-title"><?= $subhead !== '' ? ho_h($subhead) : 'This is exactly what we build. Pick your look.' ?></h2>
+    <p class="fd-design-sub">Not a mockup. Not a template. This is the real <?= ho_h($name) ?> site &mdash; built and ready to go live the moment you say yes.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
       <span style="font-size:12px;font-weight:700;color:var(--fd-green);background:rgba(47,94,54,.1);border:1px solid rgba(47,94,54,.2);padding:4px 10px;border-radius:20px">⚡ Live in 24 hours</span>
       <span style="font-size:12px;font-weight:700;color:#7a4800;background:rgba(184,112,32,.1);border:1px solid rgba(184,112,32,.2);padding:4px 10px;border-radius:20px">One <?= ho_h(strtolower($catName)) ?> site in <?= ho_h($city) ?></span>
@@ -695,7 +706,7 @@ if ($paid && $row && $pdo !== null) {
     if ($compHasSite && $compName !== '') $adamKnows[] = ho_h($compName) . ' already has a site and is outranking you';
     if (!$hasWebsite && $phone !== '') $adamKnows[] = 'customers can only reach you by calling ' . ho_h($telDisplay);
     ?>
-    <p>I build websites for Indiana service businesses &mdash; that&rsquo;s the whole business. Before I reached out, I already knew: <?php if (!empty($adamKnows)): ?><?= implode('; ', $adamKnows) ?>. <?php endif; ?>I built this preview before sending a single message. I only do that when I think it&rsquo;s worth it.</p>
+    <p>I build websites for Indiana service businesses &mdash; that&rsquo;s the whole business. <?= $ownerFirst !== '' ? ho_h($ownerFirst) . ', before' : 'Before' ?> I reached out, I already knew: <?php if (!empty($adamKnows)): ?><?= implode('; ', $adamKnows) ?>. <?php endif; ?>I built this preview before sending a single message. I only do that when I think it&rsquo;s worth it.</p>
     <p style="margin-top:10px">When you say yes, you&rsquo;re not entering a queue &mdash; I start the same day. <?= ho_h($name) ?>&rsquo;s site is live within 24 hours. That&rsquo;s a guarantee, not a target.</p>
     <?php else: ?>
     <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I looked at your <?= $hasWebsite && $websiteUrl !== '' ? 'site' : ($hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence')) ?>, noted what could be better, and put this together before reaching out. I only send these when I think the business is worth it.</p>
@@ -722,6 +733,10 @@ if ($paid && $row && $pdo !== null) {
 
   <?php if (!$isEnhancement): ?>
   <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
+  <?php
+  $servicesClean = array_values(array_filter(array_map('trim', array_map('strval', $services))));
+  $servicesList = !empty($servicesClean) ? implode(', ', array_slice($servicesClean, 0, 5)) : '';
+  ?>
   <section class="fd-section fd-reveal" id="services">
     <div class="fd-section-head">
       <p class="fd-kicker">What We Build</p>
@@ -734,7 +749,13 @@ if ($paid && $row && $pdo !== null) {
           <span class="fd-module-icon"><?= ho_h($m['icon'] ?? '◆') ?></span>
           <div>
             <strong><?= ho_h($m['title']) ?></strong>
+            <?php if ($m['title'] === 'Your Services' && $servicesList !== ''): ?>
+            <p><?= ho_h($servicesList) ?> &mdash; every service laid out clearly with what customers should expect. When they can picture the job before they call, they call already sold.</p>
+            <?php elseif ($m['title'] === 'Your Front Page' && $name !== ''): ?>
+            <p><?= ho_h($name) ?><?= $city !== '' ? ' &middot; ' . ho_h($catName) . ' &middot; ' . ho_h($city) . ', IN' : '' ?> &mdash; visible the moment someone lands. One clear call-to-action. Most customers decide in under 5 seconds. This page wins those 5 seconds.</p>
+            <?php else: ?>
             <p><?= ho_h($m['desc']) ?></p>
+            <?php endif; ?>
           </div>
         </div>
       <?php endforeach; ?>
