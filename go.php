@@ -246,7 +246,7 @@ if ($paid && $row && $pdo !== null) {
     <?php if ($isEnhancement): ?>
     <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I looked over your site and found a few things worth fixing.' : 'I looked over your site and found a few things worth fixing.' ?></p>
     <?php else: ?>
-    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website for ' . ho_h($name) . '.' : 'I built a website for ' . ho_h($name) . '.' ?><?= ($ownerAgeBand === '55plus') ? ' I handle everything &mdash; you don&rsquo;t touch a thing.' : '' ?></p>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built you a website.' : 'I built you a website.' ?><?= ($ownerAgeBand === '55plus') ? ' I handle everything &mdash; you don&rsquo;t touch a thing.' : '' ?></p>
     <?php
     // Personalization hook — use specific research data to make the hero feel earned
     $heroDetail = '';
@@ -271,14 +271,14 @@ if ($paid && $row && $pdo !== null) {
       <?php if ($isEnhancement): ?>
       <a href="#what-i-can-add" class="fd-btn fd-btn-primary fd-turn-cta">See What I Found &darr;</a>
       <?php else: ?>
-      <a href="#preview" class="fd-btn fd-btn-primary fd-turn-cta">See what <?= ho_h($name) ?> looks like online &darr;</a>
+      <a href="#preview" class="fd-btn fd-btn-primary fd-turn-cta">See what it looks like online &darr;</a>
       <?php endif; ?>
     </div>
     <div class="fd-trust-strip">
       <a href="tel:7654434321" class="fd-ts-item">📞 (765) 443-4321</a>
       <?php if (!$isEnhancement): ?>
       <span class="fd-ts-item">⚡ Live in 24 hours — guaranteed</span>
-      <span class="fd-ts-item">$199 flat &middot; you own it forever</span>
+      <span class="fd-ts-item">No monthly fees &middot; you own it forever</span>
       <span class="fd-ts-item">✓ 30-day money-back</span>
       <?php else: ?>
       <span class="fd-ts-item">Quote same day</span>
@@ -439,23 +439,6 @@ if ($paid && $row && $pdo !== null) {
     </div>
     <?php endif; ?>
 
-    <?php // ── Competitive pressure — site-build only, moved to end ────────── ?>
-    <?php if (!$isEnhancement && $compHasSite && $compName !== ''): ?>
-    <div class="fd-signal fd-signal-comp">
-      <span class="fd-signal-icon" aria-hidden="true">⚠</span>
-      <div>
-        <strong><?= ho_h($compName) ?> has a website.</strong>
-        <?php if ($compWebsite !== ''): ?>
-          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find
-          <a href="<?= ho_h($compWebsite) ?>" target="_blank" rel="noopener"><?= ho_h(parse_url($compWebsite, PHP_URL_HOST) ?: $compName) ?></a>
-          at the top of the results. You don&rsquo;t show up at all. That customer made their choice before they knew you existed.
-        <?php else: ?>
-          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find <?= ho_h($compName) ?> at the top of the results. You don&rsquo;t show up. That customer made their choice before they knew you existed.
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php endif; ?>
-
     <?php if (!empty($strengths)): ?>
       <p class="fd-str-intro">Working in your favour:</p>
       <div class="fd-str-list">
@@ -472,6 +455,23 @@ if ($paid && $row && $pdo !== null) {
           <div class="fd-gap-item"><span class="fd-gap-marker" aria-hidden="true">✗</span><?= ho_h((string)$g) ?></div>
         <?php endforeach; ?>
       </div>
+    <?php endif; ?>
+
+    <?php // ── Competitive pressure — below strengths/gaps so it reads as context, not accusation ?>
+    <?php if (!$isEnhancement && $compHasSite && $compName !== ''): ?>
+    <div class="fd-signal fd-signal-comp">
+      <span class="fd-signal-icon" aria-hidden="true">⚠</span>
+      <div>
+        <strong><?= ho_h($compName) ?> has a website.</strong>
+        <?php if ($compWebsite !== ''): ?>
+          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find
+          <a href="<?= ho_h($compWebsite) ?>" target="_blank" rel="noopener"><?= ho_h(parse_url($compWebsite, PHP_URL_HOST) ?: $compName) ?></a>
+          at the top of the results. You don&rsquo;t show up at all. That customer made their choice before they knew you existed.
+        <?php else: ?>
+          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find <?= ho_h($compName) ?> at the top of the results. You don&rsquo;t show up. That customer made their choice before they knew you existed.
+        <?php endif; ?>
+      </div>
+    </div>
     <?php endif; ?>
 
     <?php if (!$isEnhancement): ?>
@@ -836,7 +836,7 @@ if ($paid && $row && $pdo !== null) {
 
     <ul class="fd-offer-includes">
       <li>✓&ensp;Every page customers need to find and hire you</li>
-      <li>✓&ensp;<?= $phone !== '' ? ho_h($telDisplay) . ' — click-to-call from every page, plus a contact form' : 'Click-to-call + contact form — works the moment it\'s live' ?></li>
+      <li>✓&ensp;<?= $phone !== '' ? 'Click-to-call &mdash; <strong>' . ho_h($telDisplay) . '</strong> &mdash; plus a contact form for after-hours jobs' : 'Click-to-call + contact form &mdash; works the moment it&rsquo;s live' ?></li>
       <li>✓&ensp;Mobile-optimized &amp; SSL secured from day one</li>
       <?php if ($googleCount > 0): ?>
       <li>✓&ensp;Your <?= number_format($googleCount) ?> Google review<?= $googleCount !== 1 ? 's' : '' ?> pulled in automatically &mdash; front and center, not buried in a listing</li>
