@@ -836,7 +836,7 @@ if ($paid && $row && $pdo !== null) {
 
     <ul class="fd-offer-includes">
       <li>✓&ensp;Every page customers need to find and hire you</li>
-      <li>✓&ensp;<?= $phone !== '' ? 'Click-to-call &mdash; <strong>' . ho_h($telDisplay) . '</strong> &mdash; plus a contact form for after-hours jobs' : 'Click-to-call + contact form &mdash; works the moment it&rsquo;s live' ?></li>
+      <li>✓&ensp;Click-to-call button &amp; contact form &mdash; customers reach you without friction</li>
       <li>✓&ensp;Mobile-optimized &amp; SSL secured from day one</li>
       <?php if ($googleCount > 0): ?>
       <li>✓&ensp;Your <?= number_format($googleCount) ?> Google review<?= $googleCount !== 1 ? 's' : '' ?> pulled in automatically &mdash; front and center, not buried in a listing</li>
