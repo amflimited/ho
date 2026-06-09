@@ -1056,6 +1056,101 @@ function ho_website_tech_check(string $url): array {
 
 // ─── Enhancement track ────────────────────────────────────────────────────────
 
+/**
+ * Static fallback label for a gap key — no DB required.
+ * Covers all 16 gap types so labels resolve even before gap_prices is read.
+ */
+function ho_gap_label(string $gap): string {
+    static $labels = [
+        'contact_form'    => 'Contact & Quote Form',
+        'online_booking'  => 'Online Booking System',
+        'site_outdated'   => 'Site Redesign / Refresh',
+        'tech_issues'     => 'Mobile & SSL Fix',
+        'paid_leads'      => 'Lead Capture Landing Page',
+        'google_business' => 'Google Business Profile Setup',
+        'gbp_incomplete'  => 'GBP Profile Completion',
+        'gbp_photos'      => 'Photo Shoot & GBP Upload',
+        'stale_reviews'   => 'Review Request Campaign',
+        'no_before_after' => 'Before & After Photos',
+        'no_gallery'      => 'Photo Gallery',
+        'no_testimonials' => 'Testimonials Section',
+        'dead_facebook'   => 'Facebook Page & Content',
+        'freemail'        => 'Professional Email Setup',
+        'no_trust_signals'=> 'License & Insurance Display',
+        'yelp_unclaimed'  => 'Claim & Optimize Yelp',
+    ];
+    return $labels[$gap] ?? ucwords(str_replace('_', ' ', $gap));
+}
+
+/**
+ * Per-gap pricing, keyed by gap_key => ['label' => ..., 'price' => float].
+ * Reads the gap_prices table; falls back to hardcoded defaults if the table
+ * is missing/empty so pricing never breaks. Result is request-cached.
+ */
+function ho_gap_prices(PDO $pdo): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+
+    static $defaults = [
+        'contact_form'    => ['label' => 'Contact & Quote Form',          'price' =>  99.00],
+        'online_booking'  => ['label' => 'Online Booking System',         'price' => 199.00],
+        'site_outdated'   => ['label' => 'Site Redesign / Refresh',       'price' =>  99.00],
+        'tech_issues'     => ['label' => 'Mobile & SSL Fix',              'price' => 249.00],
+        'paid_leads'      => ['label' => 'Lead Capture Landing Page',     'price' =>  99.00],
+        'google_business' => ['label' => 'Google Business Profile Setup', 'price' =>  99.00],
+        'gbp_incomplete'  => ['label' => 'GBP Profile Completion',        'price' =>  99.00],
+        'gbp_photos'      => ['label' => 'Photo Shoot & GBP Upload',      'price' =>  99.00],
+        'stale_reviews'   => ['label' => 'Review Request Campaign',       'price' =>  49.00],
+        'no_before_after' => ['label' => 'Before & After Photos',         'price' =>  49.00],
+        'no_gallery'      => ['label' => 'Photo Gallery',                 'price' =>  49.00],
+        'no_testimonials' => ['label' => 'Testimonials Section',          'price' =>  49.00],
+        'dead_facebook'   => ['label' => 'Facebook Page & Content',       'price' =>  99.00],
+        'freemail'        => ['label' => 'Professional Email Setup',      'price' =>  49.00],
+        'no_trust_signals'=> ['label' => 'License & Insurance Display',   'price' =>  49.00],
+        'yelp_unclaimed'  => ['label' => 'Claim & Optimize Yelp',         'price' =>  49.00],
+    ];
+
+    try {
+        $rows = $pdo->query("SELECT gap_key, label, price FROM gap_prices WHERE active = 1 ORDER BY sort_order ASC")->fetchAll();
+        if (empty($rows)) { $cache = $defaults; return $cache; }
+        $result = [];
+        foreach ($rows as $r) {
+            $result[(string)$r['gap_key']] = [
+                'label' => (string)$r['label'],
+                'price' => (float)$r['price'],
+            ];
+        }
+        // Backfill any gap not present in the table from defaults so a gap
+        // type always resolves to a price.
+        foreach ($defaults as $k => $v) {
+            if (!isset($result[$k])) $result[$k] = $v;
+        }
+        $cache = $result;
+        return $cache;
+    } catch (Throwable) {
+        $cache = $defaults;
+        return $cache;
+    }
+}
+
+/**
+ * Build the priced package for a set of gaps, in the given gap order.
+ * Returns [['gap_key'=>..., 'label'=>..., 'price'=>float], ...].
+ */
+function ho_build_package_items(PDO $pdo, array $gaps): array {
+    $map = ho_gap_prices($pdo);
+    $items = [];
+    foreach ($gaps as $gk) {
+        $gk = (string)$gk;
+        $items[] = [
+            'gap_key' => $gk,
+            'label'   => $map[$gk]['label'] ?? ho_gap_label($gk),
+            'price'   => (float)($map[$gk]['price'] ?? 0),
+        ];
+    }
+    return $items;
+}
+
 function ho_enhancement_gaps(array $row): array {
     $reviewCount = (int)($row['google_review_count'] ?? 0);
     $notMobile   = isset($row['mobile_friendly']) && (string)$row['mobile_friendly'] === '0';
@@ -1175,19 +1270,25 @@ function ho_route_to_enhancement(PDO $pdo, int $bizId, array $row): bool {
     $subheadline = "Your website is a good start. Here are specific things that could bring in more customers.";
     $slug        = (string)($row['business_slug'] ?? '');
 
+    // Pre-compute the priced package so the lead's page and the send queue
+    // both render the same numbers without recomputing.
+    $packageItems = ho_build_package_items($pdo, $gaps);
+    $packageJson  = json_encode($packageItems, JSON_UNESCAPED_SLASHES);
+
     $pdo->prepare("
         INSERT INTO previews
           (business_id, preview_slug, preview_status, preview_type, headline, subheadline,
-           services_display, opportunity_statement, package_recommendation, generated_at)
-        VALUES (?, ?, 'ready', 'enhancement', ?, ?, '[]', ?, 'standard', NOW())
+           services_display, opportunity_statement, package_recommendation, package_items, generated_at)
+        VALUES (?, ?, 'ready', 'enhancement', ?, ?, '[]', ?, 'standard', ?, NOW())
         ON DUPLICATE KEY UPDATE
           preview_status        = 'ready',
           preview_type          = 'enhancement',
           headline              = VALUES(headline),
           subheadline           = VALUES(subheadline),
           opportunity_statement = VALUES(opportunity_statement),
+          package_items         = VALUES(package_items),
           generated_at          = NOW()
-    ")->execute([$bizId, $slug, $headline, $subheadline, $subheadline]);
+    ")->execute([$bizId, $slug, $headline, $subheadline, $subheadline, $packageJson]);
 
     $_contactSiteUrl = (string)($row['website_url'] ?? '');
     $hasAnyContact = (string)($row['email_address'] ?? '') !== ''
@@ -1207,7 +1308,7 @@ function ho_get_enhancement_ready(PDO $pdo): array {
                b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
                b.owner_first_name,
                c.name AS category_name, c.slug AS category_slug,
-               p.headline, p.package_recommendation, p.view_count, p.last_viewed_at,
+               p.headline, p.package_recommendation, p.package_items, p.view_count, p.last_viewed_at,
                r.opportunity_summary, r.has_website, r.website_quality,
                r.google_review_count, r.google_rating, r.facebook_activity, r.facebook_last_post_months,
                r.booking_method, r.has_angi, r.has_thumbtack,
@@ -1231,6 +1332,15 @@ function ho_get_enhancement_ready(PDO $pdo): array {
 
     foreach ($rows as &$row) {
         $row['enhancement_gaps'] = ho_enhancement_gaps($row);
+        $items = [];
+        if (!empty($row['package_items'])) {
+            $items = (array)json_decode((string)$row['package_items'], true);
+        }
+        if (empty($items) && !empty($row['enhancement_gaps'])) {
+            $items = ho_build_package_items($pdo, $row['enhancement_gaps']);
+        }
+        $row['package_items_arr'] = $items;
+        $row['bundle_total']      = array_sum(array_column($items, 'price'));
     }
     unset($row);
     return $rows;
@@ -1721,7 +1831,7 @@ function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
         SELECT b.*, c.name AS category_name, c.slug AS category_slug, c.typical_services,
                p.id AS preview_id, p.headline, p.subheadline,
                p.services_display, p.opportunity_statement, p.package_recommendation,
-               p.preview_status, p.preview_type, p.view_count,
+               p.package_items, p.preview_status, p.preview_type, p.view_count,
                r.has_website, r.website_quality, r.has_google_business,
                r.google_review_count, r.google_rating, r.has_facebook,
                r.facebook_activity, r.strengths, r.gaps, r.service_area_text,

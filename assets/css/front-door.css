@@ -1634,8 +1634,21 @@ body.front-door-preview-page{
   border-radius:14px;
 }
 .fd-ae-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+.fd-ae-body{flex:1;min-width:0}
 .fd-ae-body strong{display:block;font-size:15px;margin-bottom:2px}
 .fd-ae-body p{margin:0;font-size:13px;color:var(--fd-muted);line-height:1.4}
+.fd-ae-price{
+  flex-shrink:0;align-self:center;
+  font-size:16px;font-weight:800;color:var(--fd-ink,#1a1a1a);
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+}
+.fd-ae-total{
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  margin-top:14px;padding:14px 16px;
+  background:var(--fd-ink,#1a1a1a);color:#fff;border-radius:14px;
+}
+.fd-ae-total-label{font-size:15px;font-weight:600}
+.fd-ae-total-price{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 
 /* ── Hero personalization detail line ────────────────────────────────────── */
 .fd-turn-detail{

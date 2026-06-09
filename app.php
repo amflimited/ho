@@ -1090,7 +1090,12 @@ if (!empty($unresearched)) {
 
             <div class="cp-send-head">
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
-              <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+              <span class="cp-send-sub">
+                <?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?>
+                <?php if (!empty($b['bundle_total']) && $b['bundle_total'] > 0): ?>
+                  &middot; <strong>$<?= number_format((float)$b['bundle_total']) ?> bundle</strong>
+                <?php endif; ?>
+              </span>
             </div>
 
             <?php if (!empty($eGaps)): ?>

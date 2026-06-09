@@ -88,6 +88,21 @@ $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $seasonalNote = $row ? ho_seasonal_urgency_note($catSlug) : '';
 $isEnhancement = $row && isset($row['preview_type']) && $row['preview_type'] === 'enhancement';
 $enhancementGaps = ($isEnhancement && $row) ? ho_enhancement_gaps($row) : [];
+
+// Priced package for enhancement leads. Prefer the stored package_items
+// (computed at routing time); fall back to a live compute from current gaps.
+$packageItems = [];
+if ($isEnhancement) {
+    if (!empty($row['package_items'])) {
+        $packageItems = (array)json_decode((string)$row['package_items'], true);
+    }
+    if (empty($packageItems) && !empty($enhancementGaps) && isset($pdo)) {
+        try { $packageItems = ho_build_package_items($pdo, $enhancementGaps); } catch (Throwable) {}
+    }
+}
+$priceByGap  = [];
+foreach ($packageItems as $pi) { $priceByGap[(string)$pi['gap_key']] = (float)($pi['price'] ?? 0); }
+$bundleTotal = array_sum(array_column($packageItems, 'price'));
 $design       = $row ? ho_design_direction($catSlug) : ['key' => 'default', 'name' => '', 'feel' => ''];
 $subdomain    = $row ? ho_suggest_subdomain($name) : '';
 $suggestedCom = $subdomain !== '' ? str_replace('.hoosieronline.com', '.com', $subdomain) : '';
@@ -524,14 +539,21 @@ if ($paid && $row && $pdo !== null) {
       ],
   ];
 
-  // Build fix items in the priority order gaps were sorted into
+  // Build fix items in the priority order gaps were sorted into, attaching the
+  // per-gap price. Prefer the stored package order; fall back to gap order.
+  $gapOrder = !empty($packageItems) ? array_column($packageItems, 'gap_key') : $enhancementGaps;
   $fixItems = [];
-  foreach ($enhancementGaps as $gk) {
-      if (isset($fixDefs[$gk])) $fixItems[] = $fixDefs[$gk];
+  foreach ($gapOrder as $gk) {
+      if (!isset($fixDefs[$gk])) continue;
+      $fixItems[] = array_merge($fixDefs[$gk], [
+          'gap_key' => $gk,
+          'price'   => (float)($priceByGap[$gk] ?? 0),
+      ]);
   }
   if (empty($fixItems)) {
-      $fixItems[] = ['icon'=>'📬','title'=>'A few things worth tightening up','body'=>'I looked over your site and spotted specific things that quietly cost you jobs. Easiest to walk through them on a quick call.'];
+      $fixItems[] = ['icon'=>'📬','title'=>'A few things worth tightening up','body'=>'I looked over your site and spotted specific things that quietly cost you jobs. Easiest to walk through them on a quick call.','gap_key'=>'','price'=>0.0];
   }
+  $fixItemsTotal = array_sum(array_column($fixItems, 'price'));
   ?>
   <section class="fd-card fd-reveal" id="what-i-can-add">
     <p class="fd-kicker">What I&rsquo;d do</p>
@@ -546,16 +568,32 @@ if ($paid && $row && $pdo !== null) {
           <strong><?= ho_h($item['title']) ?></strong>
           <p><?= $item['body'] ?></p>
         </div>
+        <?php if (!empty($item['price']) && $item['price'] > 0): ?>
+        <span class="fd-ae-price">$<?= number_format((float)$item['price']) ?></span>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>
+
+    <?php if ($fixItemsTotal > 0): ?>
+    <div class="fd-ae-total">
+      <span class="fd-ae-total-label"><?= count($fixItems) > 1 ? 'Everything above, done' : 'Done' ?></span>
+      <span class="fd-ae-total-price">$<?= number_format($fixItemsTotal) ?></span>
+    </div>
+    <p class="fd-muted" style="margin-top:8px;text-align:center">Flat, one-time. No monthly fees, no contract. Pick all of it or just the part you want.</p>
+    <?php endif; ?>
   </section>
 
   <!-- ── CONTACT CTA (enhancement only) ────────────────────────────────── -->
   <section class="fd-card fd-offer fd-reveal" id="pricing">
     <p class="fd-kicker">Let&rsquo;s talk it through</p>
+    <?php if ($fixItemsTotal > 0): ?>
+    <h2><?= count($fixItems) > 1 ? 'All of it' : 'This' ?> for $<?= number_format($fixItemsTotal) ?> &mdash; flat, one-time.</h2>
+    <p style="font-size:16px;line-height:1.6">No obligation, no pressure, no monthly anything. Want just one piece? That&rsquo;s fine too &mdash; each line above stands on its own. Call or send a note and I&rsquo;ll get started.</p>
+    <?php else: ?>
     <h2>Tell me what you want fixed &mdash; I&rsquo;ll quote it same day.</h2>
     <p style="font-size:16px;line-height:1.6">No obligation, no pressure. Most of these are a flat one-time fix &mdash; no monthly anything. Call me or send a note and I&rsquo;ll tell you exactly what it takes and what it costs.</p>
+    <?php endif; ?>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
       <a class="fd-btn fd-btn-primary fd-checkout-main-btn" href="tel:7654434321">📞 Call me &mdash; (765) 443-4321</a>
       <a class="fd-btn fd-btn-secondary" href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Website help for ' . $name) ?>&body=<?= rawurlencode("Hi Adam — I saw the page you put together for " . $name . ". I'd like to talk about:") ?>">Email me instead &rarr;</a>
