@@ -699,65 +699,33 @@ if ($paid && $row && $pdo !== null) {
 
   <?php if (!empty($available)): ?>
 
+  <?php
+    // One offer, one look: show the single design matched to this category.
+    // No picker — the lead sees their site, already decided, not a menu.
+    $showKey = isset($available[$templateKey]) ? $templateKey : array_key_first($available);
+    $showTpl = $available[$showKey];
+  ?>
   <section class="fd-card fd-reveal">
     <p class="fd-kicker">Your website &mdash; live preview</p>
-    <h2 class="fd-design-title"><?= $subhead !== '' ? ho_h($subhead) : 'This is exactly what we build. Pick your look.' ?></h2>
-    <p class="fd-design-sub">Not a mockup. Not a template. This is the real <?= ho_h($name) ?> site &mdash; built and ready to go live the moment you say yes.</p>
+    <h2 class="fd-design-title"><?= $subhead !== '' ? ho_h($subhead) : 'This is exactly what we\'d build for ' . ho_h($name) . '.' ?></h2>
+    <p class="fd-design-sub">Not a mockup. Not a template. This is the real <?= ho_h($name) ?> site &mdash; designed for your trade and ready to go live the moment you say yes.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
       <span style="font-size:12px;font-weight:700;color:var(--fd-green);background:rgba(47,94,54,.1);border:1px solid rgba(47,94,54,.2);padding:4px 10px;border-radius:20px">⚡ Live in 24 hours</span>
       <span style="font-size:12px;font-weight:700;color:#7a4800;background:rgba(184,112,32,.1);border:1px solid rgba(184,112,32,.2);padding:4px 10px;border-radius:20px">One <?= ho_h(strtolower($catName)) ?> site in <?= ho_h($city) ?></span>
     </div>
 
-    <div class="fd-tpl-picker">
-      <?php foreach ($available as $k => $opt): ?>
-        <button class="fd-tpl-tab<?= $k === $templateKey ? ' fd-tpl-tab--active' : '' ?>" data-tpl="<?= ho_h($k) ?>" data-label="<?= ho_h($opt['label']) ?>">
-          <span class="fd-tpl-dot" style="background:<?= ho_h($opt['color']) ?>"></span>
-          <?= ho_h($opt['label']) ?>
-        </button>
-      <?php endforeach; ?>
-    </div>
-
     <div class="fd-phone-stage">
     <div class="fd-phone-frame">
       <div class="fd-phone-screen" id="fd-phone-screen">
-        <?php foreach ($available as $k => $opt): ?>
-          <div class="fd-tpl-pane" id="tpl-<?= ho_h($k) ?>"<?= $k !== $templateKey ? ' hidden' : '' ?>>
-            <?php include $opt['file']; ?>
-          </div>
-        <?php endforeach; ?>
+        <div class="fd-tpl-pane">
+          <?php include $showTpl['file']; ?>
+        </div>
       </div>
     </div>
     </div><!-- /.fd-phone-stage -->
 
-    <p class="fd-excl-note">Every design is built from scratch for <?= ho_h($name) ?>. The style you choose will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?>.</p>
-    <p class="fd-phone-hint">Your choice carries into checkout &mdash; pick the one you want to launch with.</p>
+    <p class="fd-excl-note">Built from scratch for <?= ho_h($name) ?> &mdash; this design will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?>.</p>
   </section>
-
-  <script>
-  (function(){
-    var tabs   = document.querySelectorAll('.fd-tpl-tab');
-    var screen = document.getElementById('fd-phone-screen');
-    var picker = document.querySelector('.fd-tpl-picker');
-    if (picker) picker.scrollLeft = 0;
-    tabs.forEach(function(tab){
-      tab.addEventListener('click', function(){
-        var key = tab.dataset.tpl;
-        tabs.forEach(function(t){ t.classList.remove('fd-tpl-tab--active'); });
-        document.querySelectorAll('.fd-tpl-pane').forEach(function(p){ p.hidden = true; });
-        tab.classList.add('fd-tpl-tab--active');
-        var pane = document.getElementById('tpl-' + key);
-        if (pane) pane.hidden = false;
-        if (screen) screen.scrollTop = 0;
-        // Record selection in checkout form
-        var tplInput = document.getElementById('fd-h-template');
-        if (tplInput) tplInput.value = key;
-        // Update order summary design row
-        var osDesign = document.getElementById('fd-os-design');
-        if (osDesign) osDesign.textContent = tab.dataset.label || tab.textContent.trim();
-      });
-    });
-  })();
-  </script>
 
   <?php else: ?>
 
