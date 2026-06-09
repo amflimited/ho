@@ -1783,7 +1783,7 @@ function ho_create_order(PDO $pdo, int $businessId, ?int $previewId, string $slu
     $token = bin2hex(random_bytes(32));
     $pdo->prepare("
         INSERT INTO orders (business_id, preview_id, slug, package, template_key, chosen_domain, status_token, token_expires_at, paid_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 72 HOUR), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), NOW())
     ")->execute([$businessId, $previewId, $slug, $pkg, $tplKey, $domain, $token]);
 
     return ['id' => (int)$pdo->lastInsertId(), 'token' => $token];

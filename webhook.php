@@ -2,16 +2,19 @@
 declare(strict_types=1);
 
 /**
- * Stripe webhook — fires on checkout.session.completed.
- * Checks domain availability and emails Adam the order summary.
+ * Stripe webhook — checkout.session.completed
+ *
+ * 1. Verifies signature
+ * 2. Creates / finds the order row in the DB (idempotent)
+ * 3. Marks business pipeline_status = 'converted'
+ * 4. Emails Adam: order summary + domain check + status-page link
+ * 5. Emails customer: confirmation + status-page link
  *
  * SETUP:
- *   1. Stripe Dashboard → Developers → Webhooks → Add endpoint
- *      URL: https://hoosieronline.com/webhook.php
- *      Event: checkout.session.completed
- *   2. Add to /home1/spofnkte/stripe-config.php:
- *        define('STRIPE_WEBHOOK_SECRET', 'whsec_...');
- *   3. Create /home1/spofnkte/porkbun-config.php (see porkbun-config.example.php)
+ *   Stripe Dashboard → Developers → Webhooks → Add endpoint
+ *   URL:   https://hoosieronline.com/webhook.php
+ *   Event: checkout.session.completed
+ *   Add STRIPE_WEBHOOK_SECRET to /home1/spofnkte/stripe-config.php
  */
 
 $payload   = (string)file_get_contents('php://input');
@@ -51,56 +54,116 @@ if (!is_array($event) || ($event['type'] ?? '') !== 'checkout.session.completed'
 }
 
 $session    = $event['data']['object'] ?? [];
-$sessionId  = (string)($session['id']                      ?? '');
-$slug       = (string)($session['metadata']['slug']        ?? '');
-$pkg        = (string)($session['metadata']['pkg']         ?? '');
-$bizName    = (string)($session['metadata']['business']    ?? $slug);
-$hasDomain  = ($session['metadata']['has_domain']          ?? '0') === '1';
-$amountPaid = (int)($session['amount_total']               ?? 0); // cents
+$sessionId  = (string)($session['id']                        ?? '');
+$slug       = (string)($session['metadata']['slug']          ?? '');
+$pkg        = (string)($session['metadata']['pkg']           ?? '');
+$tplKey     = (string)($session['metadata']['template']      ?? '');
+$ownDomain  = (string)($session['metadata']['own_domain']    ?? '');
+$bizName    = (string)($session['metadata']['business']      ?? $slug);
+$amountPaid = (int)($session['amount_total']                 ?? 0);
+// Stripe always captures email during checkout
+$custEmail  = (string)($session['customer_details']['email'] ?? '');
 
+require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
 
-// Build order summary lines
-$pkgCatalog = ho_package_catalog();
-$pkgLabel   = $pkgCatalog[$pkg]['label'] ?? $pkg;
-$amountFmt  = '$' . number_format($amountPaid / 100, 2);
+// ── 1. Create order row (idempotent) ──────────────────────────────────────────
+$statusUrl  = '';
+$orderToken = '';
+try {
+    $pdo        = ho_db();
+    $previewRow = ho_get_preview_by_slug($pdo, $slug);
+    $businessId = $previewRow ? (int)$previewRow['id'] : 0;
+    $previewId  = $previewRow ? (int)($previewRow['preview_id'] ?? 0) : null;
+    $ownerFirst = $previewRow ? trim((string)($previewRow['owner_first_name'] ?? '')) : '';
 
-$lines   = [];
-$lines[] = "Business:  {$bizName}";
-$lines[] = "Package:   {$pkgLabel} ({$amountFmt})";
-$lines[] = "Slug:      {$slug}";
-$lines[] = "Session:   {$sessionId}";
-$lines[] = '';
+    if ($businessId > 0) {
+        $result     = ho_create_order($pdo, $businessId, $previewId, $slug, $pkg, $tplKey, $ownDomain);
+        $orderToken = $result['token'];
+        $statusUrl  = 'https://hoosieronline.com/status.php?token=' . $orderToken;
 
-// Check domain availability if this order includes one
-$needsDomain = in_array($pkg, ['launch', 'managed'], true) || $hasDomain;
-
-if ($needsDomain && $slug !== '') {
-    $domain = str_replace('.hoosieronline.com', '.com', ho_suggest_subdomain($bizName));
-    $lines[] = "Domain:    {$domain}";
-
-    try {
-        require_once __DIR__ . '/porkbun.php';
-        $check = ho_porkbun_check($domain);
-
-        if ($check['available']) {
-            $price   = $check['price'] ? " (~\${$check['price']}/yr)" : '';
-            $lines[] = "Status:    AVAILABLE{$price} — register it at porkbun.com";
-        } else {
-            $lines[] = "Status:    TAKEN — pick an alternative";
-        }
-    } catch (Throwable $e) {
-        $lines[] = "Status:    check failed (" . $e->getMessage() . ") — verify manually at porkbun.com";
+        // Mark business converted
+        $pdo->prepare("UPDATE businesses SET pipeline_status = 'converted', updated_at = NOW() WHERE id = ?")
+            ->execute([$businessId]);
     }
-} else {
-    $lines[] = "Domain:    not included in this package";
+} catch (Throwable $e) {
+    error_log('webhook.php: DB error — ' . $e->getMessage());
 }
 
-$subject = "New order: {$pkgLabel} — {$bizName}";
-$body    = implode("\n", $lines);
+// ── 2. Domain check ───────────────────────────────────────────────────────────
+$pkgCatalog  = ho_package_catalog();
+$pkgLabel    = $pkgCatalog[$pkg]['label'] ?? $pkg;
+$amountFmt   = '$' . number_format($amountPaid / 100, 2);
+$domainLine  = '';
+$needsDomain = in_array($pkg, ['launch', 'managed'], true) || $ownDomain !== '';
 
-@mail('adam@hoosieronline.com', $subject, $body);
-error_log("ho/webhook: order received session={$sessionId} pkg={$pkg} slug={$slug}");
+if ($needsDomain) {
+    $domainToCheck = $ownDomain !== ''
+        ? $ownDomain
+        : str_replace('.hoosieronline.com', '.com', ho_suggest_subdomain($bizName));
+    try {
+        require_once __DIR__ . '/porkbun.php';
+        $check      = ho_porkbun_check($domainToCheck);
+        $priceNote  = ($check['price'] ?? '') !== '' ? " (~\${$check['price']}/yr)" : '';
+        $domainLine = $check['available']
+            ? "Domain:     {$domainToCheck} — AVAILABLE{$priceNote} — register at porkbun.com"
+            : "Domain:     {$domainToCheck} — TAKEN — pick an alternative";
+    } catch (Throwable $e) {
+        $domainLine = "Domain:     {$domainToCheck} — check failed ({$e->getMessage()}) — verify at porkbun.com";
+    }
+} else {
+    $domainLine = "Domain:     not included in this package";
+}
+
+// ── 3. Email Adam ─────────────────────────────────────────────────────────────
+$adminLines = [
+    "Business:   {$bizName}",
+    "Package:    {$pkgLabel} ({$amountFmt})",
+    $domainLine,
+    "Slug:       {$slug}",
+    "Session:    {$sessionId}",
+];
+if ($custEmail !== '') $adminLines[] = "Cust email: {$custEmail}";
+if ($statusUrl !== '') $adminLines[] = "Status pg:  {$statusUrl}";
+
+@mail(
+    'adam@hoosieronline.com',
+    "New order: {$pkgLabel} — {$bizName}",
+    implode("\n", $adminLines),
+    "From: Hoosier Online <adam@hoosieronline.com>\r\n"
+);
+
+// ── 4. Email customer ─────────────────────────────────────────────────────────
+if ($custEmail !== '' && $statusUrl !== '') {
+    $greeting = $ownerFirst !== '' ? "Hey {$ownerFirst}" : 'Hey there';
+    $custBody = implode("\n", [
+        "{$greeting},",
+        "",
+        "Payment received — I'm building your site now.",
+        "",
+        "Track your build here:",
+        $statusUrl,
+        "",
+        "It'll be live within 24 hours. I'll reach out once it's done.",
+        "",
+        "Questions? Reply to this email or call (765) 443-4321.",
+        "",
+        "— Adam",
+        "Hoosier Online · New Castle, Indiana",
+    ]);
+
+    @mail(
+        $custEmail,
+        "You're in — {$bizName} is being built",
+        $custBody,
+        implode("\r\n", [
+            "From: Adam Ferree <adam@hoosieronline.com>",
+            "Reply-To: adam@hoosieronline.com",
+        ])
+    );
+}
+
+error_log("ho/webhook: completed session={$sessionId} pkg={$pkg} slug={$slug} email={$custEmail}");
 
 http_response_code(200);
 exit;
