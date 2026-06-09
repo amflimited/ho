@@ -413,6 +413,13 @@ a { color: inherit; }
   padding: 2px 6px; border-radius: 4px;
   margin-bottom: 2px; width: fit-content;
 }
+.cp-stale-badge {
+  display: inline-block;
+  font-size: 9px; font-weight: 800; letter-spacing: .07em;
+  color: #1a4f1a; background: #d4f5d4;
+  padding: 2px 6px; border-radius: 4px;
+  margin-bottom: 2px; width: fit-content;
+}
 
 .cp-exclude-form { flex-shrink: 0; }
 

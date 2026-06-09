@@ -430,14 +430,15 @@ function ho_promote_candidates(PDO $pdo, int $runId): int {
 function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10, int $categoryId = 0): array {
     $catClause = $categoryId > 0 ? 'AND b.category_id = ' . $categoryId : '';
     $s = $pdo->prepare("
-        SELECT b.*, c.name AS category_name
+        SELECT b.*, c.name AS category_name,
+               CASE WHEN r.id IS NULL THEN 'new' ELSE 'stale' END AS research_queue_reason
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         LEFT JOIN research_records r ON r.business_id = b.id
-        WHERE b.pipeline_status = 'identified'
-          AND r.id IS NULL
+        WHERE b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
+          AND (r.id IS NULL OR r.has_contact_form IS NULL)
           {$catClause}
-        ORDER BY b.created_at ASC
+        ORDER BY (r.id IS NULL) DESC, b.created_at ASC
         LIMIT " . (int)$limit . "
     ");
     $s->execute([]);
@@ -450,7 +451,8 @@ function ho_unresearched_category_counts(PDO $pdo): array {
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         LEFT JOIN research_records r ON r.business_id = b.id
-        WHERE b.pipeline_status = 'identified' AND r.id IS NULL
+        WHERE b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
+          AND (r.id IS NULL OR r.has_contact_form IS NULL)
         GROUP BY c.id
         ORDER BY cnt DESC
     ")->fetchAll();
@@ -2194,24 +2196,9 @@ function ho_generate_status_update_text(array $order, string $bizName, string $o
 // ─── Enrichment (fill new fields on already-researched leads) ────────────────
 
 function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
-    // Try the filtered query first (only leads missing the new fields)
-    try {
-        $rows = $pdo->query("
-            SELECT b.id, b.business_name, b.location_city, b.website_url,
-                   b.facebook_url, b.google_business_url,
-                   c.name AS category_name
-            FROM businesses b
-            JOIN categories c ON c.id = b.category_id
-            JOIN research_records r ON r.business_id = b.id
-            WHERE r.research_status = 'complete'
-              AND r.years_in_business IS NULL
-            ORDER BY b.updated_at DESC
-            LIMIT " . (int)$limit . "
-        ")->fetchAll();
-        return $rows;
-    } catch (Throwable) {}
-
-    // Fallback: new columns don't exist yet — return recently-researched leads
+    // Only show leads that have been through the new 69-field research schema
+    // (has_contact_form IS NOT NULL) but are still missing years_in_business.
+    // Leads with has_contact_form IS NULL are stale — they go in the main research queue.
     try {
         return $pdo->query("
             SELECT b.id, b.business_name, b.location_city, b.website_url,
@@ -2221,6 +2208,9 @@ function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
             JOIN categories c ON c.id = b.category_id
             JOIN research_records r ON r.business_id = b.id
             WHERE r.research_status = 'complete'
+              AND r.has_contact_form IS NOT NULL
+              AND r.years_in_business IS NULL
+              AND b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
             ORDER BY b.updated_at DESC
             LIMIT " . (int)$limit . "
         ")->fetchAll();

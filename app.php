@@ -186,7 +186,9 @@ if ($pdo && !empty($enrichmentBatch)) {
             SELECT COUNT(*) FROM businesses b
             JOIN research_records r ON r.business_id = b.id
             WHERE r.research_status = 'complete'
+              AND r.has_contact_form IS NOT NULL
               AND r.years_in_business IS NULL
+              AND b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
         ")->fetchColumn();
     } catch (Throwable) {}
 }
@@ -508,7 +510,14 @@ if (!empty($unresearched)) {
     <section class="cp-section">
       <div class="cp-step">Step 1</div>
       <h2 class="cp-sh">Copy this prompt</h2>
-      <p class="cp-hint"><?= count($unresearched) ?> businesses queued</p>
+      <?php
+        $staleCount = count(array_filter($unresearched, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
+        $newCount   = count($unresearched) - $staleCount;
+        $hintParts  = [];
+        if ($newCount   > 0) $hintParts[] = "{$newCount} new";
+        if ($staleCount > 0) $hintParts[] = "{$staleCount} update (missing new fields)";
+      ?>
+      <p class="cp-hint"><?= count($unresearched) ?> businesses queued &mdash; <?= implode(', ', $hintParts) ?></p>
       <div class="cp-prompt-box">
         <pre id="resPrompt" class="cp-prompt"><?= ho_h($researchPrompt) ?></pre>
         <button class="cp-copy" onclick="doCopy('resPrompt',this)">Copy</button>
@@ -548,6 +557,7 @@ if (!empty($unresearched)) {
           <li class="cp-biz-row<?= $isMulti ? ' cp-biz-row-flagged' : '' ?>">
             <div class="cp-biz-info">
               <?php if ($isMulti): ?><span class="cp-multi-badge">MULTI-MARKET</span><?php endif; ?>
+              <?php if (($b['research_queue_reason'] ?? 'new') === 'stale'): ?><span class="cp-stale-badge">UPDATE</span><?php endif; ?>
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
               <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
             </div>
