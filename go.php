@@ -246,6 +246,22 @@ if ($paid && $row && $pdo !== null) {
     <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I looked over your site and found a few things worth fixing.' : 'I looked over your site and found a few things worth fixing.' ?></p>
     <?php else: ?>
     <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website for ' . ho_h($name) . '.' : 'I built a website for ' . ho_h($name) . '.' ?><?= ($ownerAgeBand === '55plus') ? ' I handle everything &mdash; you don&rsquo;t touch a thing.' : '' ?></p>
+    <?php
+    // Personalization hook — use specific research data to make the hero feel earned
+    $heroDetail = '';
+    if ($yearsInBiz >= 5 && $googleCount >= 10) {
+        $heroDetail = $yearsInBiz . ' years of work and ' . number_format($googleCount) . ' reviews — completely invisible online. That\'s what this fixes.';
+    } elseif ($yearsInBiz >= 5 && !$hasWebsite) {
+        $heroDetail = $yearsInBiz . ' years in business with nothing to show online. Time to change that.';
+    } elseif ($googleCount >= 15 && !$hasWebsite) {
+        $heroDetail = number_format($googleCount) . ' Google reviews and no website. Every one of those reviews is a customer you almost lost before they found you.';
+    } elseif ($compHasSite && $compName !== '' && !$hasWebsite) {
+        $heroDetail = ho_h($compName) . ' already has a site. You don\'t. That\'s the gap this fixes.';
+    }
+    ?>
+    <?php if ($heroDetail !== ''): ?>
+    <p class="fd-turn-detail"><?= $heroDetail ?></p>
+    <?php endif; ?>
     <?php endif; ?>
     <?php if ($angle !== ''): ?>
       <p class="fd-turn-angle"><?= ho_h($angle) ?></p>
@@ -671,11 +687,19 @@ if ($paid && $row && $pdo !== null) {
         <p class="fd-trust-location">New Castle, Indiana &mdash; not a call centre, not an agency</p>
       </div>
     </div>
-    <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I researched <?= ho_h($name) ?> personally &mdash; I looked at your <?= $hasWebsite && $websiteUrl !== '' ? 'site' : ($hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence')) ?>, noted <?= $isEnhancement ? 'what could be better' : 'what was missing' ?>, and put this together before reaching out. I only send these when I think the business is worth it.</p>
-    <?php if ($isEnhancement): ?>
-    <p style="margin-top:10px">No queue, no agency runaround. You tell me what you want fixed and I&rsquo;ll tell you what it takes &mdash; same day. Most of it&rsquo;s a flat one-time fix.</p>
+    <?php if (!$isEnhancement):
+    // Build a list of specific facts to prove the research was real
+    $adamKnows = [];
+    if ($yearsInBiz >= 3) $adamKnows[] = 'you&rsquo;ve been running ' . ho_h($name) . ' for ' . $yearsInBiz . ' years';
+    if ($googleCount >= 5) $adamKnows[] = 'you have ' . number_format($googleCount) . ' Google reviews';
+    if ($compHasSite && $compName !== '') $adamKnows[] = ho_h($compName) . ' already has a site and is outranking you';
+    if (!$hasWebsite && $phone !== '') $adamKnows[] = 'customers can only reach you by calling ' . ho_h($telDisplay);
+    ?>
+    <p>I build websites for Indiana service businesses &mdash; that&rsquo;s the whole business. Before I reached out, I already knew: <?php if (!empty($adamKnows)): ?><?= implode('; ', $adamKnows) ?>. <?php endif; ?>I built this preview before sending a single message. I only do that when I think it&rsquo;s worth it.</p>
+    <p style="margin-top:10px">When you say yes, you&rsquo;re not entering a queue &mdash; I start the same day. <?= ho_h($name) ?>&rsquo;s site is live within 24 hours. That&rsquo;s a guarantee, not a target.</p>
     <?php else: ?>
-    <p style="margin-top:10px">When you pay, you&rsquo;re not entering a queue. I start the same day. The site is live within 24 hours &mdash; that&rsquo;s a guarantee, not a target.</p>
+    <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I looked at your <?= $hasWebsite && $websiteUrl !== '' ? 'site' : ($hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence')) ?>, noted what could be better, and put this together before reaching out. I only send these when I think the business is worth it.</p>
+    <p style="margin-top:10px">No queue, no agency runaround. You tell me what you want fixed and I&rsquo;ll tell you exactly what it takes &mdash; same day. Most of it&rsquo;s a flat one-time fix.</p>
     <?php endif; ?>
     <ul class="fd-trust-signals">
       <li>Indiana-based &mdash; you can call me directly</li>
@@ -740,6 +764,24 @@ if ($paid && $row && $pdo !== null) {
       </div>
     </div>
 
+    <div class="fd-price-compare">
+      <div class="fd-pc-row fd-pc-other">
+        <span class="fd-pc-name">Wix (3 yrs)</span>
+        <span class="fd-pc-cost"><s>$576+</s></span>
+        <span class="fd-pc-note">monthly fees forever, you never own it</span>
+      </div>
+      <div class="fd-pc-row fd-pc-other">
+        <span class="fd-pc-name">GoDaddy (3 yrs)</span>
+        <span class="fd-pc-cost"><s>$420+</s></span>
+        <span class="fd-pc-note">monthly fees forever, you never own it</span>
+      </div>
+      <div class="fd-pc-row fd-pc-ours">
+        <span class="fd-pc-name">Hoosier Online</span>
+        <span class="fd-pc-cost">$199</span>
+        <span class="fd-pc-note">once &mdash; yours forever, no renewal, no platform</span>
+      </div>
+    </div>
+
     <?php // Domain — folded into offer card ?>
     <div style="margin:4px 0 16px">
       <p class="fd-kicker" style="margin-bottom:6px">Your web address</p>
@@ -773,16 +815,20 @@ if ($paid && $row && $pdo !== null) {
 
     <ul class="fd-offer-includes">
       <li>✓&ensp;Every page customers need to find and hire you</li>
-      <li>✓&ensp;Click-to-call + contact form — works the moment it&rsquo;s live</li>
+      <li>✓&ensp;<?= $phone !== '' ? ho_h($telDisplay) . ' — click-to-call from every page, plus a contact form' : 'Click-to-call + contact form — works the moment it\'s live' ?></li>
       <li>✓&ensp;Mobile-optimized &amp; SSL secured from day one</li>
-      <li>✓&ensp;Your Google reviews pulled in automatically</li>
+      <?php if ($googleCount > 0): ?>
+      <li>✓&ensp;Your <?= number_format($googleCount) ?> Google review<?= $googleCount !== 1 ? 's' : '' ?> pulled in automatically &mdash; front and center, not buried in a listing</li>
+      <?php else: ?>
+      <li>✓&ensp;Your Google reviews pulled in automatically as they come in</li>
+      <?php endif; ?>
       <li>✓&ensp;<?= $hasExistingDomain ? ho_h($ownDotCom) . ' connected — no new domain needed' : 'Your .com domain registered &amp; renewals handled — free' ?></li>
-      <li>✓&ensp;Exclusive to <?= ho_h($name) ?> — this design is never used for another <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?></li>
+      <li>✓&ensp;Built exclusively for <?= ho_h($name) ?> &mdash; this design is never used for another <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?></li>
     </ul>
 
     <div class="fd-live-guarantee">
-      <strong>⚡ Live in 24 hours — or you don&rsquo;t pay.</strong>
-      From the moment you check out to a real live site at your address. If it takes longer, I refund you in full.
+      <strong>⚡ Live by <?= date('l, F j') === date('l, F j', strtotime('tomorrow')) ? date('F j', strtotime('tomorrow')) : date('F j', strtotime('tomorrow')) ?> &mdash; or you pay nothing.</strong>
+      Most web agencies quote 4&ndash;8 weeks. <?= ho_h($name) ?>&rsquo;s site is live within 24 hours of checkout &mdash; real, live, at your web address. That&rsquo;s the actual contract: not a target, not a goal. If it&rsquo;s not live in time, I refund every cent.
     </div>
 
     <p class="fd-kicker" style="margin-top:20px;margin-bottom:8px">What happens next</p>
