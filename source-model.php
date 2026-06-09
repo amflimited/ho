@@ -151,7 +151,7 @@ function ho_source_known_business_packet(array $businesses, string $categoryCont
 function ho_source_prompt_payload(array $args, array $exclusionPacket): array {
     $category = ho_source_normalize_context((string)($args['category_context'] ?? ''), 'local_service');
     $area = ho_source_normalize_context((string)($args['area_context'] ?? ''), 'Indiana');
-    $target = ho_source_hard_limit_int($args['target_count'] ?? 25, 25, 5, 100);
+    $target = ho_source_hard_limit_int($args['target_count'] ?? 15, 15, 5, 100);
     $sourceMethod = ho_source_normalize_context((string)($args['source_method'] ?? ''), 'gpt_public_research');
 
     return [

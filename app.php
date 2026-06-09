@@ -171,7 +171,7 @@ $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $u
 $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 20) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
-$enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 25) : [];
+$enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 50) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
 $enrichmentTotal  = 0;
 if ($pdo && !empty($enrichmentBatch)) {

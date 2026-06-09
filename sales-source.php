@@ -13,7 +13,7 @@ require_once __DIR__ . '/source-model.php';
 
 $category = trim((string)($_GET['category_context'] ?? $_POST['category_context'] ?? 'local_service'));
 $area = trim((string)($_GET['area_context'] ?? $_POST['area_context'] ?? 'Indiana'));
-$targetCount = ho_source_hard_limit_int($_GET['target_count'] ?? $_POST['target_count'] ?? 25, 25, 5, 100);
+$targetCount = ho_source_hard_limit_int($_GET['target_count'] ?? $_POST['target_count'] ?? 15, 15, 5, 100);
 $sourceMethod = trim((string)($_GET['source_method'] ?? $_POST['source_method'] ?? 'gpt_public_research'));
 $exclusionLimit = ho_source_hard_limit_int($_GET['exclusion_limit'] ?? $_POST['exclusion_limit'] ?? 150, 150, 25, 300);
 
