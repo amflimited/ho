@@ -262,11 +262,12 @@ if ($paid && $row && $pdo !== null) {
       <?php if (!$isEnhancement): ?>
       <span class="fd-ts-item">⚡ Live in 24 hours — guaranteed</span>
       <span class="fd-ts-item">$199 flat &middot; you own it forever</span>
+      <span class="fd-ts-item">✓ 30-day money-back</span>
       <?php else: ?>
       <span class="fd-ts-item">Quote same day</span>
-      <span class="fd-ts-item">No monthly fees</span>
+      <span class="fd-ts-item">Flat price &middot; no monthly fees</span>
+      <span class="fd-ts-item">No contracts</span>
       <?php endif; ?>
-      <span class="fd-ts-item">✓ 30-day money-back</span>
     </div>
   </section>
 
@@ -452,89 +453,65 @@ if ($paid && $row && $pdo !== null) {
   </section>
 
   <?php if ($isEnhancement): ?>
-  <!-- ── APP ENGINE OFFER (enhancement only) ─────────────────────────────── -->
-  <section class="fd-card fd-offer fd-reveal" id="what-i-can-add">
-    <p class="fd-kicker">What I can build for you</p>
-    <h2>App Engine for <?= ho_h($name) ?>.</h2>
+  <!-- ── WHAT I'D FIX (enhancement only) — contact-first, no checkout ─────── -->
+  <?php
+  $platform = $hasAngi ? 'Angi' : ($hasThumbtak ? 'Thumbtack' : 'a lead site');
+  $fixItems = [];
+  if (in_array('tech_issues', $enhancementGaps, true)) {
+      $techBody = ($notMobile && $noSsl)
+          ? 'Your site isn\'t mobile-friendly and has no SSL — Google penalises both, and browsers warn visitors before they read a word. I\'d clean both up so you stop losing the ranking and the trust.'
+          : ($notMobile
+              ? 'Your site isn\'t mobile-friendly, and 70% of your customers are on a phone. I\'d fix that so Google stops ranking competitors above you.'
+              : 'Your site has no SSL, so browsers flag it "Not Secure." I\'d get that fixed so visitors stop bouncing before they read a word.');
+      $fixItems[] = ['icon'=>'🛠️','title'=>'Fix the issues holding your site back','body'=>$techBody];
+  }
+  if (in_array('contact_form', $enhancementGaps, true)) {
+      $fixItems[] = ['icon'=>'📬','title'=>'Add a way to reach you in writing','body'=>'Right now anyone who doesn\'t want to call has no way to send you the job. I\'d add a simple contact form so those leads land in your inbox instead of walking to a competitor.'];
+  }
+  if (in_array('paid_leads', $enhancementGaps, true)) {
+      $fixItems[] = ['icon'=>'💸','title'=>'Get you off per-lead fees','body'=>'You\'re listed on ' . ho_h($platform) . '. I\'d set your own site up to catch those same searches directly — so you keep the customer and stop paying for the introduction.'];
+  }
+  if (in_array('google_business', $enhancementGaps, true)) {
+      $fixItems[] = ['icon'=>'📍','title'=>'Get you onto Google Maps','body'=>'You\'re not showing in Maps for ' . ho_h(strtolower($catName)) . ' in ' . ho_h($city) . '. I\'d get your Google Business profile verified so you show up where people actually search.'];
+  }
+  if (in_array('gbp_photos', $enhancementGaps, true)) {
+      $fixItems[] = ['icon'=>'📸','title'=>'Build out your Google photos','body'=>'Listings with 20+ photos get far more calls. I\'d help you get real job photos up so customers can see your work before they decide.'];
+  }
+  if (in_array('stale_reviews', $enhancementGaps, true)) {
+      $fixItems[] = ['icon'=>'⭐','title'=>'Get fresh reviews flowing','body'=>'Customers read recency, not just the star count. I\'d set you up with a simple way to keep new reviews coming so you don\'t look quiet.'];
+  }
+  if (empty($fixItems)) {
+      $fixItems[] = ['icon'=>'📬','title'=>'A few things worth tightening up','body'=>'I looked over your site and spotted a handful of small things that quietly cost you jobs. Easiest to walk you through them on a quick call.'];
+  }
+  ?>
+  <section class="fd-card fd-reveal" id="what-i-can-add">
+    <p class="fd-kicker">What I&rsquo;d do</p>
+    <h2>Here&rsquo;s what I&rsquo;d fix for <?= ho_h($name) ?>.</h2>
+    <p style="font-size:16px;line-height:1.6;margin-bottom:18px">No new website. No moving anything you&rsquo;ve already got. I&rsquo;d work with what&rsquo;s there and tighten up the spots that are costing you jobs &mdash; here&rsquo;s where I&rsquo;d start.</p>
 
-    <p style="font-size:16px;line-height:1.6;margin-bottom:4px">Your existing site stays exactly as it is. I build a dedicated panel at <strong><?= ho_h($subdomain) ?></strong> — contact form, booking requests, job quotes. Customers use it; you get the message. No changes to your current website needed.</p>
-
-    <?php
-    $aeItems = [];
-    if (in_array('contact_form', $enhancementGaps, true)) {
-        $aeItems[] = ['icon'=>'📋','title'=>'Contact & job request form','body'=>'The 11pm searcher who won\'t call, the person who wants to put it in writing — they fill out a form. You wake up to a new job request instead of a missed opportunity.'];
-    }
-    if (in_array('paid_leads', $enhancementGaps, true)) {
-        $aeItems[] = ['icon'=>'💸','title'=>'Stop paying per lead','body'=>'Customers who find you through Angi or Thumbtack can reach out directly through your App Engine — same enquiry, no platform cut, no competing bids on the same job.'];
-    }
-    if (in_array('tech_issues', $enhancementGaps, true)) {
-        $aeItems[] = ['icon'=>'📱','title'=>'Mobile-ready from day one','body'=>'App Engine is fully mobile-optimised and SSL-secured. Loads fast on every phone, no browser warnings — even if your main site has issues.'];
-    }
-    if (in_array('google_business', $enhancementGaps, true)) {
-        $aeItems[] = ['icon'=>'📍','title'=>'A real URL to link from Google','body'=>'Your Google Business profile can link to your App Engine address — gives searchers somewhere to go beyond your phone number.'];
-    }
-    if (empty($aeItems)) {
-        $aeItems[] = ['icon'=>'📋','title'=>'Contact & booking form','body'=>'Put a contact form in front of customers who find you online but don\'t want to call. Every job starts with that first message.'];
-        $aeItems[] = ['icon'=>'📅','title'=>'Appointment & quote requests','body'=>'Let customers request a time, a quote, or a callback. You get the details in writing — no phone tag.'];
-    }
-    ?>
     <div class="fd-app-engine-what">
-      <?php foreach ($aeItems as $item): ?>
+      <?php foreach ($fixItems as $item): ?>
       <div class="fd-ae-item">
         <span class="fd-ae-icon"><?= ho_h($item['icon']) ?></span>
         <div class="fd-ae-body">
           <strong><?= ho_h($item['title']) ?></strong>
-          <p><?= ho_h($item['body']) ?></p>
+          <p><?= $item['body'] ?></p>
         </div>
       </div>
       <?php endforeach; ?>
     </div>
+  </section>
 
-    <div style="background:rgba(47,94,54,.06);border:1px solid rgba(47,94,54,.18);border-radius:14px;padding:12px 16px;margin:4px 0 16px;display:flex;align-items:center;gap:12px">
-      <span style="font-size:20px">🌐</span>
-      <div>
-        <strong style="display:block;font-size:14px;font-weight:900;color:var(--fd-green)"><?= ho_h($subdomain) ?></strong>
-        <span style="font-size:12px;color:var(--fd-muted)">Your dedicated App Engine address — included</span>
-      </div>
+  <!-- ── CONTACT CTA (enhancement only) ────────────────────────────────── -->
+  <section class="fd-card fd-offer fd-reveal" id="pricing">
+    <p class="fd-kicker">Let&rsquo;s talk it through</p>
+    <h2>Tell me what you want fixed &mdash; I&rsquo;ll quote it same day.</h2>
+    <p style="font-size:16px;line-height:1.6">No obligation, no pressure. Most of these are a flat one-time fix &mdash; no monthly anything. Call me or send a note and I&rsquo;ll tell you exactly what it takes and what it costs.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
+      <a class="fd-btn fd-btn-primary fd-checkout-main-btn" href="tel:7654434321">📞 Call me &mdash; (765) 443-4321</a>
+      <a class="fd-btn fd-btn-secondary" href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Website help for ' . $name) ?>&body=<?= rawurlencode("Hi Adam — I saw the page you put together for " . $name . ". I'd like to talk about:") ?>">Email me instead &rarr;</a>
     </div>
-
-    <div class="fd-offer-price-block">
-      <span class="fd-offer-amount">$99</span>
-      <div class="fd-offer-terms">
-        <strong>One-time. No monthly fees.</strong>
-        <span>No contract. No subscriptions.</span>
-        <span>No changes to your existing website.</span>
-      </div>
-    </div>
-
-    <ul class="fd-offer-includes">
-      <li>✓&ensp;Contact &amp; job request form — live at <?= ho_h($subdomain) ?></li>
-      <li>✓&ensp;Appointment &amp; quote request page</li>
-      <li>✓&ensp;Mobile-optimised &amp; SSL-secured from day one</li>
-      <li>✓&ensp;Your phone, email &amp; services — all in one place</li>
-      <li>✓&ensp;No changes to your existing website — ever</li>
-      <li>✓&ensp;Hosted &amp; maintained by me, not Wix or GoDaddy</li>
-    </ul>
-
-    <div class="fd-live-guarantee">
-      <strong>⚡ Live in 24 hours — or you don&rsquo;t pay.</strong>
-      From the moment you check out to a real live panel at your address. If it takes longer, I refund you in full.
-    </div>
-
-    <div class="fd-guarantee-box">
-      <strong>30-day money-back guarantee.</strong>
-      Not useful after launch? Full refund, no questions asked.
-    </div>
-
-    <form method="POST" action="/checkout.php" class="fd-checkout-form">
-      <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
-      <input type="hidden" name="pkg"  value="app_engine">
-      <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
-        Add App Engine to <?= ho_h($name) ?> &rarr; $99
-      </button>
-    </form>
-    <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
-    <div class="fd-phone-fallback">Rather talk first? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
+    <p class="fd-muted" style="margin-top:16px">Adam Ferree &middot; Hoosier Online &middot; New Castle, Indiana &mdash; you talk to me, not a call centre.</p>
   </section>
 
   <?php endif; ?>
@@ -672,13 +649,21 @@ if ($paid && $row && $pdo !== null) {
         <p class="fd-trust-location">New Castle, Indiana &mdash; not a call centre, not an agency</p>
       </div>
     </div>
-    <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I researched <?= ho_h($name) ?> personally &mdash; I looked at your <?= $hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence') ?>, noted what was missing, and built this preview before reaching out. I only send these when I think the business is worth it.</p>
+    <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I researched <?= ho_h($name) ?> personally &mdash; I looked at your <?= $hasWebsite && $websiteUrl !== '' ? 'site' : ($hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence')) ?>, noted <?= $isEnhancement ? 'what could be better' : 'what was missing' ?>, and put this together before reaching out. I only send these when I think the business is worth it.</p>
+    <?php if ($isEnhancement): ?>
+    <p style="margin-top:10px">No queue, no agency runaround. You tell me what you want fixed and I&rsquo;ll tell you what it takes &mdash; same day. Most of it&rsquo;s a flat one-time fix.</p>
+    <?php else: ?>
     <p style="margin-top:10px">When you pay, you&rsquo;re not entering a queue. I start the same day. The site is live within 24 hours &mdash; that&rsquo;s a guarantee, not a target.</p>
+    <?php endif; ?>
     <ul class="fd-trust-signals">
       <li>Indiana-based &mdash; you can call me directly</li>
       <li>Flat price, no contract, no monthly fees — ever</li>
+      <?php if ($isEnhancement): ?>
+      <li>I work with the site you&rsquo;ve got &mdash; no rebuild, no disruption</li>
+      <?php else: ?>
       <li>30-day money-back if you&rsquo;re not happy after launch</li>
-      <li>Every site researched and built personally — not outsourced</li>
+      <?php endif; ?>
+      <li>Every site researched and worked on personally — not outsourced</li>
     </ul>
     <div class="fd-trust-contact">
       <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
@@ -859,13 +844,13 @@ if ($paid && $row && $pdo !== null) {
   <div class="fd-sticky-bar" id="fd-sticky-bar" hidden>
     <div class="fd-sticky-inner">
       <span class="fd-sticky-biz"><?= ho_h($name) ?></span>
-      <a href="#what-i-can-add" class="fd-btn fd-btn-primary fd-sticky-btn">Add App Engine &rarr; $99</a>
+      <a href="tel:7654434321" class="fd-btn fd-btn-primary fd-sticky-btn">📞 Call Adam</a>
     </div>
   </div>
   <script>
   (function(){
     var bar = document.getElementById('fd-sticky-bar');
-    var offer = document.getElementById('what-i-can-add');
+    var offer = document.getElementById('pricing');
     if (!bar) return;
     var shown = false;
     var io = new IntersectionObserver(function(entries){
