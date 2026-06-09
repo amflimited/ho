@@ -162,8 +162,7 @@ function ho_rebuild_all_enhancement_packages(PDO $pdo): array {
         JOIN previews p ON p.business_id = b.id
         WHERE p.preview_type = 'enhancement'
            OR b.pipeline_status = 'enhancement_ready'
-        GROUP BY b.id, b.updated_at
-        ORDER BY b.updated_at DESC
+        GROUP BY b.id
     ")->fetchAll(PDO::FETCH_COLUMN);
 
     $rebuilt = 0;
