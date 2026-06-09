@@ -187,7 +187,13 @@ if ($pdo && !empty($enrichmentBatch)) {
             JOIN research_records r ON r.business_id = b.id
             WHERE r.research_status = 'complete'
               AND r.has_contact_form IS NOT NULL
-              AND r.years_in_business IS NULL
+              AND (
+                r.years_in_business IS NULL
+                OR (r.has_google_business = 1 AND r.gbp_photo_count IS NULL)
+                OR (r.has_google_business = 1 AND r.has_gbp_posts IS NULL)
+                OR (r.competitor_has_website = 1 AND r.competitor_google_rating IS NULL)
+                OR r.target_customer_type = 'unknown'
+              )
               AND b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
         ")->fetchColumn();
     } catch (Throwable) {}

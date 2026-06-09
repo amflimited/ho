@@ -2196,9 +2196,9 @@ function ho_generate_status_update_text(array $order, string $bizName, string $o
 // ─── Enrichment (fill new fields on already-researched leads) ────────────────
 
 function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
-    // Only show leads that have been through the new 69-field research schema
-    // (has_contact_form IS NOT NULL) but are still missing years_in_business.
-    // Leads with has_contact_form IS NULL are stale — they go in the main research queue.
+    // Leads that have been through the new 69-field schema (has_contact_form IS NOT NULL)
+    // but are still missing any field GPT often can't determine in one pass.
+    // Leads with has_contact_form IS NULL go in the main research queue instead.
     try {
         return $pdo->query("
             SELECT b.id, b.business_name, b.location_city, b.website_url,
@@ -2209,7 +2209,13 @@ function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
             JOIN research_records r ON r.business_id = b.id
             WHERE r.research_status = 'complete'
               AND r.has_contact_form IS NOT NULL
-              AND r.years_in_business IS NULL
+              AND (
+                r.years_in_business IS NULL
+                OR (r.has_google_business = 1 AND r.gbp_photo_count IS NULL)
+                OR (r.has_google_business = 1 AND r.has_gbp_posts IS NULL)
+                OR (r.competitor_has_website = 1 AND r.competitor_google_rating IS NULL)
+                OR r.target_customer_type = 'unknown'
+              )
               AND b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
             ORDER BY b.updated_at DESC
             LIMIT " . (int)$limit . "
