@@ -146,6 +146,12 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 header('Location: ?tab=research&flash=' . urlencode("Re-routed {$reRouted} decent-site lead(s) to the enhancement track."));
                 exit;
+
+            case 'requeue_no_contact':
+                ho_requeue_no_contact_leads($pdo);
+                $requeuedCount = ho_count_no_contact_ready($pdo); // should be 0 now
+                header('Location: ?tab=send&flash=' . urlencode("No-contact leads moved back to the contact-research queue."));
+                exit;
         }
     } catch (Throwable $e) {
         header('Location: ?tab=' . urlencode($_POST['tab'] ?? 'source') . '&error=' . urlencode($e->getMessage()));
@@ -186,6 +192,7 @@ if ($pdo && !empty($enrichmentBatch)) {
 }
 try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e) { $sendQueue = []; $dbError = $dbError ?? $e->getMessage(); }
 try { $enhancementQueue = $pdo ? ho_get_enhancement_ready($pdo) : []; } catch (Throwable) { $enhancementQueue = []; }
+$noContactStuckCount = $pdo ? ho_count_no_contact_ready($pdo) : 0;
 try { $followupDue = $pdo ? ho_get_followup_due($pdo) : []; } catch (Throwable) { $followupDue = []; }
 try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
 
@@ -808,6 +815,17 @@ if (!empty($unresearched)) {
         <?php endforeach; ?>
       </details>
     </section>
+  <?php endif; ?>
+
+  <?php if ($noContactStuckCount > 0): ?>
+  <div class="cp-notice cp-notice-warn" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;background:rgba(184,112,32,.1);border:1.5px solid rgba(184,112,32,.3);border-radius:10px;margin-bottom:12px">
+    <span style="font-size:14px;font-weight:600;color:#7a4800"><?= $noContactStuckCount ?> lead<?= $noContactStuckCount !== 1 ? 's' : '' ?> in the queue with no contact info — hidden until re-queued.</span>
+    <form method="POST" style="margin:0">
+      <input type="hidden" name="action" value="requeue_no_contact">
+      <input type="hidden" name="tab" value="send">
+      <button class="cp-btn-outline" type="submit" style="font-size:13px">Re-queue for contact research &rarr;</button>
+    </form>
+  </div>
   <?php endif; ?>
 
   <?php if (empty($sendQueue) && empty($enhancementQueue)): ?>

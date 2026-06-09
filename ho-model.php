@@ -1122,6 +1122,12 @@ function ho_get_preview_ready(PDO $pdo): array {
         WHERE b.pipeline_status = 'preview_ready'
           AND p.preview_status = 'ready'
           AND NOT (r.has_website = 1 AND r.website_quality IN ('good','decent'))
+          AND (
+              b.email_address != ''
+              OR b.phone_number != ''
+              OR b.facebook_url != ''
+              OR (b.website_url != '' AND b.website_url NOT REGEXP 'angi\\.com|thumbtack\\.com|yelp\\.com|homeadvisor\\.com|houzz\\.com|bark\\.com|porch\\.com|networx\\.com|homeguide\\.com')
+          )
         ORDER BY b.updated_at DESC
         LIMIT 50
     ")->fetchAll();
@@ -1132,6 +1138,33 @@ function ho_get_preview_ready(PDO $pdo): array {
     unset($row);
     usort($rows, fn($a, $b) => $b['fit_score'] <=> $a['fit_score']);
     return $rows;
+}
+
+/** Count preview_ready leads that have no usable contact info (stuck). */
+function ho_count_no_contact_ready(PDO $pdo): int {
+    $row = $pdo->query("
+        SELECT COUNT(*) AS n FROM businesses
+        WHERE pipeline_status = 'preview_ready'
+          AND email_address = ''
+          AND phone_number  = ''
+          AND facebook_url  = ''
+          AND (website_url  = '' OR website_url REGEXP 'angi\\.com|thumbtack\\.com|yelp\\.com|homeadvisor\\.com|houzz\\.com|bark\\.com|porch\\.com|networx\\.com|homeguide\\.com')
+    ")->fetch();
+    return (int)($row['n'] ?? 0);
+}
+
+/** Move stuck no-contact preview_ready leads back to needs_contact. */
+function ho_requeue_no_contact_leads(PDO $pdo): int {
+    $pdo->exec("
+        UPDATE businesses
+        SET pipeline_status = 'needs_contact', updated_at = NOW()
+        WHERE pipeline_status = 'preview_ready'
+          AND email_address = ''
+          AND phone_number  = ''
+          AND facebook_url  = ''
+          AND (website_url  = '' OR website_url REGEXP 'angi\\.com|thumbtack\\.com|yelp\\.com|homeadvisor\\.com|houzz\\.com|bark\\.com|porch\\.com|networx\\.com|homeguide\\.com')
+    ");
+    return (int)$pdo->lastInsertId() ?: (int)$pdo->query("SELECT ROW_COUNT()")->fetchColumn();
 }
 
 function ho_pitch_mailto(array $biz, string $previewUrl): string {
