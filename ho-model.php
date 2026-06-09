@@ -13,6 +13,14 @@ function ho_h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/** Returns true if $url is a lead-platform profile page that Adam cannot contact through. */
+function ho_is_lead_platform_url(string $url): bool {
+    return (bool)preg_match(
+        '#\b(angi\.com|thumbtack\.com|yelp\.com|homeadvisor\.com|houzz\.com|bark\.com|porch\.com|networx\.com|homeguide\.com)\b#i',
+        $url
+    );
+}
+
 function ho_uid(string $prefix = ''): string {
     $raw = bin2hex(random_bytes(12));
     return $prefix !== '' ? substr($prefix . '_' . $raw, 0, 40) : substr($raw, 0, 40);
@@ -774,12 +782,13 @@ function ho_auto_generate_preview(PDO $pdo, int $businessId): bool {
         $package,
     ]);
 
-    // Route: no email and no website → needs one more research pass for contact info
-    $hasOnlineContact = (string)$row['email_address'] !== ''
-        || (string)$row['website_url']  !== '';
+    // Route: no email and no usable website → needs one more research pass for contact info
+    $_bizSiteUrl      = (string)($row['website_url'] ?? '');
+    $hasOnlineContact = (string)($row['email_address'] ?? '') !== ''
+        || ($_bizSiteUrl !== '' && !ho_is_lead_platform_url($_bizSiteUrl));
     $hasAnyContact    = $hasOnlineContact
-        || (string)$row['facebook_url'] !== ''
-        || (string)$row['phone_number'] !== '';
+        || (string)($row['facebook_url'] ?? '') !== ''
+        || (string)($row['phone_number'] ?? '') !== '';
 
     $newStatus = $hasAnyContact ? 'preview_ready' : 'needs_contact';
 
@@ -950,7 +959,7 @@ function ho_route_to_enhancement(PDO $pdo, int $bizId, array $row): bool {
     $hasAnyContact = (string)($row['email_address'] ?? '') !== ''
         || (string)($row['phone_number']  ?? '') !== ''
         || (string)($row['facebook_url']  ?? '') !== ''
-        || ($_contactSiteUrl !== '' && !preg_match('#\b(angi\.com|thumbtack\.com)\b#i', $_contactSiteUrl));
+        || ($_contactSiteUrl !== '' && !ho_is_lead_platform_url($_contactSiteUrl));
 
     $pdo->prepare("UPDATE businesses SET pipeline_status=?, updated_at=NOW() WHERE id=?")
         ->execute([$hasAnyContact ? 'enhancement_ready' : 'needs_contact', $bizId]);
@@ -1247,7 +1256,7 @@ Return ONLY valid JSON:
       "business_id": 0,
       "raw_name": "Exact business name from the list above",
       "email": "owner@example.com or empty string",
-      "website_url": "https://example.com or empty string",
+      "website_url": "Business's own website URL only — NOT Angi, Thumbtack, Yelp, HomeAdvisor, Houzz, Bark, or Porch profile pages. Empty string if no real owned website found.",
       "phone": "10 digits or empty string",
       "notes": "where you found this, or empty string"
     }
@@ -1306,14 +1315,20 @@ function ho_import_contact_json(PDO $pdo, string $rawJson): array {
         $resolvedId = (int)$bizRow['id'];
         $fields = [];
         $params = [];
-        if ($email   !== '') { $fields[] = 'email_address = ?'; $params[] = $email; }
-        if ($website !== '') { $fields[] = 'website_url = ?';   $params[] = $website; }
-        if ($phone   !== '') { $fields[] = 'phone_number = ?';  $params[] = $phone; }
+        if ($email !== '') { $fields[] = 'email_address = ?'; $params[] = $email; }
+        // Reject lead-platform URLs (Angi, Thumbtack, Yelp, etc.) — not contactable via those pages
+        if ($website !== '' && !ho_is_lead_platform_url($website)) {
+            $fields[] = 'website_url = ?';
+            $params[] = $website;
+        }
+        if ($phone !== '') { $fields[] = 'phone_number = ?'; $params[] = $phone; }
 
-        // Always advance out of needs_contact — even with no contact found.
-        // Looping forever on unfindable businesses is worse than surfacing
-        // them once in the send queue where they can be manually excluded.
-        $fields[] = "pipeline_status = 'preview_ready'";
+        // Only advance to preview_ready if we actually found contact info.
+        // Blank send-queue cards are worse than staying in needs_contact.
+        $contactFound = $email !== '' || ($website !== '' && !ho_is_lead_platform_url($website)) || $phone !== '';
+        if ($contactFound) {
+            $fields[] = "pipeline_status = 'preview_ready'";
+        }
         $fields[] = 'updated_at = NOW()';
         $params[] = $resolvedId;
 

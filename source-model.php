@@ -190,7 +190,7 @@ function ho_source_prompt_payload(array $args, array $exclusionPacket): array {
             'city' => 'City',
             'state' => 'IN',
             'source_url' => 'Public page where the candidate was found',
-            'website_url' => 'Public website URL if found, else empty string',
+            'website_url' => 'Business\'s own website URL only — NOT Angi, Thumbtack, Yelp, HomeAdvisor, Houzz, Bark, or Porch profile pages. Empty string if no real owned website found.',
             'facebook_url' => 'Public Facebook/profile URL if found, else empty string',
             'google_profile_url' => 'Google Business/Profile URL if found, else empty string',
             'public_email' => 'Public customer-facing email if found, else empty string',
