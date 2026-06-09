@@ -604,7 +604,7 @@ if (!empty($unresearched)) {
     <h3 class="cp-sh" style="font-size:14px;margin-bottom:6px">Copy this prompt</h3>
     <div style="position:relative">
       <pre id="enrichPrompt" class="cp-prompt"><?= ho_h($enrichmentPrompt) ?></pre>
-      <button class="cp-copy-btn" onclick="cpCopy('enrichPrompt',this)">Copy</button>
+      <button class="cp-copy" onclick="doCopy('enrichPrompt',this)">Copy</button>
     </div>
 
     <div class="cp-step" style="margin:14px 0 6px">Step 2</div>
@@ -619,155 +619,141 @@ if (!empty($unresearched)) {
   </section>
   <?php endif; ?>
 
-  <!-- ── Website Audit ─────────────────────────────────────────────────────── -->
+  <!-- ── Audit Tools (collapsed) ─────────────────────────────────────────── -->
   <?php
   $websiteBizIds = [];
+  $noWebsiteIds  = [];
   try {
       if ($pdo) {
-          $auditRows = $pdo->query("
+          $websiteBizIds = array_map('intval', $pdo->query("
               SELECT b.id FROM businesses b
               JOIN research_records r ON r.business_id = b.id
-              WHERE r.has_website = 1
-              ORDER BY b.id ASC
-          ")->fetchAll(PDO::FETCH_COLUMN);
-          $websiteBizIds = array_map('intval', $auditRows);
-      }
-  } catch (Throwable) {}
-  ?>
-  <?php if (!empty($websiteBizIds)): ?>
-  <section class="cp-section" style="margin-top:18px" id="auditSection">
-    <h2 class="cp-sh">Website Data Audit</h2>
-    <p class="cp-hint"><?= count($websiteBizIds) ?> lead<?= count($websiteBizIds) !== 1 ? 's' : '' ?> marked as having a website. Checks each URL live and clears bad AI guesses.</p>
-    <button class="cp-btn" id="auditBtn" onclick="runAudit()">
-      Scan &amp; fix <?= count($websiteBizIds) ?> website<?= count($websiteBizIds) !== 1 ? 's' : '' ?>
-    </button>
-    <div id="auditProgress" style="display:none;margin-top:12px">
-      <div style="background:#e8e3d8;border-radius:6px;height:8px;overflow:hidden">
-        <div id="auditBar" style="background:#2a7a35;height:100%;width:0;transition:width .2s"></div>
-      </div>
-      <p class="cp-hint" id="auditStatus" style="margin-top:6px">Starting…</p>
-    </div>
-  </section>
-  <script>
-  (function(){
-    var ids = <?= json_encode($websiteBizIds) ?>;
-    var total = ids.length, done = 0, fixed = 0, live = 0;
-    window.runAudit = function() {
-      document.getElementById('auditBtn').disabled = true;
-      document.getElementById('auditProgress').style.display = 'block';
-      processNext(0);
-    };
-    function processNext(i) {
-      if (i >= ids.length) {
-        document.getElementById('auditBar').style.width = '100%';
-        document.getElementById('auditStatus').textContent =
-          'Done. ' + live + ' real site' + (live !== 1 ? 's' : '') + ' confirmed, ' +
-          fixed + ' bad record' + (fixed !== 1 ? 's' : '') + ' cleared.';
-        document.getElementById('auditBtn').textContent = 'Run again';
-        document.getElementById('auditBtn').disabled = false;
-        return;
-      }
-      var fd = new FormData();
-      fd.append('id', ids[i]);
-      fetch('/audit-url.php', {method:'POST', body:fd})
-        .then(function(r){ return r.json(); })
-        .then(function(d){
-          done++;
-          if (d.fixed) fixed++;
-          else if (d.alive) live++;
-          var pct = Math.round(done / total * 100);
-          document.getElementById('auditBar').style.width = pct + '%';
-          document.getElementById('auditStatus').textContent =
-            done + ' of ' + total + ' checked — ' + fixed + ' cleared so far';
-        })
-        .catch(function(){done++;})
-        .finally(function(){ processNext(i + 1); });
-    }
-  })();
-  </script>
-  <?php endif; ?>
-
-  <!-- ── Hidden Website Audit ──────────────────────────────────────────────── -->
-  <?php
-  $noWebsiteIds = [];
-  try {
-      if ($pdo) {
-          $noWebRows = $pdo->query("
+              WHERE r.has_website = 1 ORDER BY b.id ASC
+          ")->fetchAll(PDO::FETCH_COLUMN));
+          $noWebsiteIds = array_map('intval', $pdo->query("
               SELECT b.id FROM businesses b
               JOIN research_records r ON r.business_id = b.id
               WHERE r.has_website = 0
                 AND r.research_status = 'complete'
                 AND b.pipeline_status NOT IN ('excluded','converted','pitched')
               ORDER BY b.id ASC
-          ")->fetchAll(PDO::FETCH_COLUMN);
-          $noWebsiteIds = array_map('intval', $noWebRows);
+          ")->fetchAll(PDO::FETCH_COLUMN));
       }
   } catch (Throwable) {}
   ?>
-  <?php if (!empty($noWebsiteIds)): ?>
-  <section class="cp-section" style="margin-top:18px" id="domainAuditSection">
-    <h2 class="cp-sh">Hidden Website Check</h2>
-    <p class="cp-hint"><?= count($noWebsiteIds) ?> lead<?= count($noWebsiteIds) !== 1 ? 's' : '' ?> marked as no website. Tries their likely .com — auto-removes anyone the AI missed (like Rogers Groundskeeping).</p>
-    <button class="cp-btn" id="domainAuditBtn" onclick="runDomainAudit()">
-      Check <?= count($noWebsiteIds) ?> lead<?= count($noWebsiteIds) !== 1 ? 's' : '' ?> for hidden websites
-    </button>
-    <div id="domainAuditProgress" style="display:none;margin-top:12px">
-      <div style="background:#e8e3d8;border-radius:6px;height:8px;overflow:hidden">
-        <div id="domainAuditBar" style="background:#2a7a35;height:100%;width:0;transition:width .2s"></div>
-      </div>
-      <p class="cp-hint" id="domainAuditStatus" style="margin-top:6px">Starting…</p>
-    </div>
-  </section>
-  <script>
-  (function(){
-    var ids = <?= json_encode($noWebsiteIds) ?>;
-    var total = ids.length, done = 0, found = 0, excluded = 0;
-    window.runDomainAudit = function() {
-      document.getElementById('domainAuditBtn').disabled = true;
-      document.getElementById('domainAuditProgress').style.display = 'block';
-      domainNext(0);
-    };
-    function domainNext(i) {
-      if (i >= ids.length) {
-        document.getElementById('domainAuditBar').style.width = '100%';
-        document.getElementById('domainAuditStatus').textContent =
-          'Done. ' + found + ' hidden site' + (found !== 1 ? 's' : '') + ' found, ' +
-          excluded + ' lead' + (excluded !== 1 ? 's' : '') + ' auto-removed.';
-        document.getElementById('domainAuditBtn').textContent = 'Run again';
-        document.getElementById('domainAuditBtn').disabled = false;
-        return;
-      }
-      var fd = new FormData();
-      fd.append('id', ids[i]);
-      fetch('/audit-domain.php', {method:'POST', body:fd})
-        .then(function(r){ return r.json(); })
-        .then(function(d){
-          done++;
-          if (d.alive) found++;
-          if (d.excluded) excluded++;
-          var pct = Math.round(done / total * 100);
-          document.getElementById('domainAuditBar').style.width = pct + '%';
-          document.getElementById('domainAuditStatus').textContent =
-            done + ' of ' + total + ' checked — ' + found + ' found, ' + excluded + ' removed';
-        })
-        .catch(function(){ done++; })
-        .finally(function(){ domainNext(i + 1); });
-    }
-  })();
-  </script>
-  <?php endif; ?>
+  <?php if (!empty($websiteBizIds) || !empty($noWebsiteIds)): ?>
+  <details class="cp-section" style="margin-top:18px">
+    <summary style="cursor:pointer;list-style:none;font-size:13px;color:#888;user-select:none">
+      ▸ Audit tools
+    </summary>
 
-  <!-- ── Re-route decent-site leads ──────────────────────────────────────── -->
-  <?php if ($pdo): ?>
-  <section class="cp-section" style="margin-top:18px">
-    <h2 class="cp-sh">Enhancement track</h2>
-    <p class="cp-hint">Moves leads with a working decent site out of the site-build queue and into the enhancement track (contact forms, Google Business, booking, etc.).</p>
-    <form method="POST">
-      <input type="hidden" name="action" value="reroute_decent_sites">
-      <input type="hidden" name="tab" value="research">
-      <button class="cp-btn" type="submit">Re-route decent-site leads &rarr;</button>
-    </form>
-  </section>
+    <?php if (!empty($websiteBizIds)): ?>
+    <div style="margin-top:14px" id="auditSection">
+      <h3 class="cp-sh" style="font-size:14px">Website Data Audit</h3>
+      <p class="cp-hint"><?= count($websiteBizIds) ?> lead<?= count($websiteBizIds) !== 1 ? 's' : '' ?> marked as having a website. Checks each URL live and clears bad AI guesses.</p>
+      <button class="cp-btn" id="auditBtn" onclick="runAudit()">
+        Scan &amp; fix <?= count($websiteBizIds) ?> website<?= count($websiteBizIds) !== 1 ? 's' : '' ?>
+      </button>
+      <div id="auditProgress" style="display:none;margin-top:12px">
+        <div style="background:#e8e3d8;border-radius:6px;height:8px;overflow:hidden">
+          <div id="auditBar" style="background:#2a7a35;height:100%;width:0;transition:width .2s"></div>
+        </div>
+        <p class="cp-hint" id="auditStatus" style="margin-top:6px">Starting…</p>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var ids = <?= json_encode($websiteBizIds) ?>;
+      var total = ids.length, done = 0, fixed = 0, live = 0;
+      window.runAudit = function() {
+        document.getElementById('auditBtn').disabled = true;
+        document.getElementById('auditProgress').style.display = 'block';
+        processNext(0);
+      };
+      function processNext(i) {
+        if (i >= ids.length) {
+          document.getElementById('auditBar').style.width = '100%';
+          document.getElementById('auditStatus').textContent =
+            'Done. ' + live + ' real site' + (live !== 1 ? 's' : '') + ' confirmed, ' +
+            fixed + ' bad record' + (fixed !== 1 ? 's' : '') + ' cleared.';
+          document.getElementById('auditBtn').textContent = 'Run again';
+          document.getElementById('auditBtn').disabled = false;
+          return;
+        }
+        var fd = new FormData();
+        fd.append('id', ids[i]);
+        fetch('/audit-url.php', {method:'POST', body:fd})
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            done++;
+            if (d.fixed) fixed++;
+            else if (d.alive) live++;
+            var pct = Math.round(done / total * 100);
+            document.getElementById('auditBar').style.width = pct + '%';
+            document.getElementById('auditStatus').textContent =
+              done + ' of ' + total + ' checked — ' + fixed + ' cleared so far';
+          })
+          .catch(function(){done++;})
+          .finally(function(){ processNext(i + 1); });
+      }
+    })();
+    </script>
+    <?php endif; ?>
+
+    <?php if (!empty($noWebsiteIds)): ?>
+    <div style="margin-top:14px" id="domainAuditSection">
+      <h3 class="cp-sh" style="font-size:14px">Hidden Website Check</h3>
+      <p class="cp-hint"><?= count($noWebsiteIds) ?> lead<?= count($noWebsiteIds) !== 1 ? 's' : '' ?> marked as no website. Tries their likely .com — auto-routes anyone the AI missed.</p>
+      <button class="cp-btn" id="domainAuditBtn" onclick="runDomainAudit()">
+        Check <?= count($noWebsiteIds) ?> lead<?= count($noWebsiteIds) !== 1 ? 's' : '' ?> for hidden websites
+      </button>
+      <div id="domainAuditProgress" style="display:none;margin-top:12px">
+        <div style="background:#e8e3d8;border-radius:6px;height:8px;overflow:hidden">
+          <div id="domainAuditBar" style="background:#2a7a35;height:100%;width:0;transition:width .2s"></div>
+        </div>
+        <p class="cp-hint" id="domainAuditStatus" style="margin-top:6px">Starting…</p>
+      </div>
+    </div>
+    <script>
+    (function(){
+      var ids = <?= json_encode($noWebsiteIds) ?>;
+      var total = ids.length, done = 0, found = 0, excluded = 0;
+      window.runDomainAudit = function() {
+        document.getElementById('domainAuditBtn').disabled = true;
+        document.getElementById('domainAuditProgress').style.display = 'block';
+        domainNext(0);
+      };
+      function domainNext(i) {
+        if (i >= ids.length) {
+          document.getElementById('domainAuditBar').style.width = '100%';
+          document.getElementById('domainAuditStatus').textContent =
+            'Done. ' + found + ' hidden site' + (found !== 1 ? 's' : '') + ' found, ' +
+            excluded + ' lead' + (excluded !== 1 ? 's' : '') + ' auto-removed.';
+          document.getElementById('domainAuditBtn').textContent = 'Run again';
+          document.getElementById('domainAuditBtn').disabled = false;
+          return;
+        }
+        var fd = new FormData();
+        fd.append('id', ids[i]);
+        fetch('/audit-domain.php', {method:'POST', body:fd})
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            done++;
+            if (d.alive) found++;
+            if (d.excluded) excluded++;
+            var pct = Math.round(done / total * 100);
+            document.getElementById('domainAuditBar').style.width = pct + '%';
+            document.getElementById('domainAuditStatus').textContent =
+              done + ' of ' + total + ' checked — ' + found + ' found, ' + excluded + ' removed';
+          })
+          .catch(function(){ done++; })
+          .finally(function(){ domainNext(i + 1); });
+      }
+    })();
+    </script>
+    <?php endif; ?>
+
+  </details>
   <?php endif; ?>
 
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
@@ -813,12 +799,13 @@ if (!empty($unresearched)) {
   <?php else: ?>
 
     <section class="cp-section">
+      <?php $allSendable = array_merge($sendQueue, $enhancementQueue); ?>
       <div class="cp-send-filters">
         <select class="cp-select" id="filterCat" onchange="applyFilters()">
           <option value="">All categories</option>
           <?php
           $seenCats = [];
-          foreach ($sendQueue as $b) {
+          foreach ($allSendable as $b) {
               $cn = (string)$b['category_name'];
               if (!in_array($cn, $seenCats, true)) { $seenCats[] = $cn; ?>
           <option value="<?= ho_h($cn) ?>"><?= ho_h($cn) ?></option>
@@ -828,14 +815,14 @@ if (!empty($unresearched)) {
           <option value="">All regions</option>
           <?php
           $seenRegions = [];
-          foreach ($sendQueue as $b) {
+          foreach ($allSendable as $b) {
               $reg = $cityToRegion[(string)$b['location_city']] ?? '';
               if ($reg !== '' && !in_array($reg, $seenRegions, true)) { $seenRegions[] = $reg; ?>
           <option value="<?= ho_h($reg) ?>"><?= ho_h($reg) ?></option>
           <?php }} ?>
         </select>
       </div>
-      <h2 class="cp-sh" id="sendCount"><?= count($sendQueue) ?> ready to send</h2>
+      <h2 class="cp-sh" id="sendCount"><?= count($allSendable) ?> ready to send</h2>
       <?php
         // Partition: email/website first, phone/FB-only second
         $sendPrimary   = [];
@@ -1028,100 +1015,91 @@ if (!empty($unresearched)) {
         </details>
         <?php endif; ?>
 
+        <?php if (!empty($enhancementQueue)):
+          $gapLabels = [
+              'contact_form'    => 'No contact form',
+              'paid_leads'      => 'Paying Angi/Thumbtack',
+              'google_business' => 'No Google Business',
+              'tech_issues'     => 'Mobile/SSL issues',
+              'gbp_photos'      => 'Low GBP photos',
+              'stale_reviews'   => 'Stale reviews',
+          ];
+          foreach ($enhancementQueue as $b):
+            $region     = $cityToRegion[(string)$b['location_city']] ?? '';
+            $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
+            $hasEmail   = (string)$b['email_address'] !== '';
+            $hasSiteUrl = (string)$b['website_url']   !== '';
+            $hasFb      = (string)$b['facebook_url']  !== '';
+            $hasPhone   = (string)$b['phone_number']  !== '';
+            $method     = (string)$b['best_contact_method'];
+            $eGaps      = (array)$b['enhancement_gaps'];
+        ?>
+          <div class="cp-send-card cp-send-card-enhance" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+
+            <div class="cp-send-head">
+              <strong><?= ho_h((string)$b['business_name']) ?></strong>
+              <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+            </div>
+
+            <?php if (!empty($eGaps)): ?>
+            <div class="cp-card-badges" style="flex-wrap:wrap;gap:4px">
+              <?php foreach ($eGaps as $gk): ?>
+                <span class="cp-gap-badge"><?= ho_h($gapLabels[$gk] ?? $gk) ?></span>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
+            <div class="cp-send-primary">
+              <?php if ($hasEmail): ?>
+                <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto_enhancement($b, $previewUrl)) ?>">
+                  ✉&thinsp; Email <?= ho_h((string)$b['business_name']) ?>
+                </a>
+              <?php elseif ($hasFb): ?>
+                <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">Message on Facebook →</a>
+              <?php elseif ($hasSiteUrl): ?>
+                <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">Contact via Website →</a>
+              <?php elseif ($hasPhone): ?>
+                <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">Call <?= ho_h((string)$b['phone_number']) ?></a>
+              <?php else: ?>
+                <span class="cp-send-no-contact">No contact info on file</span>
+              <?php endif; ?>
+            </div>
+
+            <div class="cp-send-secondary">
+              <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
+              <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
+                <input type="hidden" name="action" value="disqualify_lead">
+                <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+                <button type="submit" class="cp-btn-ghost cp-btn-disqualify">Not a fit ✕</button>
+              </form>
+              <details class="cp-sent-wrap">
+                <summary class="cp-btn-outline">Mark Sent</summary>
+                <form method="POST" class="cp-sent-form">
+                  <input type="hidden" name="action" value="mark_sent">
+                  <input type="hidden" name="tab" value="send">
+                  <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+                  <select class="cp-select" name="sent_via">
+                    <option value="email"<?= $method === 'email' ? ' selected' : '' ?>>Email</option>
+                    <option value="facebook_dm"<?= $method === 'facebook' ? ' selected' : '' ?>>Facebook DM</option>
+                    <option value="phone"<?= $method === 'phone' ? ' selected' : '' ?>>Phone</option>
+                    <option value="website_form"<?= $method === 'website_form' ? ' selected' : '' ?>>Website Form</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input class="cp-input" type="text" name="sent_to"
+                    placeholder="email / handle / number"
+                    value="<?= ho_h((string)($b['email_address'] ?: $b['phone_number'] ?: '')) ?>">
+                  <button class="cp-btn-primary" type="submit">Confirm Sent</button>
+                </form>
+              </details>
+            </div>
+
+          </div>
+        <?php endforeach; endif; ?>
+
       </div>
     </section>
 
-  <?php endif; ?>
-
-  <!-- ═══ ENHANCEMENT QUEUE ════════════════════════════════════════════════ -->
-  <?php if (!empty($enhancementQueue)): ?>
-  <section class="cp-section" style="margin-top:18px">
-    <h2 class="cp-sh"><?= count($enhancementQueue) ?> enhancement lead<?= count($enhancementQueue) !== 1 ? 's' : '' ?> — already have a website</h2>
-    <p class="cp-hint" style="margin-bottom:12px">These businesses have a working site but specific gaps. Pitch the gap, not a full build.</p>
-    <div class="cp-send-list">
-      <?php foreach ($enhancementQueue as $b):
-        $region     = $cityToRegion[(string)$b['location_city']] ?? '';
-        $previewUrl = 'https://' . $_SERVER['HTTP_HOST'] . '/go/' . $b['business_slug'];
-        $hasEmail   = (string)$b['email_address'] !== '';
-        $hasSiteUrl = (string)$b['website_url']   !== '';
-        $hasFb      = (string)$b['facebook_url']  !== '';
-        $hasPhone   = (string)$b['phone_number']  !== '';
-        $method     = (string)$b['best_contact_method'];
-        $eGaps      = (array)$b['enhancement_gaps'];
-
-        $gapLabels = [
-            'contact_form'    => 'No contact form',
-            'paid_leads'      => 'Paying Angi/Thumbtack',
-            'google_business' => 'No Google Business',
-            'tech_issues'     => 'Mobile/SSL issues',
-            'gbp_photos'      => 'Low GBP photos',
-            'stale_reviews'   => 'Stale reviews',
-        ];
-      ?>
-      <div class="cp-send-card cp-send-card-enhance" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
-
-        <div class="cp-send-head">
-          <strong><?= ho_h((string)$b['business_name']) ?></strong>
-          <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
-        </div>
-
-        <?php if (!empty($eGaps)): ?>
-        <div class="cp-card-badges" style="flex-wrap:wrap;gap:4px">
-          <?php foreach ($eGaps as $gk): ?>
-            <span class="cp-gap-badge"><?= ho_h($gapLabels[$gk] ?? $gk) ?></span>
-          <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-
-        <div class="cp-send-primary">
-          <?php if ($hasEmail): ?>
-            <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto_enhancement($b, $previewUrl)) ?>">
-              ✉&thinsp; Email <?= ho_h((string)$b['business_name']) ?>
-            </a>
-          <?php elseif ($hasFb): ?>
-            <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">Message on Facebook →</a>
-          <?php elseif ($hasSiteUrl): ?>
-            <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">Contact via Website →</a>
-          <?php elseif ($hasPhone): ?>
-            <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">Call <?= ho_h((string)$b['phone_number']) ?></a>
-          <?php else: ?>
-            <span class="cp-send-no-contact">No contact info on file</span>
-          <?php endif; ?>
-        </div>
-
-        <div class="cp-send-secondary">
-          <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
-          <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
-          <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
-            <input type="hidden" name="action" value="disqualify_lead">
-            <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
-            <button type="submit" class="cp-btn-ghost cp-btn-disqualify">Not a fit ✕</button>
-          </form>
-          <details class="cp-sent-wrap">
-            <summary class="cp-btn-outline">Mark Sent</summary>
-            <form method="POST" class="cp-sent-form">
-              <input type="hidden" name="action" value="mark_sent">
-              <input type="hidden" name="tab" value="send">
-              <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
-              <select class="cp-select" name="sent_via">
-                <option value="email"<?= $method === 'email' ? ' selected' : '' ?>>Email</option>
-                <option value="facebook_dm"<?= $method === 'facebook' ? ' selected' : '' ?>>Facebook DM</option>
-                <option value="phone"<?= $method === 'phone' ? ' selected' : '' ?>>Phone</option>
-                <option value="website_form"<?= $method === 'website_form' ? ' selected' : '' ?>>Website Form</option>
-                <option value="other">Other</option>
-              </select>
-              <input class="cp-input" type="text" name="sent_to"
-                placeholder="email / handle / number"
-                value="<?= ho_h((string)($b['email_address'] ?: $b['phone_number'] ?: '')) ?>">
-              <button class="cp-btn-primary" type="submit">Confirm Sent</button>
-            </form>
-          </details>
-        </div>
-
-      </div>
-      <?php endforeach; ?>
-    </div>
-  </section>
   <?php endif; ?>
 
 <?php elseif ($tab === 'sales'): ?>
