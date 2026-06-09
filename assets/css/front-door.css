@@ -1556,3 +1556,83 @@ body.front-door-preview-page{
   margin-bottom:14px;
   display:flex;align-items:center;gap:8px;
 }
+
+/* ── Trust strip (below hero CTA) ────────────────────────────────────────── */
+.fd-trust-strip{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;
+  margin-top:18px;padding-top:14px;
+  border-top:1px solid var(--fd-line);
+}
+.fd-ts-item{
+  font-size:12px;font-weight:700;color:var(--fd-muted);
+  display:flex;align-items:center;gap:4px;letter-spacing:.01em;
+}
+.fd-ts-item a{color:var(--fd-green);text-decoration:none;font-weight:900}
+
+/* ── Single-offer price block ────────────────────────────────────────────── */
+.fd-offer-price-block{
+  display:flex;align-items:center;gap:16px;
+  margin:16px 0 20px;
+  padding:16px 20px;
+  background:rgba(47,94,54,.05);
+  border:1px solid rgba(47,94,54,.15);
+  border-radius:18px;
+}
+.fd-offer-amount{
+  font-size:56px;font-weight:900;letter-spacing:-.04em;
+  color:var(--fd-green);line-height:1;flex-shrink:0;
+}
+.fd-offer-terms{display:flex;flex-direction:column;gap:3px}
+.fd-offer-terms strong{font-size:15px;color:var(--fd-ink);line-height:1.2}
+.fd-offer-terms span{font-size:13px;color:var(--fd-muted)}
+
+/* ── Offer includes list ─────────────────────────────────────────────────── */
+.fd-offer-includes{
+  list-style:none;padding:0;margin:16px 0;
+  display:flex;flex-direction:column;gap:9px;
+}
+.fd-offer-includes li{
+  font-size:15px;color:var(--fd-ink);line-height:1.35;
+  display:flex;align-items:flex-start;gap:8px;
+}
+.fd-offer-includes li::before{display:none}
+
+/* ── Live-in-24h guarantee block ─────────────────────────────────────────── */
+.fd-live-guarantee{
+  background:rgba(47,94,54,.08);
+  border:1px solid rgba(47,94,54,.20);
+  border-left:4px solid var(--fd-green);
+  border-radius:14px;padding:14px 16px;
+  font-size:15px;line-height:1.45;color:var(--fd-ink);
+  margin:16px 0;
+}
+.fd-live-guarantee strong{display:block;margin-bottom:2px;font-size:17px}
+
+/* ── Main checkout button ────────────────────────────────────────────────── */
+.fd-checkout-main-btn{
+  width:100%;font-size:18px;font-weight:900;
+  padding:18px 24px;margin-top:8px;
+  border-radius:16px;letter-spacing:-.01em;
+}
+
+/* ── Phone fallback line ─────────────────────────────────────────────────── */
+.fd-phone-fallback{
+  text-align:center;margin-top:12px;font-size:14px;color:var(--fd-muted);
+}
+.fd-phone-fallback a{color:var(--fd-green);font-weight:700;text-decoration:none}
+
+/* ── App engine offer card ───────────────────────────────────────────────── */
+.fd-app-engine-what{
+  display:flex;flex-direction:column;gap:10px;
+  margin:16px 0;
+}
+.fd-ae-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 14px;
+  background:rgba(255,250,241,.95);
+  border:1px solid var(--fd-line);
+  border-radius:14px;
+}
+.fd-ae-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+.fd-ae-body strong{display:block;font-size:15px;margin-bottom:2px}
+.fd-ae-body p{margin:0;font-size:13px;color:var(--fd-muted);line-height:1.4}

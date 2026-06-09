@@ -1506,6 +1506,11 @@ function ho_package_catalog(): array {
             'price' => 649,
             'desc'  => 'Launch Ready plus logo design, written service descriptions, and 3 months of content updates.',
         ],
+        'app_engine' => [
+            'label' => 'App Engine',
+            'price' => 99,
+            'desc'  => 'A hosted contact and booking panel at yourname.hoosieronline.com — fills the gaps in your existing site. No changes to your current website needed.',
+        ],
     ];
 }
 

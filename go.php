@@ -231,7 +231,7 @@ if ($paid && $row && $pdo !== null) {
       <a class="fd-status-link" href="/status.php?token=<?= ho_h($statusToken) ?>">
         hoosiersonline.com/status.php?token=<?= ho_h(substr($statusToken, 0, 8)) ?>&hellip;
       </a>
-      <p class="fd-muted">This link stays active for 72 hours. Bookmark it to check progress.</p>
+      <p class="fd-muted">This link stays active for 30 days. Bookmark it to check progress.</p>
     </div>
     <?php endif; ?>
     <p class="fd-muted">Questions? <a href="tel:7654434321">(765) 443-4321</a> &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
@@ -240,12 +240,12 @@ if ($paid && $row && $pdo !== null) {
 
   <!-- ── THE TURN ─────────────────────────────────────────────────────────── -->
   <section class="fd-turn">
-<p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
+    <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
     <?php if ($isEnhancement): ?>
-    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I noticed a few things worth sharing.' : 'Hey &mdash; I noticed a few things worth sharing.' ?></p>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I looked over your site and found a few things worth fixing.' : 'I looked over your site and found a few things worth fixing.' ?></p>
     <?php else: ?>
-    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website preview for your business.' : 'I built a website preview for your business.' ?><?= ($ownerAgeBand === '55plus') ? ' No tech headaches &mdash; I handle everything.' : '' ?></p>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built a website for ' . ho_h($name) . '.' : 'I built a website for ' . ho_h($name) . '.' ?><?= ($ownerAgeBand === '55plus') ? ' I handle everything &mdash; you don&rsquo;t touch a thing.' : '' ?></p>
     <?php endif; ?>
     <?php if ($angle !== ''): ?>
       <p class="fd-turn-angle"><?= ho_h($angle) ?></p>
@@ -254,8 +254,19 @@ if ($paid && $row && $pdo !== null) {
       <?php if ($isEnhancement): ?>
       <a href="#what-i-can-add" class="fd-btn fd-btn-primary fd-turn-cta">See What I Found &darr;</a>
       <?php else: ?>
-      <a href="#preview" class="fd-btn fd-btn-primary fd-turn-cta">View Your Preview &darr;</a>
+      <a href="#preview" class="fd-btn fd-btn-primary fd-turn-cta">See what <?= ho_h($name) ?> looks like online &darr;</a>
       <?php endif; ?>
+    </div>
+    <div class="fd-trust-strip">
+      <a href="tel:7654434321" class="fd-ts-item">📞 (765) 443-4321</a>
+      <?php if (!$isEnhancement): ?>
+      <span class="fd-ts-item">⚡ Live in 24 hours — guaranteed</span>
+      <span class="fd-ts-item">$199 flat &middot; you own it forever</span>
+      <?php else: ?>
+      <span class="fd-ts-item">Quote same day</span>
+      <span class="fd-ts-item">No monthly fees</span>
+      <?php endif; ?>
+      <span class="fd-ts-item">✓ 30-day money-back</span>
     </div>
   </section>
 
@@ -281,6 +292,26 @@ if ($paid && $row && $pdo !== null) {
         $sources[] = ['href' => 'https://www.google.com/search?q=' . $gQuery, 'label' => 'Google Business', 'class' => 'fd-rs-google'];
     }
     ?>
+    <?php // Personal hook FIRST — the specific reason we reached out ?>
+    <?php if (!empty($opp)): ?>
+      <p class="fd-why" style="font-size:17px;line-height:1.55;color:var(--fd-ink);margin-bottom:14px"><?= ho_h($opp) ?></p>
+    <?php endif; ?>
+
+    <?php if ($isEnhancement): ?>
+      <p class="fd-why" style="color:var(--fd-ink);font-weight:500;margin-bottom:14px">You already have a website — I looked it over. Here&rsquo;s what I noticed.</p>
+    <?php endif; ?>
+
+    <?php if ($googleCount > 0): ?>
+    <div class="fd-rating-block">
+      <div class="fd-rating-badge">
+        <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
+        <strong><?= number_format($googleRating, 1) ?></strong>
+        <span class="fd-rating-count"><?= number_format($googleCount) ?> Google reviews</span>
+      </div>
+      <p class="fd-rating-source">Your live rating pulled directly from Google.</p>
+    </div>
+    <?php endif; ?>
+
     <?php if (!empty($sources)): ?>
     <div class="fd-research-sources">
       <span class="fd-rs-label">We reviewed:</span>
@@ -292,25 +323,6 @@ if ($paid && $row && $pdo !== null) {
         <?php endif; ?>
       <?php endforeach; ?>
     </div>
-    <?php endif; ?>
-
-    <?php if ($googleCount > 0): ?>
-    <div class="fd-rating-block">
-      <div class="fd-rating-badge">
-        <span class="fd-stars"><?= str_repeat('★', min(5, (int)round($googleRating))) . str_repeat('☆', max(0, 5 - (int)round($googleRating))) ?></span>
-        <strong><?= number_format($googleRating, 1) ?></strong>
-        <span class="fd-rating-count"><?= number_format($googleCount) ?> Google reviews</span>
-      </div>
-      <p class="fd-rating-source">Your live rating pulled from Google.</p>
-    </div>
-    <?php endif; ?>
-
-    <?php if (!empty($opp)): ?>
-      <p class="fd-why"><?= ho_h($opp) ?></p>
-    <?php endif; ?>
-
-    <?php if ($isEnhancement): ?>
-      <p class="fd-why" style="color:var(--fd-ink);font-weight:500">You already have a website — I looked it over. Here&rsquo;s what I noticed.</p>
     <?php endif; ?>
 
     <?php // ── Years in business credibility (site-build only) ─────────────── ?>
@@ -440,50 +452,89 @@ if ($paid && $row && $pdo !== null) {
   </section>
 
   <?php if ($isEnhancement): ?>
-  <!-- ── WHAT I CAN ADD (enhancement only) ──────────────────────────────── -->
-  <?php
-  $gapCards = [
-      'contact_form'    => ['icon'=>'📋','title'=>'Contact form / booking page',   'body'=>'Anyone who finds your site but doesn\'t want to call just leaves. A simple form captures those jobs.',        'price'=>'$99–$149'],
-      'paid_leads'      => ['icon'=>'💸','title'=>'Stop paying per lead',           'body'=>'A contact form on your own site sends you the same customers as Angi or Thumbtack — with no per-job fee.',     'price'=>'$99–$149'],
-      'google_business' => ['icon'=>'📍','title'=>'Google Business setup',          'body'=>'You\'re not showing in Google Maps searches right now. A verified profile changes that in days.',              'price'=>'$49'],
-      'tech_issues'     => ['icon'=>'⚡','title'=>'Site modernisation',             'body'=>'Mobile friendliness and SSL are Google ranking signals. Fixing them costs less than losing the ranking hits.',  'price'=>'$199–$499'],
-      'gbp_photos'      => ['icon'=>'📷','title'=>'More photos on your listing',    'body'=>'Businesses with 20+ Google photos get significantly more clicks. I can help you get there.',                   'price'=>'$49'],
-      'stale_reviews'   => ['icon'=>'⭐','title'=>'Review recency strategy',        'body'=>'Your last review was a while ago. Customers notice. I\'ll show you a simple system to keep fresh ones coming.', 'price'=>'included'],
-  ];
-  $shownGaps = array_intersect($enhancementGaps, array_keys($gapCards));
-  ?>
-  <?php if (!empty($shownGaps)): ?>
-  <section class="fd-card fd-reveal" id="what-i-can-add">
-    <p class="fd-kicker">What I can add</p>
-    <h2>Specific improvements, flat prices.</h2>
-    <div class="fd-module-list">
-      <?php foreach ($shownGaps as $i => $gk):
-        $gc = $gapCards[$gk];
-      ?>
-        <div class="fd-module fd-reveal" style="--reveal-delay:<?= $i * 80 ?>ms">
-          <span class="fd-module-num"><?= ho_h($gc['icon']) ?></span>
-          <div>
-            <strong><?= ho_h($gc['title']) ?> <span style="font-weight:400;color:#666;font-size:.9em"><?= ho_h($gc['price']) ?></span></strong>
-            <p><?= ho_h($gc['body']) ?></p>
-          </div>
+  <!-- ── APP ENGINE OFFER (enhancement only) ─────────────────────────────── -->
+  <section class="fd-card fd-offer fd-reveal" id="what-i-can-add">
+    <p class="fd-kicker">What I can build for you</p>
+    <h2>App Engine for <?= ho_h($name) ?>.</h2>
+
+    <p style="font-size:16px;line-height:1.6;margin-bottom:4px">Your existing site stays exactly as it is. I build a dedicated panel at <strong><?= ho_h($subdomain) ?></strong> — contact form, booking requests, job quotes. Customers use it; you get the message. No changes to your current website needed.</p>
+
+    <?php
+    $aeItems = [];
+    if (in_array('contact_form', $enhancementGaps, true)) {
+        $aeItems[] = ['icon'=>'📋','title'=>'Contact & job request form','body'=>'The 11pm searcher who won\'t call, the person who wants to put it in writing — they fill out a form. You wake up to a new job request instead of a missed opportunity.'];
+    }
+    if (in_array('paid_leads', $enhancementGaps, true)) {
+        $aeItems[] = ['icon'=>'💸','title'=>'Stop paying per lead','body'=>'Customers who find you through Angi or Thumbtack can reach out directly through your App Engine — same enquiry, no platform cut, no competing bids on the same job.'];
+    }
+    if (in_array('tech_issues', $enhancementGaps, true)) {
+        $aeItems[] = ['icon'=>'📱','title'=>'Mobile-ready from day one','body'=>'App Engine is fully mobile-optimised and SSL-secured. Loads fast on every phone, no browser warnings — even if your main site has issues.'];
+    }
+    if (in_array('google_business', $enhancementGaps, true)) {
+        $aeItems[] = ['icon'=>'📍','title'=>'A real URL to link from Google','body'=>'Your Google Business profile can link to your App Engine address — gives searchers somewhere to go beyond your phone number.'];
+    }
+    if (empty($aeItems)) {
+        $aeItems[] = ['icon'=>'📋','title'=>'Contact & booking form','body'=>'Put a contact form in front of customers who find you online but don\'t want to call. Every job starts with that first message.'];
+        $aeItems[] = ['icon'=>'📅','title'=>'Appointment & quote requests','body'=>'Let customers request a time, a quote, or a callback. You get the details in writing — no phone tag.'];
+    }
+    ?>
+    <div class="fd-app-engine-what">
+      <?php foreach ($aeItems as $item): ?>
+      <div class="fd-ae-item">
+        <span class="fd-ae-icon"><?= ho_h($item['icon']) ?></span>
+        <div class="fd-ae-body">
+          <strong><?= ho_h($item['title']) ?></strong>
+          <p><?= ho_h($item['body']) ?></p>
         </div>
+      </div>
       <?php endforeach; ?>
     </div>
-  </section>
-  <?php endif; ?>
 
-  <!-- ── CONTACT CTA (enhancement only) ────────────────────────────────── -->
-  <section class="fd-card fd-offer fd-reveal" id="pricing">
-    <p class="fd-kicker">Let&rsquo;s talk</p>
-    <h2>No obligation. I&rsquo;ll send a quote same day.</h2>
-    <p>No contracts. Flat price. You decide what to add &mdash; I quote it and we go from there.</p>
-    <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px">
-      <a class="fd-btn fd-btn-primary" href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Quick question from ' . $name) ?>">
-        Email Adam &rarr;
-      </a>
-      <a class="fd-btn fd-btn-secondary" href="tel:7654434321">(765) 443-4321</a>
+    <div style="background:rgba(47,94,54,.06);border:1px solid rgba(47,94,54,.18);border-radius:14px;padding:12px 16px;margin:4px 0 16px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">🌐</span>
+      <div>
+        <strong style="display:block;font-size:14px;font-weight:900;color:var(--fd-green)"><?= ho_h($subdomain) ?></strong>
+        <span style="font-size:12px;color:var(--fd-muted)">Your dedicated App Engine address — included</span>
+      </div>
     </div>
-    <p class="fd-muted" style="margin-top:16px">Adam Ferree &middot; Hoosier Online &middot; New Castle, Indiana</p>
+
+    <div class="fd-offer-price-block">
+      <span class="fd-offer-amount">$99</span>
+      <div class="fd-offer-terms">
+        <strong>One-time. No monthly fees.</strong>
+        <span>No contract. No subscriptions.</span>
+        <span>No changes to your existing website.</span>
+      </div>
+    </div>
+
+    <ul class="fd-offer-includes">
+      <li>✓&ensp;Contact &amp; job request form — live at <?= ho_h($subdomain) ?></li>
+      <li>✓&ensp;Appointment &amp; quote request page</li>
+      <li>✓&ensp;Mobile-optimised &amp; SSL-secured from day one</li>
+      <li>✓&ensp;Your phone, email &amp; services — all in one place</li>
+      <li>✓&ensp;No changes to your existing website — ever</li>
+      <li>✓&ensp;Hosted &amp; maintained by me, not Wix or GoDaddy</li>
+    </ul>
+
+    <div class="fd-live-guarantee">
+      <strong>⚡ Live in 24 hours — or you don&rsquo;t pay.</strong>
+      From the moment you check out to a real live panel at your address. If it takes longer, I refund you in full.
+    </div>
+
+    <div class="fd-guarantee-box">
+      <strong>30-day money-back guarantee.</strong>
+      Not useful after launch? Full refund, no questions asked.
+    </div>
+
+    <form method="POST" action="/checkout.php" class="fd-checkout-form">
+      <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
+      <input type="hidden" name="pkg"  value="app_engine">
+      <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
+        Add App Engine to <?= ho_h($name) ?> &rarr; $99
+      </button>
+    </form>
+    <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
+    <div class="fd-phone-fallback">Rather talk first? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
   </section>
 
   <?php endif; ?>
@@ -533,8 +584,12 @@ if ($paid && $row && $pdo !== null) {
 
   <section class="fd-card fd-reveal">
     <p class="fd-kicker">Your website &mdash; live preview</p>
-    <h2 class="fd-design-title">This is the real thing. Pick your look.</h2>
-    <p class="fd-design-sub">Tap any style below. What you see is what we build.</p>
+    <h2 class="fd-design-title">This is exactly what we build. Pick your look.</h2>
+    <p class="fd-design-sub">Not a mockup. Not a template. This is the real <?= ho_h($name) ?> site — built and ready to go live the moment you say yes.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
+      <span style="font-size:12px;font-weight:700;color:var(--fd-green);background:rgba(47,94,54,.1);border:1px solid rgba(47,94,54,.2);padding:4px 10px;border-radius:20px">⚡ Live in 24 hours</span>
+      <span style="font-size:12px;font-weight:700;color:#7a4800;background:rgba(184,112,32,.1);border:1px solid rgba(184,112,32,.2);padding:4px 10px;border-radius:20px">One <?= ho_h(strtolower($catName)) ?> site in <?= ho_h($city) ?></span>
+    </div>
 
     <div class="fd-tpl-picker">
       <?php foreach ($available as $k => $opt): ?>
@@ -614,14 +669,16 @@ if ($paid && $row && $pdo !== null) {
       <div class="fd-trust-avatar" aria-hidden="true">AF</div>
       <div>
         <h2>Adam Ferree</h2>
-        <p class="fd-trust-location">New Castle, Indiana</p>
+        <p class="fd-trust-location">New Castle, Indiana &mdash; not a call centre, not an agency</p>
       </div>
     </div>
-    <p>Building websites for Indiana service businesses is my full-time work &mdash; not a side project, not a template mill. I found your business online, looked at what you had (or didn&rsquo;t have), and decided it was worth a few hours of my time to build something real. If I sent this to you, I mean it.</p>
+    <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I researched <?= ho_h($name) ?> personally &mdash; I looked at your <?= $hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence') ?>, noted what was missing, and built this preview before reaching out. I only send these when I think the business is worth it.</p>
+    <p style="margin-top:10px">When you pay, you&rsquo;re not entering a queue. I start the same day. The site is live within 24 hours &mdash; that&rsquo;s a guarantee, not a target.</p>
     <ul class="fd-trust-signals">
-      <li>Indiana-based &mdash; not a national agency</li>
-      <li>Every preview researched and built personally</li>
-      <li>Flat price, no contract, no monthly fees</li>
+      <li>Indiana-based &mdash; you can call me directly</li>
+      <li>Flat price, no contract, no monthly fees — ever</li>
+      <li>30-day money-back if you&rsquo;re not happy after launch</li>
+      <li>Every site researched and built personally — not outsourced</li>
     </ul>
     <div class="fd-trust-contact">
       <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
@@ -653,96 +710,103 @@ if ($paid && $row && $pdo !== null) {
     </div>
   </section>
 
-  <!-- ── EVERYTHING INCLUDED (feature checklist) ──────────────────────────── -->
-  <section class="fd-card fd-reveal">
-    <p class="fd-kicker">Every Front Door Includes</p>
-    <h2>Full build. Nothing extra to buy.</h2>
-    <ul class="fd-feature-list">
-      <?php foreach ($features as $f): ?>
-        <li><?= ho_h($f) ?></li>
-      <?php endforeach; ?>
-    </ul>
-  </section>
-
-  <!-- ── YOUR DOMAIN ───────────────────────────────────────────────────────── -->
+  <!-- ── THE OFFER ────────────────────────────────────────────────────────── -->
   <?php
   $initAvailClass = '';
   $initAvailText  = '';
   if ($domainCheck !== null) {
-      if ($domainCheck['available']) {
-          $initAvailClass = 'fd-avail-yes';
-          $initAvailText  = '✓ Available';
-      } else {
-          $initAvailClass = 'fd-avail-no';
-          $initAvailText  = '✗ Taken';
-      }
+      if ($domainCheck['available']) { $initAvailClass = 'fd-avail-yes'; $initAvailText = '✓ Available'; }
+      else                           { $initAvailClass = 'fd-avail-no';  $initAvailText = '✗ Taken'; }
   }
   $domainInputVal = preg_replace('/\.com$/i', '', $ownDotCom);
   ?>
-  <section class="fd-card fd-addr-chooser fd-reveal">
-    <p class="fd-kicker">Your web address</p>
-    <?php if ($hasExistingDomain): ?>
-    <h2>You already have a domain&nbsp;&mdash; let&rsquo;s use it.</h2>
-    <p class="fd-design-sub">Your site goes live at your existing address. No new registration needed.</p>
+  <section class="fd-card fd-offer fd-reveal" id="pricing">
+    <p class="fd-kicker">One decision</p>
+    <h2><?= ho_h($name) ?>&rsquo;s site &mdash; live in 24 hours.</h2>
 
-    <div class="fd-addr-domain">
-      <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
-      <div class="fd-addr-badges">
-        <span class="fd-addr-tag" style="background:rgba(47,94,54,.12);color:var(--fd-green)">Already registered</span>
+    <div class="fd-offer-price-block">
+      <span class="fd-offer-amount">$199</span>
+      <div class="fd-offer-terms">
+        <strong>One-time. You own it forever.</strong>
+        <span>No monthly fee. No contract. No renewal bill.</span>
+        <span>No Wix. No GoDaddy. Just your site.</span>
       </div>
     </div>
 
-    <div class="fd-domain-search">
-      <p class="fd-design-sub">Using a different address? Type it below.</p>
-      <div class="fd-domain-input-row">
-        <input type="text" id="fd-domain-input"
-               class="fd-domain-input"
-               value="<?= ho_h($domainInputVal) ?>"
-               placeholder="yourbusiness"
-               maxlength="63"
-               onkeydown="if(event.key==='Enter'){event.preventDefault();fdCheckDomain();}">
-        <span class="fd-domain-tld">.com</span>
-        <button type="button" class="fd-domain-check-btn"
-                onclick="fdCheckDomain()">Check</button>
+    <?php // Domain — folded into offer card ?>
+    <div style="margin:4px 0 16px">
+      <p class="fd-kicker" style="margin-bottom:6px">Your web address</p>
+      <div class="fd-addr-domain">
+        <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
+        <div class="fd-addr-badges">
+          <?php if ($hasExistingDomain): ?>
+            <span class="fd-addr-tag" style="background:rgba(47,94,54,.12);color:var(--fd-green)">Your existing domain</span>
+          <?php else: ?>
+            <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
+            <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
+                  <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
+          <?php endif; ?>
+        </div>
       </div>
-      <div class="fd-domain-hint" id="fd-domain-hint">Using your own domain? We&rsquo;ll point it to your new site.</div>
+      <div class="fd-domain-search" style="margin-top:8px">
+        <div class="fd-domain-input-row">
+          <input type="text" id="fd-domain-input" class="fd-domain-input"
+                 value="<?= ho_h($domainInputVal) ?>" placeholder="yourbusiness" maxlength="63"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();fdCheckDomain();}">
+          <span class="fd-domain-tld">.com</span>
+          <button type="button" class="fd-domain-check-btn" onclick="fdCheckDomain()">Check</button>
+        </div>
+        <div class="fd-domain-hint" id="fd-domain-hint"><?php
+          if ($domainCheck !== null && !$domainCheck['available']) echo 'That name is taken &mdash; try a variation above.';
+          elseif ($hasExistingDomain) echo 'Using a different address? Type it above.';
+          else echo 'Want a different name? Type it and tap Check.';
+        ?></div>
+      </div>
     </div>
 
-    <?php else: ?>
-    <h2>Where customers will find you.</h2>
-    <p class="fd-design-sub">Included free. We register it and handle renewals.</p>
+    <ul class="fd-offer-includes">
+      <li>✓&ensp;Every page customers need to find and hire you</li>
+      <li>✓&ensp;Click-to-call + contact form — works the moment it&rsquo;s live</li>
+      <li>✓&ensp;Mobile-optimized &amp; SSL secured from day one</li>
+      <li>✓&ensp;Your Google reviews pulled in automatically</li>
+      <li>✓&ensp;<?= $hasExistingDomain ? ho_h($ownDotCom) . ' connected — no new domain needed' : 'Your .com domain registered &amp; renewals handled — free' ?></li>
+      <li>✓&ensp;Exclusive to <?= ho_h($name) ?> — this design is never used for another <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?></li>
+    </ul>
 
-    <div class="fd-addr-domain">
-      <div class="fd-addr-url fd-addr-url-com" id="fd-com-display"><?= ho_h($ownDotCom) ?></div>
-      <div class="fd-addr-badges">
-        <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
-        <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
-              <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
-      </div>
+    <div class="fd-live-guarantee">
+      <strong>⚡ Live in 24 hours — or you don&rsquo;t pay.</strong>
+      From the moment you check out to a real live site at your address. If it takes longer, I refund you in full.
     </div>
 
-    <div class="fd-domain-search">
-      <p class="fd-design-sub">Want a different name? Check availability below.</p>
-      <div class="fd-domain-input-row">
-        <input type="text" id="fd-domain-input"
-               class="fd-domain-input"
-               value="<?= ho_h($domainInputVal) ?>"
-               placeholder="yourbusiness"
-               maxlength="63"
-               onkeydown="if(event.key==='Enter'){event.preventDefault();fdCheckDomain();}">
-        <span class="fd-domain-tld">.com</span>
-        <button type="button" class="fd-domain-check-btn"
-                onclick="fdCheckDomain()">Check</button>
-      </div>
-      <div class="fd-domain-hint" id="fd-domain-hint"><?php
-        if ($domainCheck !== null && !$domainCheck['available']) {
-            echo 'That name is taken &mdash; try a variation above.';
-        } else {
-            echo 'Want a different name? Type it and tap Check.';
-        }
-      ?></div>
-    </div>
+    <p class="fd-kicker" style="margin-top:20px;margin-bottom:8px">What happens next</p>
+    <ol class="fd-offer-steps">
+      <li>You say yes &mdash; 2 minutes to check out below</li>
+      <li>I build <?= ho_h($name) ?>&rsquo;s site today &mdash; live in under 24 hours</li>
+      <li><?= $hasExistingDomain ? ho_h($ownDotCom) : ho_h($ownDotCom ?: $name) ?> goes live &mdash; customers can find and call you</li>
+    </ol>
+
+    <?php if ($seasonalNote !== ''): ?>
+    <div class="fd-seasonal-note"><span aria-hidden="true">📅</span> <?= ho_h($seasonalNote) ?></div>
     <?php endif; ?>
+
+    <div class="fd-scarcity">I build one <?= ho_h(strtolower($catName)) ?> site in <?= ho_h($city) ?> &mdash; whoever says yes first locks it in.</div>
+
+    <div class="fd-guarantee-box">
+      <strong>30-day money-back guarantee.</strong>
+      Not happy after launch? Full refund, no questions, no back-and-forth.
+    </div>
+
+    <form method="POST" action="/checkout.php" class="fd-checkout-form">
+      <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
+      <input type="hidden" name="pkg"          value="standard">
+      <input type="hidden" name="template_key" id="fd-h-template"  value="<?= ho_h($templateKey ?? '') ?>">
+      <input type="hidden" name="chosen_com"   id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
+      <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
+        Yes &mdash; build <?= ho_h($name) ?>&rsquo;s site &rarr; $199
+      </button>
+    </form>
+    <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
+    <div class="fd-phone-fallback">Not ready to pay online? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
   </section>
 
   <script>
@@ -753,156 +817,28 @@ if ($paid && $row && $pdo !== null) {
     var hint      = document.getElementById('fd-domain-hint');
     var chosenHid = document.getElementById('fd-h-chosen-com');
     if (!input) return;
-
-    var raw = input.value.trim().toLowerCase().replace(/\.com$/i, '').replace(/[^a-z0-9\-]/g, '');
+    var raw = input.value.trim().toLowerCase().replace(/\.com$/i,'').replace(/[^a-z0-9\-]/g,'');
     if (raw.length < 2) { if (hint) hint.textContent = 'Enter at least 2 characters.'; return; }
     var domain = raw + '.com';
-
     if (display) display.textContent = domain;
     if (badge)   { badge.className = 'fd-avail-badge fd-avail-checking'; badge.textContent = 'Checking…'; badge.hidden = false; }
     if (hint)    hint.textContent = '';
-
     var fd = new FormData();
     fd.append('domain', raw);
-    fetch('/domain-check.php', {method: 'POST', body: fd})
+    fetch('/domain-check.php', {method:'POST', body:fd})
       .then(function(r){ return r.json(); })
       .then(function(data){
-        if (data.error) {
-          if (badge) { badge.hidden = true; }
-          if (hint)  hint.textContent = '⚠ ' + data.error;
-          return;
-        }
+        if (data.error) { if (badge) badge.hidden = true; if (hint) hint.textContent = '⚠ ' + data.error; return; }
         if (data.available) {
-          if (badge) { badge.className = 'fd-avail-badge fd-avail-yes'; badge.textContent = '✓ Available'; }
-          if (hint)  hint.textContent = 'Great — that name is available.';
+          if (badge)    { badge.className = 'fd-avail-badge fd-avail-yes'; badge.textContent = '✓ Available'; }
+          if (hint)     hint.textContent = 'Great — that name is available.';
           if (chosenHid) chosenHid.value = domain;
-          var osDomain = document.getElementById('fd-os-domain');
-          if (osDomain) osDomain.textContent = domain;
         } else {
           if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = '✗ Taken'; }
           if (hint)  hint.textContent = 'That name is taken — try a variation above.';
         }
       })
-      .catch(function(){
-        if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = 'Check failed — try again'; }
-      });
-  }
-  </script>
-
-  <!-- ── PACKAGE CONFIGURATOR ────────────────────────────────────────────── -->
-  <?php
-  $bundles       = ho_bundle_presets();
-  $defaultBundle = $isManaged ? 'managed' : 'launch';
-  $defaultBData  = $bundles[$defaultBundle];
-  $defaultPrice  = ho_bundle_price($defaultBundle);
-  ?>
-  <section class="fd-card fd-offer fd-reveal" id="pricing">
-    <p class="fd-kicker">Ready to launch</p>
-    <h2>Launch your site. One flat price.</h2>
-    <p class="fd-offer-intro">Built for <?= ho_h($name) ?>, serving <?= ho_h($serviceArea) ?>. You own it the day it goes live &mdash; no contracts, no monthly fees, no surprises.</p>
-
-    <!-- Bundle cards -->
-    <div class="fd-bundle-grid">
-      <?php foreach ($bundles as $bKey => $b):
-        $bPrice   = ho_bundle_price($bKey);
-        $selected = $bKey === $defaultBundle;
-      ?>
-      <label class="fd-bundle-card<?= $selected ? ' is-selected' : '' ?>"
-             data-pkg="<?= ho_h($b['pkg']) ?>"
-             data-addons="<?= ho_h(json_encode($b['addons'])) ?>">
-        <input type="radio" name="bundle_display" value="<?= ho_h($bKey) ?>"
-               <?= $selected ? 'checked' : '' ?> onchange="fdSelectBundle(this.closest('.fd-bundle-card'))">
-        <?php if ($b['badge'] !== ''): ?>
-          <span class="fd-bundle-badge"><?= ho_h($b['badge']) ?></span>
-        <?php endif; ?>
-        <div class="fd-bundle-head">
-          <strong class="fd-bundle-name"><?= ho_h($b['label']) ?></strong>
-          <span class="fd-bundle-price">$<?= number_format($bPrice) ?></span>
-        </div>
-        <ul class="fd-bundle-items">
-          <?php foreach ($b['items'] as $item): ?>
-            <li><?= ho_h($item) ?></li>
-          <?php endforeach; ?>
-        </ul>
-      </label>
-      <?php endforeach; ?>
-    </div>
-
-    <!-- Order summary -->
-    <div class="fd-order-summary">
-      <div class="fd-os-row">
-        <span class="fd-os-label">Design</span>
-        <span class="fd-os-value" id="fd-os-design"><?= ho_h($available[$templateKey]['label'] ?? 'Not selected') ?></span>
-      </div>
-      <div class="fd-os-row">
-        <span class="fd-os-label"><?= $hasExistingDomain ? 'Your existing domain' : 'Your domain' ?></span>
-        <span class="fd-os-value fd-os-domain" id="fd-os-domain"><?= ho_h($ownDotCom ?: 'Not chosen yet') ?></span>
-      </div>
-    </div>
-
-    <!-- Total + form -->
-    <div class="fd-total-row">
-      <span>Your total:</span>
-      <strong id="fd-pkg-total">$<?= number_format($defaultPrice) ?></strong>
-    </div>
-
-    <p class="fd-kicker" style="margin-top:24px;margin-bottom:10px">What happens next</p>
-    <ol class="fd-offer-steps">
-      <li>You say yes &mdash; takes about 2 minutes to check out</li>
-      <li>I build <?= ho_h($name) ?>&rsquo;s site &mdash; live within 24 hours, guaranteed</li>
-      <li><?php if ($hasExistingDomain): ?>We connect <?= ho_h($ownDotCom) ?> to your new site and you go live<?php elseif ($ownDotCom !== ''): ?><?= ho_h($ownDotCom) ?> goes live<?php else: ?><?= ho_h($name) ?> goes live<?php endif; ?> &mdash; customers can find and hire you</li>
-    </ol>
-
-    <?php if ($seasonalNote !== ''): ?>
-    <div class="fd-seasonal-note">
-      <span aria-hidden="true">📅</span> <?= ho_h($seasonalNote) ?>
-    </div>
-    <?php endif; ?>
-
-    <div class="fd-guarantee-box">
-      <strong>30-day money-back guarantee.</strong>
-      If you&rsquo;re not happy after launch, I&rsquo;ll refund you in full. No questions, no back-and-forth.
-    </div>
-
-    <form method="POST" action="/checkout.php" class="fd-checkout-form">
-      <input type="hidden" name="slug"         value="<?= ho_h($slug) ?>">
-      <input type="hidden" name="pkg"          id="fd-h-pkg"      value="<?= ho_h($defaultBData['pkg']) ?>">
-      <input type="hidden" name="template_key" id="fd-h-template" value="<?= ho_h($templateKey ?? '') ?>">
-      <input type="hidden" name="chosen_com"  id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
-      <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn">
-        Yes, Build This &rarr;
-      </button>
-    </form>
-    <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
-
-    <div class="fd-scarcity">I build one <?= ho_h(strtolower($catName)) ?> site per city &mdash; whoever says yes first in <?= ho_h($city) ?> gets it.</div>
-  </section>
-
-  <script>
-  var FD_PRICES = {standard:<?= ho_bundle_price('standard') ?>,launch:<?= ho_bundle_price('launch') ?>,managed:<?= ho_bundle_price('managed') ?>};
-
-  function fdSelectBundle(card) {
-    var pkg = card.dataset.pkg || 'standard';
-    document.querySelectorAll('.fd-bundle-card').forEach(function(c) { c.classList.remove('is-selected'); });
-    card.classList.add('is-selected');
-    var pkgHid = document.getElementById('fd-h-pkg');
-    if (pkgHid) pkgHid.value = pkg;
-    fdUpdateTotal();
-  }
-
-  function fdUpdateTotal() {
-    var pkgHid = document.getElementById('fd-h-pkg');
-    var pkg    = pkgHid ? pkgHid.value : '<?= ho_h($defaultBundle) ?>';
-    var base   = FD_PRICES[pkg] || <?= $defaultPrice ?>;
-
-    var total = base;
-    var totalEl = document.getElementById('fd-pkg-total');
-    if (totalEl) {
-      totalEl.textContent = '$' + total.toLocaleString();
-      totalEl.classList.remove('fd-total-flash');
-      void totalEl.offsetWidth;
-      totalEl.classList.add('fd-total-flash');
-    }
+      .catch(function(){ if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = 'Check failed — try again'; } });
   }
   </script>
 
@@ -923,15 +859,21 @@ if ($paid && $row && $pdo !== null) {
   <div class="fd-sticky-bar" id="fd-sticky-bar" hidden>
     <div class="fd-sticky-inner">
       <span class="fd-sticky-biz"><?= ho_h($name) ?></span>
-      <a href="#pricing" class="fd-btn fd-btn-secondary fd-sticky-btn">Get in Touch &rarr;</a>
+      <a href="#what-i-can-add" class="fd-btn fd-btn-primary fd-sticky-btn">Add App Engine &rarr; $99</a>
     </div>
   </div>
   <script>
   (function(){
     var bar = document.getElementById('fd-sticky-bar');
+    var offer = document.getElementById('what-i-can-add');
     if (!bar) return;
+    var shown = false;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if (e.isIntersecting) { bar.hidden = true; shown = false; } else if (shown) { bar.hidden = false; } });
+    }, {threshold: 0});
+    if (offer) io.observe(offer);
     window.addEventListener('scroll', function(){
-      if (window.scrollY > 300) bar.hidden = false;
+      if (!shown && window.scrollY > 300) { shown = true; if (!offer || offer.getBoundingClientRect().top >= window.innerHeight) bar.hidden = false; }
     }, {passive:true});
   })();
   </script>
@@ -939,22 +881,22 @@ if ($paid && $row && $pdo !== null) {
   <div class="fd-sticky-bar" id="fd-sticky-bar" hidden>
     <div class="fd-sticky-inner" id="fd-sticky-pre">
       <span class="fd-sticky-biz"><?= ho_h($name) ?></span>
-      <a href="#pricing" class="fd-btn fd-btn-secondary fd-sticky-btn">See Launch Options &rarr;</a>
+      <a href="#pricing" class="fd-btn fd-btn-secondary fd-sticky-btn">See $199 Offer &rarr;</a>
     </div>
     <div class="fd-sticky-inner" id="fd-sticky-post" hidden>
       <div>
         <strong><?= ho_h($name) ?></strong>
-        <span>Total: <span id="fd-sticky-total">$<?= number_format($defaultPrice) ?></span></span>
+        <span>$199 one-time</span>
       </div>
       <a href="#pricing" class="fd-btn fd-btn-primary fd-sticky-btn">Yes, Build This &rarr;</a>
     </div>
   </div>
   <script>
   (function(){
-    var bar      = document.getElementById('fd-sticky-bar');
-    var offer    = document.getElementById('pricing');
-    var preEl    = document.getElementById('fd-sticky-pre');
-    var postEl   = document.getElementById('fd-sticky-post');
+    var bar    = document.getElementById('fd-sticky-bar');
+    var offer  = document.getElementById('pricing');
+    var preEl  = document.getElementById('fd-sticky-pre');
+    var postEl = document.getElementById('fd-sticky-post');
     if (!bar || !offer) return;
     var shown = false, pricingSeen = false;
     function showBar() {
@@ -964,27 +906,14 @@ if ($paid && $row && $pdo !== null) {
     }
     var io = new IntersectionObserver(function(entries){
       entries.forEach(function(e){
-        if (e.isIntersecting) {
-          pricingSeen = true;
-          bar.hidden = true; shown = false;
-        } else if (shown) {
-          showBar();
-        }
+        if (e.isIntersecting) { pricingSeen = true; bar.hidden = true; shown = false; }
+        else if (shown) { showBar(); }
       });
     }, {threshold: 0});
     io.observe(offer);
     window.addEventListener('scroll', function(){
-      if (!shown && window.scrollY > 300) {
-        shown = true;
-        if (offer.getBoundingClientRect().top >= window.innerHeight) showBar();
-      }
+      if (!shown && window.scrollY > 300) { shown = true; if (offer.getBoundingClientRect().top >= window.innerHeight) showBar(); }
     }, {passive: true});
-    var totalEl = document.getElementById('fd-pkg-total');
-    var stickyTotal = document.getElementById('fd-sticky-total');
-    if (totalEl && stickyTotal) {
-      var mo = new MutationObserver(function(){ stickyTotal.textContent = totalEl.textContent; });
-      mo.observe(totalEl, {childList:true, characterData:true, subtree:true});
-    }
   })();
   </script>
   <?php endif; ?>
