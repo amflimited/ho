@@ -180,9 +180,7 @@ if ($pdo && !empty($enrichmentBatch)) {
             SELECT COUNT(*) FROM businesses b
             JOIN research_records r ON r.business_id = b.id
             WHERE r.research_status = 'complete'
-              AND (r.competitor_name = '' OR r.competitor_name IS NULL
-                OR r.booking_method = 'unknown' OR r.booking_method IS NULL
-                OR r.years_in_business IS NULL)
+              AND r.years_in_business IS NULL
         ")->fetchColumn();
     } catch (Throwable) {}
 }

@@ -1908,11 +1908,7 @@ function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
             JOIN categories c ON c.id = b.category_id
             JOIN research_records r ON r.business_id = b.id
             WHERE r.research_status = 'complete'
-              AND (
-                r.competitor_name   = '' OR r.competitor_name IS NULL OR
-                r.booking_method    = 'unknown' OR r.booking_method IS NULL OR
-                r.years_in_business IS NULL
-              )
+              AND r.years_in_business IS NULL
             ORDER BY b.updated_at DESC
             LIMIT " . (int)$limit . "
         ")->fetchAll();
@@ -1983,7 +1979,7 @@ Rules:
 - competitor_website: that competitor's URL. Empty if none.
 - booking_method: how they appear to accept work — "phone", "facebook", "email", "form", "app", "unknown"
 - last_review_date: most recent Google review date as YYYY-MM. Empty if unknown.
-- years_in_business: integer from GBP or their site. null if unknown.
+- years_in_business: integer from GBP or their site. 0 if unknown — never return null.
 - has_angi / has_thumbtack: true if they have a listing on those platforms
 - responds_to_reviews: true if the owner visibly replies to Google reviews
 - gbp_photo_count: approximate count of photos on Google Business. null if unknown.
@@ -2026,7 +2022,8 @@ function ho_import_enrichment_json(PDO $pdo, string $rawJson): array {
         $bookingMethod  = in_array($r['booking_method']  ?? '', $validBooking, true) ? $r['booking_method'] : 'unknown';
         $ownerAgeBand   = in_array($r['owner_age_band']  ?? '', $validAgeBand,  true) ? $r['owner_age_band'] : 'unknown';
         $lastReviewDate = substr(trim((string)($r['last_review_date'] ?? '')), 0, 20);
-        $yearsInBiz     = isset($r['years_in_business']) && $r['years_in_business'] !== null ? (int)$r['years_in_business'] : null;
+        // 0 = enrichment ran but couldn't determine; NULL = never been through enrichment
+        $yearsInBiz     = isset($r['years_in_business']) && is_numeric($r['years_in_business']) ? (int)$r['years_in_business'] : 0;
         $gbpPhotos      = isset($r['gbp_photo_count'])   && $r['gbp_photo_count']   !== null ? (int)$r['gbp_photo_count']   : null;
         $compName       = substr(trim((string)($r['competitor_name']    ?? '')), 0, 200);
         $compWebsite    = substr(trim((string)($r['competitor_website'] ?? '')), 0, 500);
