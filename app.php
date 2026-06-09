@@ -129,9 +129,15 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                            b.email_address, b.phone_number, b.facebook_url, b.website_url,
                            c.name AS category_name,
                            r.has_website, r.website_quality, r.booking_method,
-                           r.has_angi, r.has_thumbtack, r.has_google_business,
+                           r.has_angi, r.has_thumbtack, r.has_google_business, r.has_facebook,
                            r.mobile_friendly, r.has_ssl, r.gbp_photo_count,
-                           r.last_review_date, r.google_review_count
+                           r.last_review_date, r.google_review_count,
+                           r.has_online_booking, r.site_appears_outdated,
+                           r.has_gbp_posts, r.gbp_services_listed, r.gbp_hours_listed,
+                           r.has_before_after_photos, r.has_photo_gallery, r.has_testimonials_section,
+                           r.facebook_activity, r.facebook_last_post_months,
+                           r.has_professional_email, r.is_licensed_insured_visible,
+                           r.has_yelp, r.yelp_claimed
                     FROM businesses b
                     JOIN categories c ON c.id = b.category_id
                     JOIN research_records r ON r.business_id = b.id
@@ -662,6 +668,7 @@ if (!empty($unresearched)) {
   <?php
   $websiteBizIds = [];
   $noWebsiteIds  = [];
+  $decentRerouteCount = 0;
   try {
       if ($pdo) {
           $websiteBizIds = array_map('intval', $pdo->query("
@@ -677,10 +684,17 @@ if (!empty($unresearched)) {
                 AND b.pipeline_status NOT IN ('excluded','converted','pitched')
               ORDER BY b.id ASC
           ")->fetchAll(PDO::FETCH_COLUMN));
+          $decentRerouteCount = (int)$pdo->query("
+              SELECT COUNT(*) FROM businesses b
+              JOIN research_records r ON r.business_id = b.id
+              WHERE r.has_website = 1
+                AND r.website_quality IN ('decent','good')
+                AND b.pipeline_status IN ('preview_ready','researched','identified','needs_contact','excluded')
+          ")->fetchColumn();
       }
   } catch (Throwable) {}
   ?>
-  <?php if (!empty($websiteBizIds) || !empty($noWebsiteIds)): ?>
+  <?php if (!empty($websiteBizIds) || !empty($noWebsiteIds) || $decentRerouteCount > 0): ?>
   <details class="cp-section" style="margin-top:18px">
     <summary style="cursor:pointer;list-style:none;font-size:13px;color:#888;user-select:none">
       ▸ Audit tools
@@ -790,6 +804,17 @@ if (!empty($unresearched)) {
       }
     })();
     </script>
+    <?php endif; ?>
+
+    <?php if ($decentRerouteCount > 0): ?>
+    <div style="margin-top:14px" id="rerouteSection">
+      <h3 class="cp-sh" style="font-size:14px">Re-route decent-site leads</h3>
+      <p class="cp-hint"><?= $decentRerouteCount ?> lead<?= $decentRerouteCount !== 1 ? 's' : '' ?> with a working site <?= $decentRerouteCount !== 1 ? 'are' : 'is' ?> stuck (no offer to send). This routes <?= $decentRerouteCount !== 1 ? 'them' : 'it' ?> into the enhancement track and builds <?= $decentRerouteCount !== 1 ? 'their' : 'its' ?> gap-based offer page.</p>
+      <form method="POST" style="margin:0" onsubmit="return confirm('Re-route <?= $decentRerouteCount ?> decent-site lead(s) into the enhancement track?')">
+        <input type="hidden" name="action" value="reroute_decent_sites">
+        <button class="cp-btn" type="submit">Re-route <?= $decentRerouteCount ?> lead<?= $decentRerouteCount !== 1 ? 's' : '' ?> &rarr;</button>
+      </form>
+    </div>
     <?php endif; ?>
 
   </details>
