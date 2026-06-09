@@ -183,60 +183,53 @@ ALTER TABLE research_records
 
 ---
 
+## ⚠️ REQUIRED MIGRATION — research_records 37 columns
+
+The 69-field research import (`ho_import_research_json`) writes to 37 columns that
+must exist or **every research import will error out**. As of 2026-06-09 Adam had
+run the `gap_prices` + `previews.package_items` SQL but NOT confirmed this one.
+The full ALTER is in the "research_records Columns" section above — run it in
+phpMyAdmin before importing any new research.
+
+---
+
+## DONE (2026-06-09 → continued session)
+
+### ✅ 1. Per-gap computed pricing — SHIPPED
+- `ho_gap_label()` — static label fallback for all 16 gaps
+- `ho_gap_prices(PDO)` — reads `gap_prices` table, hardcoded fallback for all 16, request-cached
+- `ho_build_package_items(PDO, gaps)` — priced bundle builder
+- `ho_route_to_enhancement()` stores `package_items` JSON on the preview at routing time
+- go.php enhancement page: each fix card shows its price + a flat one-time bundle total + total-led CTA
+- app.php send queue: bundle total shown per card
+
+### ✅ 2. All 16 gap types render & price — SHIPPED
+- go.php `$fixDefs` now has personalized copy for all 16 gaps (was 6)
+- app.php `$gapLabels` covers all 16
+- The 10 newer gaps fire automatically once their research_records columns exist + have data
+
+### ✅ 3. One-offer-per-lead — SHIPPED
+- Enhancement: single line-item bundle + total, direct-contact CTA (no Stripe)
+- Site-build: single $199 flat offer, single category-matched design (design PICKER removed —
+  lead sees one look, pre-chosen), domain field kept (functional, not a package choice),
+  single Stripe checkout carrying `template_key`
+
+---
+
 ## Pending Tasks (priority order)
 
-### 1. Per-gap computed pricing for enhancement track
-User confirmed: "computed per gap makes most sense."
-Each of the 16 gap types needs a default price Adam can set in the admin.
-The bundle total is computed from whichever gaps apply to that specific lead.
-Implementation approach:
-- New `gap_prices` table: `gap_key VARCHAR(40) PK, default_price DECIMAL(8,2), label VARCHAR(100)`
-- Seed with defaults for all 16 gap types
-- Admin UI in app.php to override prices per gap
-- `ho_compute_enhancement_bundle(array $gaps, PDO): array` — returns itemised price list + total
-
-### 2. Personalised one-offer-per-lead go.php
-User quote: "every person that we can outreach needs to already have defined a page at Go
-that only lists one package for them to be sold. Not options. Not choices."
-
-For enhancement leads: package = their specific gaps + computed prices, shown as a line-item bundle.
-For site-build leads: package = personalised deliverables based on research data (services included,
-owner name, category-specific features), single price.
-
-Implementation approach:
-- Add `package_items JSON` column to `previews` table
-- Populate at routing time (site-build: `ho_auto_generate_preview`, enhancement: `ho_route_to_enhancement`)
-- go.php renders the pre-built bundle — no choices for the lead to make
-- Single Stripe checkout with the pre-computed price (site-build only; enhancement uses direct contact)
-
-### 3. Gap label display in send queue + go.php
-The 16 gap types need human-readable labels and amber chip badges:
-- In app.php send queue: amber chips on each enhancement card
-- In go.php opportunity cards: icon + title + one-liner + indicative price
-
-Gap label map needed:
-```
-tech_issues      → "Site has technical issues (mobile/SSL)"
-contact_form     → "No contact or quote form"
-online_booking   → "No online booking system"
-site_outdated    → "Site looks outdated"
-paid_leads       → "Paying Angi / Thumbtack per lead"
-google_business  → "Not on Google Maps"
-gbp_incomplete   → "Google Business profile incomplete"
-gbp_photos       → "Too few photos on Google"
-stale_reviews    → "No recent reviews"
-no_before_after  → "No before/after photos"
-no_gallery       → "No photo gallery"
-no_testimonials  → "No testimonials section"
-dead_facebook    → "Facebook page is inactive"
-freemail         → "Using personal email (Gmail/Yahoo)"
-no_trust_signals → "No license/insurance info visible"
-yelp_unclaimed   → "Yelp listing unclaimed"
-```
-
-### 4. Re-route stuck decent-site leads
+### 1. Re-route stuck decent-site leads
 Businesses at `preview_ready` or `excluded/has_good_website` with `has_website=1, website_quality='decent'`
 need a batch re-route button in app.php Research tab that calls `ho_route_to_enhancement()` on each.
+
+### 2. Admin price editor UI
+`gap_prices` is DB-backed and editable via SQL, but there's no in-app editor yet.
+Add a small table editor in app.php so Adam can change gap prices without phpMyAdmin.
+
+### 3. Verify the 10 newer gaps fire on real data
+Once the research_records ALTER is run and a few leads are re-researched with the 69-field
+prompt, confirm gaps like `no_before_after`, `dead_facebook`, `freemail` actually populate
+and show on go.php with correct prices.
 
 ---
 
