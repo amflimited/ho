@@ -45,6 +45,7 @@ try {
     // ── Model ──────────────────────────────────────────────────────────────────
     require_once __DIR__ . '/../database.php';
     require_once __DIR__ . '/ho-model.php';
+    require_once __DIR__ . '/ho-enhancement-packages.php';
 
     $pkg         = trim((string)($_POST['pkg']          ?? ''));
     $addons      = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
@@ -54,34 +55,70 @@ try {
     $packages = ho_package_catalog();
     $priceMap = ho_addon_price_map();
 
-    if ($slug === '' || !isset($packages[$pkg])) {
+    if ($slug === '') {
         ob_end_clean();
         header('Location: /');
         exit;
     }
 
-    // ── Business name for receipt ──────────────────────────────────────────────
-    $bizName = $slug;
-    try {
-        $pdo = ho_db();
-        $row = ho_get_preview_by_slug($pdo, $slug);
-        if ($row) $bizName = (string)$row['business_name'];
-    } catch (Throwable) {}
+    // ── Business + preview context for receipt and server-side pricing ─────────
+    $pdo = ho_db();
+    $row = ho_get_preview_by_slug($pdo, $slug);
+    if (!$row) {
+        ob_end_clean();
+        header('Location: /');
+        exit;
+    }
 
-    // ── Build line items — prices from catalog, never from POST ───────────────
-    $items   = [];
-    $pkgData = $packages[$pkg];
-    $items[] = ['name' => $pkgData['label'] . " \u{2014} {$bizName}", 'amount' => $pkgData['price'] * 100];
+    $bizName       = (string)$row['business_name'];
+    $previewType   = (string)($row['preview_type'] ?? 'site_build');
+    $isEnhancement = $previewType === 'enhancement' || $pkg === 'enhancement';
 
-    $addonCatalog = ho_addon_catalog();
-    foreach ($addons as $addonKey) {
-        $key = (string)$addonKey;
-        if (!isset($priceMap[$key])) continue;
-        $label = $key;
-        foreach ($addonCatalog as $cat) {
-            if (isset($cat['items'][$key])) { $label = $cat['items'][$key]['label']; break; }
+    // ── Build line items — prices from server/catalog/database, never from POST ─
+    $items = [];
+
+    if ($isEnhancement) {
+        $bundle = ho_current_enhancement_bundle($pdo, $row);
+        $bundleItems = (array)($bundle['items'] ?? []);
+        $total = (float)($bundle['total'] ?? 0);
+        if (empty($bundleItems) || $total <= 0) {
+            ob_end_clean();
+            header('Location: ' . $back . '&err=' . rawurlencode('No enhancement package is ready yet'));
+            exit;
         }
-        $items[] = ['name' => $label, 'amount' => $priceMap[$key] * 100];
+
+        // One Stripe line item keeps checkout clean while the go page shows the itemized package.
+        $items[] = [
+            'name'   => 'Hoosier Online Enhancement Package — ' . $bizName,
+            'amount' => (int)round($total * 100),
+        ];
+        $pkg = 'enhancement';
+
+        // Store the latest generated bundle for admin/debug visibility, but do not trust it as payment input.
+        try {
+            $pdo->prepare("UPDATE previews SET package_items = ? WHERE id = ?")
+                ->execute([json_encode($bundle, JSON_UNESCAPED_SLASHES), (int)$row['preview_id']]);
+        } catch (Throwable) {}
+    } else {
+        if (!isset($packages[$pkg])) {
+            ob_end_clean();
+            header('Location: /');
+            exit;
+        }
+
+        $pkgData = $packages[$pkg];
+        $items[] = ['name' => $pkgData['label'] . " \u{2014} {$bizName}", 'amount' => $pkgData['price'] * 100];
+
+        $addonCatalog = ho_addon_catalog();
+        foreach ($addons as $addonKey) {
+            $key = (string)$addonKey;
+            if (!isset($priceMap[$key])) continue;
+            $label = $key;
+            foreach ($addonCatalog as $cat) {
+                if (isset($cat['items'][$key])) { $label = $cat['items'][$key]['label']; break; }
+            }
+            $items[] = ['name' => $label, 'amount' => $priceMap[$key] * 100];
+        }
     }
 
     // ── Stripe Checkout Session ────────────────────────────────────────────────
@@ -102,6 +139,7 @@ try {
         'metadata[slug]'          => $slug,
         'metadata[business]'      => $bizName,
         'metadata[pkg]'           => $pkg,
+        'metadata[preview_type]'  => $isEnhancement ? 'enhancement' : 'site_build',
         'metadata[template]'      => $templateKey,
         'metadata[has_domain]'    => $hasDomain ? '1' : '0',
         'metadata[own_domain]'    => $hasDomain ? $ownDotCom : '',
