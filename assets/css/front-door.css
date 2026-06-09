@@ -1649,7 +1649,7 @@ body.front-door-preview-page{
   margin:0 0 18px;
 }
 .fd-pc-row{
-  display:grid;grid-template-columns:auto 64px 1fr;align-items:center;gap:10px;
+  display:grid;grid-template-columns:130px 58px 1fr;align-items:center;gap:8px;
   padding:9px 14px;border-radius:12px;font-size:14px;
 }
 .fd-pc-other{
