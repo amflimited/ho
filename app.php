@@ -992,6 +992,7 @@ if (!empty($unresearched)) {
               <?php endif; ?>
             </div>
 
+            <?php $pitchBody = ho_pitch_message($b, $previewUrl)['body']; $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb; ?>
             <div class="cp-send-primary">
               <?php if ($hasEmail): ?>
                 <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto($b, $previewUrl)) ?>">
@@ -1005,6 +1006,7 @@ if (!empty($unresearched)) {
                 <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">
                   Contact via Website →
                 </a>
+                <button type="button" class="cp-btn-send cp-btn-send-copy" onclick="copyMessage(this)">⧉&thinsp; Copy the pitch to paste in their form</button>
               <?php elseif ($hasPhone): ?>
                 <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">
                   Call <?= ho_h((string)$b['phone_number']) ?>
@@ -1013,9 +1015,11 @@ if (!empty($unresearched)) {
                 <span class="cp-send-no-contact">No contact info on file</span>
               <?php endif; ?>
             </div>
+            <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($pitchBody) ?></textarea><?php endif; ?>
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <?php if ($hasTextChannel): ?><button type="button" class="cp-btn-ghost" onclick="copyMessage(this)">Copy message ⧉</button><?php endif; ?>
               <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
               <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
                 <input type="hidden" name="action" value="disqualify_lead">
@@ -1171,6 +1175,7 @@ if (!empty($unresearched)) {
             </div>
             <?php endif; ?>
 
+            <?php $pitchBody = ho_pitch_message_enhancement($b, $previewUrl)['body']; $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb; ?>
             <div class="cp-send-primary">
               <?php if ($hasEmail): ?>
                 <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto_enhancement($b, $previewUrl)) ?>">
@@ -1180,15 +1185,18 @@ if (!empty($unresearched)) {
                 <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">Message on Facebook →</a>
               <?php elseif ($hasSiteUrl): ?>
                 <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">Contact via Website →</a>
+                <button type="button" class="cp-btn-send cp-btn-send-copy" onclick="copyMessage(this)">⧉&thinsp; Copy the pitch to paste in their form</button>
               <?php elseif ($hasPhone): ?>
                 <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">Call <?= ho_h((string)$b['phone_number']) ?></a>
               <?php else: ?>
                 <span class="cp-send-no-contact">No contact info on file</span>
               <?php endif; ?>
             </div>
+            <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($pitchBody) ?></textarea><?php endif; ?>
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <?php if ($hasTextChannel): ?><button type="button" class="cp-btn-ghost" onclick="copyMessage(this)">Copy message ⧉</button><?php endif; ?>
               <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
               <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
                 <input type="hidden" name="action" value="disqualify_lead">
@@ -1648,6 +1656,22 @@ function doCopy(id, btn) {
     var orig = btn.textContent;
     btn.textContent = 'Copied!';
     setTimeout(function(){ btn.textContent = orig; }, 2000);
+  });
+}
+
+// Copy the personalized pitch message (card-scoped) for pasting into a
+// lead's own contact form — same text as the email, equally personalized.
+function copyMessage(btn) {
+  var card = btn.closest('.cp-send-card');
+  var src  = card ? card.querySelector('.cp-msg-src') : null;
+  if (!src) return;
+  navigator.clipboard.writeText(src.value).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = '✓ Copied — paste it in';
+    setTimeout(function(){ btn.textContent = orig; }, 2200);
+  }).catch(function() {
+    btn.textContent = 'Press & hold to copy';
+    setTimeout(function(){ btn.textContent = '⧉ Copy the pitch to paste in their form'; }, 2200);
   });
 }
 function applyFilters() {

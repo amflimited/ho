@@ -101,9 +101,20 @@ pitched → converted / not_a_fit / excluded
 - `ho_count_no_contact_ready(PDO): int` / `ho_requeue_no_contact_leads(PDO): int`
   — Detect and re-queue stuck no-contact preview_ready leads.
 
-### Email
-- `ho_pitch_mailto(array $biz, string $previewUrl): string` — Site-build pitch mailto link.
-- `ho_pitch_mailto_enhancement(array $biz, string $previewUrl): string` — Enhancement pitch mailto.
+### Email / Outreach
+- `ho_pitch_message(array $biz, string $previewUrl): array` — Site-build outreach copy (`['subject','body']`). Single source of truth.
+- `ho_pitch_message_enhancement(array $biz, string $previewUrl): array` — Enhancement outreach copy.
+- `ho_pitch_mailto()` / `ho_pitch_mailto_enhancement()` — thin wrappers that encode the message into a `mailto:` link.
+- `ho_quote_inline(string $raw): string` — cleans a verbatim review quote for inline use (whitespace, wrap-quote strip, word-boundary cap).
+- Both message builders mirror go.php's personalization: lead with a real
+  review quote → competitor scoreboard numbers → gap/strength hooks; both
+  weave a conservative `ho_stakes_estimate()` dollar line. Send-queue cards
+  expose a **Copy message** button (`copyMessage()` JS, card-scoped
+  `.cp-msg-src` textarea) so the same copy can be pasted into a lead's own
+  contact form — email and pasted message are byte-identical.
+- The two send-queue SELECTs (`ho_get_preview_ready`, `ho_get_enhancement_ready`)
+  pull `review_quote_1/_author` + `competitor_google_rating/_review_count`,
+  with a try/catch fallback so the Send tab survives a pending quote migration.
 
 ### Utilities
 - `ho_is_freemail(string $email): bool` — Detects Gmail/Yahoo/Hotmail/etc. + pattern catch.

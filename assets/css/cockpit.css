@@ -333,8 +333,16 @@ a { color: inherit; }
 .cp-btn-send-fb     { background: #1877f2;      color: var(--white); }
 .cp-btn-send-web    { background: var(--ink);   color: var(--white); }
 .cp-btn-send-phone  { background: var(--ink);   color: var(--white); }
+.cp-btn-send-copy {
+  margin-top: 8px; cursor: pointer;
+  background: var(--white); color: var(--green);
+  border: 2px solid var(--green);
+  font-size: 14px; box-shadow: none;
+}
+.cp-btn-send-copy:active { background: rgba(46,91,52,.08); }
 .cp-btn-send:hover  { filter: brightness(1.1); box-shadow: 0 4px 12px rgba(0,0,0,.3); }
 .cp-btn-send:active { filter: brightness(.9);  box-shadow: none; }
+.cp-btn-send-copy:hover { filter: none; box-shadow: none; }
 
 .cp-send-no-contact {
   display: block; text-align: center; font-size: 12px;

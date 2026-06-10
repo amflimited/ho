@@ -1367,7 +1367,7 @@ function ho_route_to_enhancement(PDO $pdo, int $bizId, array $row): bool {
 }
 
 function ho_get_enhancement_ready(PDO $pdo): array {
-    $rows = $pdo->query("
+    $base = "
         SELECT b.id, b.business_name, b.business_slug, b.location_city,
                b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
                b.owner_first_name,
@@ -1382,7 +1382,12 @@ function ho_get_enhancement_ready(PDO $pdo): array {
                r.has_gbp_posts, r.gbp_services_listed, r.gbp_hours_listed,
                r.has_before_after_photos, r.has_photo_gallery, r.has_testimonials_section,
                r.has_professional_email, r.is_licensed_insured_visible,
-               r.has_yelp, r.yelp_claimed
+               r.has_yelp, r.yelp_claimed,
+               r.competitor_name, r.competitor_has_website,
+               r.competitor_google_rating, r.competitor_review_count";
+    $quoteCols = ",
+               r.review_quote_1, r.review_quote_1_author";
+    $rest = "
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN previews p ON p.business_id = b.id
@@ -1392,7 +1397,13 @@ function ho_get_enhancement_ready(PDO $pdo): array {
           AND p.preview_type = 'enhancement'
         ORDER BY b.updated_at DESC
         LIMIT 50
-    ")->fetchAll();
+    ";
+    // Quote columns may not exist until the review_quote migration runs.
+    try {
+        $rows = $pdo->query($base . $quoteCols . $rest)->fetchAll();
+    } catch (PDOException $e) {
+        $rows = $pdo->query($base . $rest)->fetchAll();
+    }
 
     foreach ($rows as &$row) {
         $row['enhancement_gaps'] = ho_enhancement_gaps($row);
@@ -1410,52 +1421,119 @@ function ho_get_enhancement_ready(PDO $pdo): array {
     return $rows;
 }
 
-function ho_pitch_mailto_enhancement(array $biz, string $previewUrl): string {
+/**
+ * Clean a verbatim review quote for inline use in an email/message:
+ * collapse whitespace, strip wrapping quote marks, cap length on a word
+ * boundary. Returns '' if nothing usable.
+ */
+function ho_quote_inline(string $raw, int $max = 165): string {
+    $q = trim((string)preg_replace('/\s+/u', ' ', $raw));
+    $q = trim($q, " \t\n\r\0\x0B\"'");
+    $q = preg_replace('/^[\x{201C}\x{201D}\x{2018}\x{2019}]+|[\x{201C}\x{201D}\x{2018}\x{2019}]+$/u', '', $q) ?? $q;
+    $q = trim($q);
+    if ($q === '') return '';
+    if (mb_strlen($q) > $max) {
+        $q = mb_substr($q, 0, $max);
+        $q = preg_replace('/\s+\S*$/u', '', $q) ?: $q;
+        $q = rtrim($q, " .,;:") . "\u{2026}";
+    }
+    return $q;
+}
+
+/**
+ * Single source of truth for the enhancement-track outreach message.
+ * Returns ['subject' => ..., 'body' => ...] in plain text — consumed by
+ * both the mailto link and the copy-to-paste (contact form) path so the
+ * email and the pasted message are always identical and equally personal.
+ */
+function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
     $name      = (string)$biz['business_name'];
     $city      = (string)$biz['location_city'];
     $catLower  = strtolower((string)$biz['category_name']);
-    $email     = (string)($biz['email_address'] ?? '');
+    $catSlug   = (string)($biz['category_slug'] ?? '');
     $firstName = trim((string)($biz['owner_first_name'] ?? ''));
     $gaps      = $biz['enhancement_gaps'] ?? ho_enhancement_gaps($biz);
 
-    $hasAngi  = (bool)($biz['has_angi']      ?? false);
-    $hasThumb = (bool)($biz['has_thumbtack'] ?? false);
+    $hasAngi   = (bool)($biz['has_angi']      ?? false);
+    $hasThumb  = (bool)($biz['has_thumbtack'] ?? false);
+    $platform  = $hasAngi ? 'Angi' : 'Thumbtack';
+    $reviews   = (int)($biz['google_review_count'] ?? 0);
+    $rating    = (float)($biz['google_rating'] ?? 0);
 
-    // Gaps are already sorted by priority — lead with the top gap
-    $topGap   = $gaps[0] ?? '';
-    $platform = $hasAngi ? 'Angi' : 'Thumbtack';
-    $reviewCount = (int)($biz['google_review_count'] ?? 0);
+    $compName    = trim((string)($biz['competitor_name'] ?? ''));
+    $compRating  = isset($biz['competitor_google_rating']) && $biz['competitor_google_rating'] !== null ? (float)$biz['competitor_google_rating'] : null;
+    $compReviews = isset($biz['competitor_review_count'])  && $biz['competitor_review_count']  !== null ? (int)$biz['competitor_review_count']   : null;
 
-    switch ($topGap) {
-        case 'contact_form':
-            if ($reviewCount >= 20) {
-                $hook = "I looked up {$name} and saw {$reviewCount} Google reviews \u{2014} people clearly find you and trust you. But there\u{2019}s no way to reach you in writing. Anyone who found you outside business hours and didn\u{2019}t want to call just left. A simple contact form captures those jobs instead of handing them to a competitor.";
-            } else {
-                $hook = "I noticed your {$catLower} business doesn\u{2019}t have a way for customers to reach you in writing. Anyone who found your site but didn\u{2019}t want to call just left \u{2014} a simple contact form captures those jobs instead.";
-            }
-            break;
-        case 'tech_issues':
-            $hook = "I checked the {$name} site and it has issues Google actively penalises \u{2014} not mobile-friendly, no SSL, or both. That means competitors are ranking above you in search right now, not because they\u{2019}re better, but because their site doesn\u{2019}t have those flags. Worth fixing.";
-            break;
-        case 'paid_leads':
-            $hook = "I noticed {$name} is listed on {$platform}. Customers who find you there contact {$platform} first \u{2014} {$platform} decides whether you\u{2019}re visible and whether your price competes. A contact form on your own site means they reach you directly, with no platform in the way.";
-            break;
-        case 'google_business':
-            $hook = "I looked up {$name} and you don\u{2019}t appear in Google Maps for {$catLower} in {$city}. That\u{2019}s the search that turns into calls. It\u{2019}s fixable with a Google Business setup \u{2014} usually one afternoon.";
-            break;
-        default:
-            $hook = "I looked at {$name} and noticed a few specific things that could bring in more customers without rebuilding anything.";
+    $quote       = ho_quote_inline((string)($biz['review_quote_1'] ?? ''));
+    $quoteAuthor = trim((string)($biz['review_quote_1_author'] ?? ''));
+
+    $bundleTotal = (int)round((float)($biz['bundle_total'] ?? 0));
+
+    $topGap = $gaps[0] ?? '';
+
+    // Hook priority — lead with the most personal, undeniable proof first.
+    if ($quote !== '') {
+        $attr = $quoteAuthor !== '' ? " \u{2014} {$quoteAuthor}" : '';
+        $hook = "One of your customers wrote: \u{201C}{$quote}\u{201D}{$attr}. That\u{2019}s the kind of thing that wins jobs \u{2014} but right now it\u{2019}s buried in your Google reviews where new customers never scroll. One of the things I\u{2019}d do is put words like that right on your site, where everyone sees them first.";
+    } elseif ($compName !== '' && $compRating !== null && $compReviews !== null && $reviews > 0 && $rating >= $compRating) {
+        $hook = "Here\u{2019}s what stuck out: you\u{2019}re at {$rating}\u{2605} with {$reviews} reviews. {$compName} is at {$compRating}\u{2605} \u{2014} lower than you \u{2014} but they show up in more places, so they get the call. You\u{2019}re the better business; the gap is visibility, and that\u{2019}s fixable.";
+    } else {
+        switch ($topGap) {
+            case 'contact_form':
+                if ($reviews >= 20) {
+                    $hook = "I looked up {$name} and saw {$reviews} Google reviews \u{2014} people clearly find you and trust you. But there\u{2019}s no way to reach you in writing. Anyone who found you outside business hours and didn\u{2019}t want to call just left. A simple contact form captures those jobs instead of handing them to a competitor.";
+                } else {
+                    $hook = "I noticed your {$catLower} business doesn\u{2019}t have a way for customers to reach you in writing. Anyone who found your site but didn\u{2019}t want to call just left \u{2014} a simple contact form captures those jobs instead.";
+                }
+                break;
+            case 'tech_issues':
+                $hook = "I checked the {$name} site and it has issues Google actively penalises \u{2014} not mobile-friendly, no SSL, or both. That means competitors are ranking above you in search right now, not because they\u{2019}re better, but because their site doesn\u{2019}t have those flags. Worth fixing.";
+                break;
+            case 'paid_leads':
+                $hook = "I noticed {$name} is listed on {$platform}. Customers who find you there contact {$platform} first \u{2014} {$platform} decides whether you\u{2019}re visible and whether your price competes. A contact form on your own site means they reach you directly, with no platform in the way.";
+                break;
+            case 'google_business':
+                $hook = "I looked up {$name} and you don\u{2019}t appear in Google Maps for {$catLower} in {$city}. That\u{2019}s the search that turns into calls. It\u{2019}s fixable with a Google Business setup \u{2014} usually one afternoon.";
+                break;
+            default:
+                $hook = "I looked at {$name} and noticed a few specific things that could bring in more customers without rebuilding anything.";
+        }
     }
 
-    $subject = "A quick note for {$name}";
+    // Stakes line — conservative, honest dollars. Only when we know the trade.
+    $stakesLine = '';
+    $stakes = ho_stakes_estimate($catSlug);
+    if ($stakes !== null) {
+        $jobs = $stakes['jobs_per_month'];
+        $jobWord = $jobs > 1 ? "{$jobs} jobs" : "one job";
+        $stakesLine = "\nThe average {$catLower} job runs around $" . number_format($stakes['ticket'])
+            . ". Even {$jobWord} a month slipping past you is roughly $" . number_format($stakes['annual'])
+            . " a year \u{2014} which is the whole reason this is worth ten minutes.\n";
+    }
 
+    // Offer line — flat bundle price when we have it.
+    $offerLine = $bundleTotal > 0
+        ? "\nEverything I\u{2019}d fix, done for a flat $" . number_format($bundleTotal) . " \u{2014} one time, no contract. Want just one piece? That works too.\n"
+        : "";
+
+    $subject  = "A quick note for {$name}";
     $greeting = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}\n\nI put a quick overview together:\n\n{$previewUrl}\n\nReply to this email or call \u{2014} I\u{2019}ll send a quote same day. No contracts, flat price.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n"
+        . "{$hook}\n{$stakesLine}"
+        . "\nI put together a short page showing exactly what I\u{2019}d do and what each piece costs:\n\n{$previewUrl}\n"
+        . "{$offerLine}"
+        . "\nReply to this or call \u{2014} I\u{2019}ll send a quote the same day.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
 
+    return ['subject' => $subject, 'body' => $body];
+}
+
+function ho_pitch_mailto_enhancement(array $biz, string $previewUrl): string {
+    $email = (string)($biz['email_address'] ?? '');
+    $m     = ho_pitch_message_enhancement($biz, $previewUrl);
     return 'mailto:' . rawurlencode($email)
-        . '?subject=' . rawurlencode($subject)
-        . '&body='    . rawurlencode($body);
+        . '?subject=' . rawurlencode($m['subject'])
+        . '&body='    . rawurlencode($m['body']);
 }
 
 // ─── Send queue ───────────────────────────────────────────────────────────────
@@ -1526,7 +1604,7 @@ function ho_fit_score(array $biz): int {
 }
 
 function ho_get_preview_ready(PDO $pdo): array {
-    $rows = $pdo->query("
+    $base = "
         SELECT b.id, b.business_name, b.business_slug, b.location_city,
                b.email_address, b.facebook_url, b.website_url, b.phone_number, b.best_contact_method,
                b.owner_first_name,
@@ -1535,9 +1613,13 @@ function ho_get_preview_ready(PDO $pdo): array {
                r.opportunity_summary, r.strengths, r.gaps,
                r.has_website, r.website_quality, r.google_review_count, r.google_rating,
                r.facebook_activity, r.competitor_has_website, r.competitor_name,
+               r.competitor_google_rating, r.competitor_review_count,
                r.booking_method, r.years_in_business, r.has_angi, r.has_thumbtack,
                r.mobile_friendly, r.has_ssl,
-               r.owner_age_band, r.last_review_date
+               r.owner_age_band, r.last_review_date";
+    $quoteCols = ",
+               r.review_quote_1, r.review_quote_1_author";
+    $rest = "
         FROM businesses b
         JOIN categories c ON c.id = b.category_id
         JOIN previews p ON p.business_id = b.id
@@ -1553,7 +1635,13 @@ function ho_get_preview_ready(PDO $pdo): array {
           )
         ORDER BY b.updated_at DESC
         LIMIT 50
-    ")->fetchAll();
+    ";
+    // Quote columns may not exist until the review_quote migration runs.
+    try {
+        $rows = $pdo->query($base . $quoteCols . $rest)->fetchAll();
+    } catch (PDOException $e) {
+        $rows = $pdo->query($base . $rest)->fetchAll();
+    }
 
     foreach ($rows as &$row) {
         $row['fit_score'] = ho_fit_score($row);
@@ -1590,12 +1678,17 @@ function ho_requeue_no_contact_leads(PDO $pdo): int {
     return (int)$pdo->lastInsertId() ?: (int)$pdo->query("SELECT ROW_COUNT()")->fetchColumn();
 }
 
-function ho_pitch_mailto(array $biz, string $previewUrl): string {
+/**
+ * Single source of truth for the site-build outreach message.
+ * Returns ['subject' => ..., 'body' => ...] in plain text — consumed by
+ * both the mailto link and the copy-to-paste (contact form) path so the
+ * email and the pasted message are always identical and equally personal.
+ */
+function ho_pitch_message(array $biz, string $previewUrl): array {
     $name     = (string)$biz['business_name'];
     $city     = (string)$biz['location_city'];
     $catLower = strtolower((string)$biz['category_name']);
     $catSlug  = (string)($biz['category_slug'] ?? '');
-    $email    = (string)($biz['email_address'] ?? '');
 
     $strengths = json_decode((string)($biz['strengths'] ?? '[]'), true);
     $gaps      = json_decode((string)($biz['gaps']      ?? '[]'), true);
@@ -1603,15 +1696,21 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     $hasSite   = (bool)($biz['has_website'] ?? false);
     $siteQual  = (string)($biz['website_quality'] ?? 'none');
     $reviews   = (int)($biz['google_review_count'] ?? 0);
+    $rating    = (float)($biz['google_rating'] ?? 0);
 
     $compHasSite = (bool)($biz['competitor_has_website'] ?? false);
     $compName    = trim((string)($biz['competitor_name'] ?? ''));
+    $compRating  = isset($biz['competitor_google_rating']) && $biz['competitor_google_rating'] !== null ? (float)$biz['competitor_google_rating'] : null;
+    $compReviews = isset($biz['competitor_review_count'])  && $biz['competitor_review_count']  !== null ? (int)$biz['competitor_review_count']   : null;
     $hasAngi     = (bool)($biz['has_angi']      ?? false);
     $hasThumb    = (bool)($biz['has_thumbtack'] ?? false);
     $booking     = (string)($biz['booking_method'] ?? 'unknown');
     $years       = (int)($biz['years_in_business'] ?? 0);
     $ageBand     = trim((string)($biz['owner_age_band'] ?? ''));
     $noSite      = !$hasSite || $siteQual === 'none';
+
+    $quote       = ho_quote_inline((string)($biz['review_quote_1'] ?? ''));
+    $quoteAuthor = trim((string)($biz['review_quote_1_author'] ?? ''));
 
     // Review age
     $reviewAgeMonths = null;
@@ -1622,8 +1721,19 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
 
     $subject = "A quick note for {$name}";
 
-    // Priority hooks: highest-urgency first
-    if ($compHasSite && $noSite && $compName !== '') {
+    // Track whether a "premium" personalized hook fired — if so we skip the
+    // generic gap line to avoid the email reading like a checklist.
+    $strongHook = false;
+
+    // Priority hooks: most personal, undeniable proof first
+    if ($quote !== '') {
+        $attr = $quoteAuthor !== '' ? " \u{2014} {$quoteAuthor}" : '';
+        $hook = "One of your customers wrote: \u{201C}{$quote}\u{201D}{$attr}. That kind of review wins jobs \u{2014} but right now it\u{2019}s buried in your Google listing where almost nobody scrolls. I built you a website that puts it right out front, where every new customer sees it first.";
+        $strongHook = true;
+    } elseif ($compName !== '' && $compRating !== null && $compReviews !== null && $reviews > 0 && $rating >= $compRating && $noSite) {
+        $hook = "Here\u{2019}s what stuck out: you\u{2019}re at {$rating}\u{2605} with {$reviews} reviews. {$compName} sits at {$compRating}\u{2605} \u{2014} lower than you \u{2014} and they\u{2019}re still the first thing people find when they search {$catLower} in {$city}, because they have a website and you don\u{2019}t. You\u{2019}re the better business; you\u{2019}re just invisible. I built a mockup to show what closing that gap looks like.";
+        $strongHook = true;
+    } elseif ($compHasSite && $noSite && $compName !== '') {
         $hook = "I noticed {$compName} has a website. When someone in {$city} searches for {$catLower} services, they\u{2019}re finding {$compName} \u{2014} not you. I built a quick mockup to show you what closing that gap could look like.";
     } elseif ($hasAngi || $hasThumb) {
         $platform = $hasAngi ? 'Angi' : 'Thumbtack';
@@ -1650,9 +1760,19 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
         $hook = "I came across your {$catLower} business while researching the {$city} area.";
     }
 
+    // Generic gap line — only when no premium hook already carried the message.
     $gapLine = '';
-    if (!empty($gaps)) {
+    if (!$strongHook && !empty($gaps)) {
         $gapLine = "\nThe main thing I think could move the needle: " . strtolower((string)$gaps[0]) . ".\n";
+    }
+
+    // Stakes line — conservative, honest dollars. Only when we know the trade.
+    $stakesLine = '';
+    $stakes = ho_stakes_estimate($catSlug);
+    if ($stakes !== null) {
+        $jobs = $stakes['jobs_per_month'];
+        $jobWord = $jobs > 1 ? "{$jobs} jobs" : "one job";
+        $stakesLine = "\nEven {$jobWord} a month slipping past you \u{2014} the late-night searcher who couldn\u{2019}t find a site \u{2014} is roughly $" . number_format($stakes['annual']) . " a year. The fix is a flat $199, once.\n";
     }
 
     // Seasonal urgency line
@@ -1670,11 +1790,17 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     $firstName = trim((string)($biz['owner_first_name'] ?? ''));
     $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}{$seasonalLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\n{$closing}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}{$stakesLine}{$seasonalLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\n{$closing}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
 
+    return ['subject' => $subject, 'body' => $body];
+}
+
+function ho_pitch_mailto(array $biz, string $previewUrl): string {
+    $email = (string)($biz['email_address'] ?? '');
+    $m     = ho_pitch_message($biz, $previewUrl);
     return 'mailto:' . rawurlencode($email)
-        . '?subject=' . rawurlencode($subject)
-        . '&body='    . rawurlencode($body);
+        . '?subject=' . rawurlencode($m['subject'])
+        . '&body='    . rawurlencode($m['body']);
 }
 
 // ─── Needs-contact channel ────────────────────────────────────────────────────
