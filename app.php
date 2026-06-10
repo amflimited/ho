@@ -531,162 +531,167 @@ if (!empty($unresearched)) {
   </div>
   <?php endif; ?>
 
-  <?php if (empty($unresearched)): ?>
+  <?php
+  // ─── Build unified prompt sequence ────────────────────────────────────────
+  $hoPrompts = [];
+  $gptBase   = 'https://chatgpt.com/?hints=search&q=';
+
+  if (!empty($unresearched) && $researchPrompt !== '') {
+      $staleCount = count(array_filter($unresearched, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
+      $newCount   = count($unresearched) - $staleCount;
+      $hintParts  = [];
+      if ($newCount   > 0) $hintParts[] = $newCount . ' new';
+      if ($staleCount > 0) $hintParts[] = $staleCount . ' to update';
+      $gUrl = $gptBase . rawurlencode($researchPrompt);
+      $hoPrompts[] = [
+          'label'  => 'Research',
+          'step'   => count($unresearched) . ' businesses — ' . implode(', ', $hintParts),
+          'prompt' => $researchPrompt,
+          'action' => 'import_research',
+          'key'    => 'research_results',
+          'noun'   => 'business',
+          'gptUrl' => strlen($gUrl) <= 30000 ? $gUrl : '',
+      ];
+  }
+  if (!empty($needsContactBatch) && $needsContactPrompt !== '') {
+      $ncTotal = $counts['needs_contact']; $ncBatch = count($needsContactBatch);
+      $stepNote = $ncBatch < $ncTotal ? "{$ncBatch} of {$ncTotal} to find" : "{$ncTotal} to find";
+      $gUrl = $gptBase . rawurlencode($needsContactPrompt);
+      $hoPrompts[] = [
+          'label'  => 'Contact',
+          'step'   => 'Contact info — ' . $stepNote,
+          'prompt' => $needsContactPrompt,
+          'action' => 'import_contact_research',
+          'key'    => 'contacts',
+          'noun'   => 'contact',
+          'gptUrl' => strlen($gUrl) <= 30000 ? $gUrl : '',
+      ];
+  }
+  if (!empty($enrichmentBatch) && $enrichmentPrompt !== '') {
+      $gUrl = $gptBase . rawurlencode($enrichmentPrompt);
+      $hoPrompts[] = [
+          'label'  => 'Enrich',
+          'step'   => count($enrichmentBatch) . ' of ' . $enrichmentTotal . ' leads to enrich',
+          'prompt' => $enrichmentPrompt,
+          'action' => 'import_enrichment',
+          'key'    => 'enrichment_results',
+          'noun'   => 'record',
+          'gptUrl' => strlen($gUrl) <= 30000 ? $gUrl : '',
+      ];
+  }
+  ?>
+
+  <?php if (empty($hoPrompts)): ?>
     <div class="cp-empty">No leads waiting for research<?= $resCatId > 0 ? ' in this category' : '' ?>. Source some first.</div>
   <?php else: ?>
 
-    <section class="cp-section">
-      <div class="cp-step">Step 1</div>
-      <h2 class="cp-sh">Copy this prompt</h2>
-      <?php
-        $staleCount = count(array_filter($unresearched, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
-        $newCount   = count($unresearched) - $staleCount;
-        $hintParts  = [];
-        if ($newCount   > 0) $hintParts[] = "{$newCount} new";
-        if ($staleCount > 0) $hintParts[] = "{$staleCount} update (missing new fields)";
-      ?>
-      <p class="cp-hint"><?= count($unresearched) ?> businesses queued &mdash; <?= implode(', ', $hintParts) ?></p>
-      <div class="cp-prompt-box">
-        <pre id="resPrompt" class="cp-prompt"><?= ho_h($researchPrompt) ?></pre>
-        <button class="cp-copy" onclick="doCopy('resPrompt',this)">Copy</button>
-      </div>
-      <?= cp_gpt_row($researchPrompt) ?>
-    </section>
-
-    <section class="cp-section">
-      <div class="cp-step">Step 2</div>
-      <h2 class="cp-sh">Paste ChatGPT result</h2>
-      <form method="POST">
-        <input type="hidden" name="action" value="import_research">
-        <input type="hidden" name="tab" value="research">
-        <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'research_results','result')">📋 Paste &amp; Import &mdash; one tap</button>
-        <div class="cp-paste-note" hidden></div>
-        <textarea class="cp-textarea" name="result_json" rows="7" placeholder='{"research_results":[{"raw_name":"…",…}]}'></textarea>
-        <button class="cp-btn-primary" type="submit">Import Research</button>
-      </form>
-    </section>
-
-    <?php if (!empty($multiMarketIds)): ?>
-    <div class="cp-alert cp-alert-warn">
-      <strong><?= count($multiMarketIds) ?> multi-market flag<?= count($multiMarketIds) !== 1 ? 's' : '' ?></strong> &mdash; same business name appears in multiple cities. Review below &mdash; likely national franchises.
-    </div>
-    <?php endif; ?>
-
-    <section class="cp-section">
-      <h2 class="cp-sh" style="font-size:14px;">In this batch</h2>
-      <?php
-        // Sort: flagged businesses first
-        $sortedBatch = $unresearched;
-        usort($sortedBatch, fn($a,$b) =>
-            in_array((int)$b['id'], $multiMarketIds, true) <=> in_array((int)$a['id'], $multiMarketIds, true)
-        );
-      ?>
-      <ul class="cp-biz-list">
-        <?php foreach ($sortedBatch as $b):
-          $isMulti = in_array((int)$b['id'], $multiMarketIds, true);
-        ?>
-          <li class="cp-biz-row<?= $isMulti ? ' cp-biz-row-flagged' : '' ?>">
-            <div class="cp-biz-info">
-              <?php if ($isMulti): ?><span class="cp-multi-badge">MULTI-MARKET</span><?php endif; ?>
-              <?php if (($b['research_queue_reason'] ?? 'new') === 'stale'): ?><span class="cp-stale-badge">UPDATE</span><?php endif; ?>
-              <strong><?= ho_h((string)$b['business_name']) ?></strong>
-              <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
-            </div>
-            <?php if ($isMulti): ?>
-            <form method="POST" class="cp-exclude-form">
-              <input type="hidden" name="action" value="exclude_business">
-              <input type="hidden" name="tab" value="research">
-              <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
-              <input type="hidden" name="research_cat_id" value="<?= $resCatId ?>">
-              <input type="hidden" name="reason" value="franchise">
-              <input type="hidden" name="add_blocklist" value="1">
-              <button class="cp-btn-exclude" type="submit">Not Local</button>
-            </form>
-            <?php endif; ?>
-          </li>
+  <section class="cp-section" id="ho-prompt-stage">
+    <div class="cp-step-nav">
+      <span id="hoStepLabel" class="cp-step">
+        <?= count($hoPrompts) > 1 ? 'Step 1 of ' . count($hoPrompts) : ho_h($hoPrompts[0]['label']) ?>
+      </span>
+      <?php if (count($hoPrompts) > 1): ?>
+      <div class="cp-step-dots">
+        <?php foreach ($hoPrompts as $pi => $hp): ?>
+        <button class="cp-step-dot<?= $pi === 0 ? ' is-active' : '' ?>" type="button"
+                onclick="hoGoStep(<?= $pi ?>)" title="<?= ho_h($hp['label']) ?>"></button>
         <?php endforeach; ?>
-      </ul>
-    </section>
+      </div>
+      <?php endif; ?>
+    </div>
+    <p id="hoStepDesc" class="cp-hint" style="margin-bottom:8px"><?= ho_h($hoPrompts[0]['step']) ?></p>
+    <div class="cp-prompt-box">
+      <pre id="hoPrompt" class="cp-prompt"><?= ho_h($hoPrompts[0]['prompt']) ?></pre>
+      <button class="cp-copy" id="hoCopyBtn" type="button" onclick="hoDoStep(this)">Copy</button>
+    </div>
+    <?php if ($hoPrompts[0]['gptUrl'] !== ''): ?>
+    <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener">Ask ChatGPT &mdash; one tap, nothing to copy</a>
+    <?php else: ?>
+    <a id="hoGptLink" class="cp-gpt-btn" href="#" hidden>Ask ChatGPT</a>
+    <p class="cp-hint" style="text-align:center;margin-top:4px">Batch too big for one-tap &mdash; use Copy above, then paste into ChatGPT.</p>
+    <?php endif; ?>
+  </section>
 
+  <section class="cp-section" id="ho-paste-stage">
+    <form id="hoImportForm" method="POST">
+      <input type="hidden" name="action" id="hoImportAction" value="<?= ho_h($hoPrompts[0]['action']) ?>">
+      <input type="hidden" name="tab" value="research">
+      <button type="button" class="cp-paste-btn" id="hoPasteBtn"
+              data-key="<?= ho_h($hoPrompts[0]['key']) ?>"
+              data-noun="<?= ho_h($hoPrompts[0]['noun']) ?>"
+              onclick="hoPaste(this)">&#x1F4CB; Paste &amp; Import &mdash; one tap</button>
+      <p id="hoPasteNote" class="cp-paste-note" hidden></p>
+      <textarea id="hoResult" class="cp-textarea" name="result_json" rows="6"
+                placeholder="Paste ChatGPT&#x2019;s response here&#x2026;"></textarea>
+      <button type="submit" class="cp-btn-primary">Import</button>
+    </form>
+  </section>
+
+  <?php if (!empty($multiMarketIds)): ?>
+  <div class="cp-alert cp-alert-warn">
+    <strong><?= count($multiMarketIds) ?> multi-market flag<?= count($multiMarketIds) !== 1 ? 's' : '' ?></strong> &mdash; same business name appears in multiple cities. Review below &mdash; likely national franchises.
+  </div>
+  <?php endif; ?>
+
+  <?php if (!empty($unresearched)): ?>
+  <section class="cp-section">
+    <h2 class="cp-sh" style="font-size:14px;">In this research batch</h2>
+    <?php
+      $sortedBatch = $unresearched;
+      usort($sortedBatch, fn($a,$b) =>
+          in_array((int)$b['id'], $multiMarketIds, true) <=> in_array((int)$a['id'], $multiMarketIds, true)
+      );
+    ?>
+    <ul class="cp-biz-list">
+      <?php foreach ($sortedBatch as $b):
+        $isMulti = in_array((int)$b['id'], $multiMarketIds, true);
+      ?>
+        <li class="cp-biz-row<?= $isMulti ? ' cp-biz-row-flagged' : '' ?>">
+          <div class="cp-biz-info">
+            <?php if ($isMulti): ?><span class="cp-multi-badge">MULTI-MARKET</span><?php endif; ?>
+            <?php if (($b['research_queue_reason'] ?? 'new') === 'stale'): ?><span class="cp-stale-badge">UPDATE</span><?php endif; ?>
+            <strong><?= ho_h((string)$b['business_name']) ?></strong>
+            <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+          </div>
+          <?php if ($isMulti): ?>
+          <form method="POST" class="cp-exclude-form">
+            <input type="hidden" name="action" value="exclude_business">
+            <input type="hidden" name="tab" value="research">
+            <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+            <input type="hidden" name="research_cat_id" value="<?= $resCatId ?>">
+            <input type="hidden" name="reason" value="franchise">
+            <input type="hidden" name="add_blocklist" value="1">
+            <button class="cp-btn-exclude" type="submit">Not Local</button>
+          </form>
+          <?php endif; ?>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </section>
   <?php endif; ?>
 
   <?php if (!empty($needsContactBatch)): ?>
   <?php $ncTotal = $counts['needs_contact']; $ncBatch = count($needsContactBatch); ?>
-  <section class="cp-section cp-section-contact">
-    <div class="cp-step">Contact Research</div>
-    <h2 class="cp-sh">Find contact info</h2>
-    <p class="cp-hint">
-      <?php if ($ncBatch < $ncTotal): ?>
-        Showing <strong><?= $ncBatch ?></strong> of <strong><?= $ncTotal ?></strong> remaining &mdash; import these results, then reload to continue the next batch.
-      <?php else: ?>
-        <strong><?= $ncTotal ?></strong> business<?= $ncTotal !== 1 ? 'es' : '' ?> remaining &mdash; this is the full list.
-      <?php endif; ?>
-    </p>
-    <?php if ($ncBatch < $ncTotal): ?>
-    <div class="cp-nc-progress">
-      <div class="cp-nc-bar" style="width:<?= round($ncBatch / $ncTotal * 100) ?>%"></div>
-    </div>
-    <?php endif; ?>
-    <div class="cp-prompt-box">
-      <pre id="contactPrompt" class="cp-prompt"><?= ho_h($needsContactPrompt) ?></pre>
-      <button class="cp-copy" onclick="doCopy('contactPrompt',this)">Copy</button>
-    </div>
-    <?= cp_gpt_row($needsContactPrompt) ?>
-    <form method="POST">
-      <input type="hidden" name="action" value="import_contact_research">
-      <input type="hidden" name="tab" value="research">
-      <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'contacts','contact')">📋 Paste &amp; Import &mdash; one tap</button>
-      <div class="cp-paste-note" hidden></div>
-      <textarea class="cp-textarea" name="result_json" rows="5" placeholder='{"contacts":[{"raw_name":"…","email":"…","website_url":"…"}]}'></textarea>
-      <button class="cp-btn-primary" type="submit">Import Contact Info</button>
-    </form>
-    <details style="margin-top:10px">
-      <summary class="cp-hint" style="cursor:pointer">Show <?= count($needsContactBatch) ?> businesses</summary>
-      <ul class="cp-biz-list" style="margin-top:8px">
-        <?php foreach ($needsContactBatch as $b): ?>
-          <li class="cp-biz-row">
-            <div class="cp-biz-info">
-              <strong><?= ho_h((string)$b['business_name']) ?></strong>
-              <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
-            </div>
-          </li>
-        <?php endforeach; ?>
-      </ul>
-    </details>
-  </section>
+  <?php if ($ncBatch < $ncTotal): ?>
+  <div class="cp-nc-progress" style="margin-bottom:6px">
+    <div class="cp-nc-bar" style="width:<?= round($ncBatch / $ncTotal * 100) ?>%"></div>
+  </div>
+  <?php endif; ?>
+  <details style="margin-bottom:18px">
+    <summary class="cp-hint" style="cursor:pointer">Contact batch &mdash; show <?= $ncBatch ?> of <?= $ncTotal ?> businesses</summary>
+    <ul class="cp-biz-list" style="margin-top:8px">
+      <?php foreach ($needsContactBatch as $b): ?>
+        <li class="cp-biz-row">
+          <div class="cp-biz-info">
+            <strong><?= ho_h((string)$b['business_name']) ?></strong>
+            <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
+          </div>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </details>
   <?php endif; ?>
 
-  <!-- ── Enrichment queue ─────────────────────────────────────────────────── -->
-  <?php if (!empty($enrichmentBatch)): ?>
-  <section class="cp-section" style="margin-top:18px">
-    <h2 class="cp-sh">Enrich existing leads</h2>
-    <p class="cp-hint">
-      <strong><?= $enrichmentTotal ?> lead<?= $enrichmentTotal !== 1 ? 's' : '' ?> still need enrichment</strong> &mdash;
-      showing <?= count($enrichmentBatch) ?> in this batch.
-      Missing fields: competitor, booking method, years in business, Angi/Thumbtack.
-      Shorter prompt &mdash; won&rsquo;t overwrite existing research.
-    </p>
-
-    <div class="cp-step" style="margin-bottom:6px">Step 1</div>
-    <h3 class="cp-sh" style="font-size:14px;margin-bottom:6px">Copy this prompt</h3>
-    <div style="position:relative">
-      <pre id="enrichPrompt" class="cp-prompt"><?= ho_h($enrichmentPrompt) ?></pre>
-      <button class="cp-copy" onclick="doCopy('enrichPrompt',this)">Copy</button>
-    </div>
-    <?= cp_gpt_row($enrichmentPrompt) ?>
-
-    <div class="cp-step" style="margin:14px 0 6px">Step 2</div>
-    <h3 class="cp-sh" style="font-size:14px;margin-bottom:6px">Paste ChatGPT&rsquo;s result</h3>
-    <form method="POST">
-      <input type="hidden" name="action" value="import_enrichment">
-      <input type="hidden" name="tab"    value="research">
-      <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'enrichment_results','result')">📋 Paste &amp; Import &mdash; one tap</button>
-      <div class="cp-paste-note" hidden></div>
-      <textarea name="result_json" class="cp-textarea" rows="6"
-                placeholder='{"enrichment_results":[...]}'></textarea>
-      <button type="submit" class="cp-btn" style="margin-top:8px">Import enrichment data</button>
-    </form>
-  </section>
   <?php endif; ?>
 
   <!-- ── Audit Tools (collapsed) ─────────────────────────────────────────── -->
@@ -1467,6 +1472,175 @@ if (!empty($unresearched)) {
 </div><!-- /cpDash -->
 
 <script>
+var HO_PROMPTS = <?= json_encode($hoPrompts ?? [], JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+var hoStep = 0;
+
+function hoGoStep(n) {
+  hoStep = n;
+  hoRenderStep();
+}
+
+function hoRenderStep() {
+  if (!HO_PROMPTS.length) return;
+  var p   = HO_PROMPTS[hoStep];
+  var tot = HO_PROMPTS.length;
+  var lbl  = document.getElementById('hoStepLabel');
+  var desc = document.getElementById('hoStepDesc');
+  var pre  = document.getElementById('hoPrompt');
+  var gpt  = document.getElementById('hoGptLink');
+  var act  = document.getElementById('hoImportAction');
+  var btn  = document.getElementById('hoPasteBtn');
+  var note = document.getElementById('hoPasteNote');
+  var ta   = document.getElementById('hoResult');
+  var dots = document.querySelectorAll('.cp-step-dot');
+  if (lbl)  lbl.textContent  = tot > 1 ? 'Step ' + (hoStep + 1) + ' of ' + tot : p.label;
+  if (desc) desc.textContent = p.step;
+  if (pre)  pre.textContent  = p.prompt;
+  if (gpt) {
+    if (p.gptUrl) { gpt.href = p.gptUrl; gpt.hidden = false; }
+    else          { gpt.hidden = true; }
+  }
+  if (act) act.value = p.action;
+  if (btn) {
+    btn.setAttribute('data-key', p.key);
+    btn.setAttribute('data-noun', p.noun);
+    btn.disabled = false;
+    btn.textContent = '📋 Paste & Import — one tap';
+  }
+  if (note) { note.hidden = true; note.textContent = ''; }
+  if (ta)   ta.value = '';
+  dots.forEach(function(d, i) { d.classList.toggle('is-active', i === hoStep); });
+}
+
+function hoDoStep(btn) {
+  var el = document.getElementById('hoPrompt');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(function() {
+      btn.textContent = orig;
+      if (hoStep + 1 < HO_PROMPTS.length) { hoStep++; hoRenderStep(); }
+    }, 1500);
+  }).catch(function() {
+    var orig = btn.textContent;
+    btn.textContent = 'Select all → copy';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  });
+}
+
+async function hoPaste(btn) {
+  var form = document.getElementById('hoImportForm');
+  var ta   = document.getElementById('hoResult');
+  var note = document.getElementById('hoPasteNote');
+  if (!form || !ta || !note) return;
+  note.hidden = true;
+
+  var txt;
+  try { txt = await navigator.clipboard.readText(); }
+  catch (e) {
+    note.textContent = 'Clipboard unavailable — paste manually below, then tap Import.';
+    note.style.color = '#a33327'; note.hidden = false; ta.focus(); return;
+  }
+  txt = (txt || '').trim();
+  if (!txt) {
+    note.textContent = 'Clipboard is empty — copy ChatGPT’s reply first.';
+    note.style.color = '#a33327'; note.hidden = false; return;
+  }
+  ta.value = txt;
+
+  // Extraction: strip fences → find {…} → try […] → raw parse
+  var clean = txt.replace(/```[a-zA-Z]*\n?/g, '').trim();
+  var parsed = null;
+  var a = clean.indexOf('{'), b = clean.lastIndexOf('}');
+  if (a !== -1 && b > a) { try { parsed = JSON.parse(clean.slice(a, b + 1)); } catch (e) {} }
+  if (!parsed) {
+    var a2 = clean.indexOf('['), b2 = clean.lastIndexOf(']');
+    if (a2 !== -1 && b2 > a2) { try { parsed = {_arr: JSON.parse(clean.slice(a2, b2 + 1))}; } catch (e) {} }
+  }
+  if (!parsed) { try { parsed = JSON.parse(clean); } catch (e) {} }
+
+  // Key detection: expected key first, then auto-detect any known key
+  var expectedKey = btn.getAttribute('data-key');
+  var noun        = btn.getAttribute('data-noun');
+  var knownKeys   = {
+    'research_results':  'import_research',
+    'contacts':          'import_contact_research',
+    'enrichment_results':'import_enrichment',
+    'candidates':        'import_sourcing'
+  };
+  var n = null, detectedAction = null;
+
+  if (parsed) {
+    if (Array.isArray(parsed[expectedKey])) {
+      n = parsed[expectedKey].length;
+      detectedAction = knownKeys[expectedKey] || document.getElementById('hoImportAction').value;
+    } else if (parsed._arr && Array.isArray(parsed._arr)) {
+      n = parsed._arr.length;
+      detectedAction = document.getElementById('hoImportAction').value;
+      ta.value = JSON.stringify({[expectedKey]: parsed._arr});
+    } else {
+      for (var k in knownKeys) {
+        if (Array.isArray(parsed[k])) {
+          n = parsed[k].length; detectedAction = knownKeys[k]; break;
+        }
+      }
+    }
+  }
+
+  if (n !== null && detectedAction) {
+    document.getElementById('hoImportAction').value = detectedAction;
+    note.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' found — importing…';
+    note.style.color = '#2a7a35'; note.hidden = false;
+    btn.disabled = true;
+    btn.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' — importing…';
+    setTimeout(function() { form.submit(); }, 900);
+  } else if (parsed) {
+    note.textContent = 'JSON found, but no recognized data key — review below, then tap Import.';
+    note.style.color = '#a33327'; note.hidden = false;
+  } else {
+    note.textContent = 'Pasted — couldn’t parse JSON automatically. If it looks right, tap Import.';
+    note.style.color = '#c49000'; note.hidden = false;
+  }
+}
+
+// Legacy form-level paste used by source tab
+async function hoPasteImport(btn, key, noun) {
+  var form = btn.closest('form');
+  var ta   = form ? form.querySelector('textarea[name="result_json"]') : null;
+  var note = form ? form.querySelector('.cp-paste-note') : null;
+  function say(msg, ok) {
+    if (!note) return;
+    note.hidden = false; note.textContent = msg;
+    note.style.color = ok ? '#2a7a35' : (ok === null ? '#c49000' : '#a33327');
+  }
+  var txt = '';
+  try { txt = await navigator.clipboard.readText(); }
+  catch (e) { say('Clipboard unavailable — paste manually below.', false); if (ta) ta.focus(); return; }
+  txt = (txt || '').trim();
+  if (!txt) { say('Clipboard is empty — copy ChatGPT’s reply first.', false); return; }
+  if (ta) ta.value = txt;
+  var clean = txt.replace(/```[a-zA-Z]*\n?/g, '').trim();
+  var parsed = null;
+  var a = clean.indexOf('{'), b = clean.lastIndexOf('}');
+  if (a !== -1 && b > a) { try { parsed = JSON.parse(clean.slice(a, b + 1)); } catch (e) {} }
+  if (!parsed) {
+    var a2 = clean.indexOf('['), b2 = clean.lastIndexOf(']');
+    if (a2 !== -1 && b2 > a2) { try { parsed = {[key]: JSON.parse(clean.slice(a2, b2 + 1))}; } catch (e) {} }
+  }
+  var n = null;
+  if (parsed) {
+    if (Array.isArray(parsed[key])) n = parsed[key].length;
+    else if (Array.isArray(parsed)) n = parsed.length;
+  }
+  if (n === null) { say('Pasted — tap Import when ready.', null); return; }
+  if (n === 0)    { say('Pasted, but found 0 ' + noun + 's — check below.', false); return; }
+  say('✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' found — importing…', true);
+  btn.disabled = true;
+  btn.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' — importing…';
+  form.submit();
+}
+
 function doCopy(id, btn) {
   var el = document.getElementById(id);
   if (!el) return;
@@ -1475,57 +1649,6 @@ function doCopy(id, btn) {
     btn.textContent = 'Copied!';
     setTimeout(function(){ btn.textContent = orig; }, 2000);
   });
-}
-
-// One-tap import: read clipboard, find the JSON in GPT's reply (strips code
-// fences and chatter), validate, report the count, fill the form, submit.
-async function hoPasteImport(btn, key, noun) {
-  var form = btn.closest('form');
-  var ta   = form.querySelector('textarea[name="result_json"]');
-  var note = form.querySelector('.cp-paste-note');
-  function say(msg, ok) {
-    if (!note) return;
-    note.hidden = false;
-    note.textContent = msg;
-    note.style.color = ok ? '#2a7a35' : '#a33327';
-  }
-  var txt = '';
-  try { txt = await navigator.clipboard.readText(); }
-  catch (e) {
-    say('Couldn’t read the clipboard — paste manually below, then tap Import.', false);
-    if (ta) ta.focus();
-    return;
-  }
-  txt = (txt || '').trim();
-  if (!txt) { say('Clipboard is empty — copy ChatGPT’s reply first.', false); return; }
-  if (ta) ta.value = txt;
-
-  // Best-effort extraction: drop ``` fences, then take the outermost {...} or [...]
-  var clean = txt.replace(/```[a-zA-Z]*\n?/g, '').trim();
-  var parsed = null;
-  var a = clean.indexOf('{'), b = clean.lastIndexOf('}');
-  if (a !== -1 && b > a) { try { parsed = JSON.parse(clean.slice(a, b + 1)); } catch (e) {} }
-  if (!parsed) {
-    var a2 = clean.indexOf('['), b2 = clean.lastIndexOf(']');
-    if (a2 !== -1 && b2 > a2) { try { parsed = JSON.parse(clean.slice(a2, b2 + 1)); } catch (e) {} }
-  }
-  var n = null;
-  if (parsed) {
-    if (Array.isArray(parsed)) n = parsed.length;
-    else if (Array.isArray(parsed[key])) n = parsed[key].length;
-  }
-  if (n === null) {
-    say('Pasted below, but it doesn’t look like valid JSON — check it, then tap Import.', false);
-    return;
-  }
-  if (n === 0) {
-    say('Pasted, but found 0 ' + noun + 's — check below before importing.', false);
-    return;
-  }
-  say('✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' found — importing…', true);
-  btn.disabled = true;
-  btn.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' — importing…';
-  form.submit();
 }
 function applyFilters() {
   var cat    = document.getElementById('filterCat')    ? document.getElementById('filterCat').value    : '';
