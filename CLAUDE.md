@@ -255,6 +255,30 @@ too. If keeping the old leads instead, backfill right after the ALTER:
 UPDATE businesses SET triaged = 1 WHERE pipeline_status = 'identified';
 ```
 
+## GPT auto-import (2026-06-10)
+
+The copy/paste return trip choked on big JSON replies. Three return paths
+now exist, best first:
+
+1. **Action POST (zero-touch)** — `gpt-import.php`: key-authed endpoint
+   (X-Api-Key / Bearer / ?key= vs `app_settings.gpt_import_key`, hash_equals).
+   Detects payload by top-level key (research_results / contacts /
+   enrichment_results / candidates) and calls the matching importer.
+   Sourcing requires top-level `run_id` — now embedded in the sourcing
+   prompt (`ho_generate_sourcing_prompt(..., int $runId = 0)`).
+   Setup UI lives in Research tab → "⚙ Auto-import setup": SQL, key
+   generator (`save_setting` action), GPT instructions + OpenAPI schema to
+   paste into a Custom GPT. Saved `gpt_actions_url` redirects every
+   "Ask ChatGPT" deep link to that GPT.
+2. **File upload** — "Import a results.json file" button reads the file
+   client-side (FileReader → `hoIngest()`, shared with paste) — no giant
+   clipboard. Prompts now tell GPT to also save results.json when long.
+3. **Paste** — unchanged fallback (`hoPaste` → `hoIngest`).
+
+Migration: `CREATE TABLE IF NOT EXISTS app_settings (setting_key VARCHAR(60)
+PRIMARY KEY, setting_value TEXT);`
+Helpers: `ho_get_setting()` / `ho_set_setting()` (graceful pre-migration).
+
 ## Data-quality gates (2026-06-10)
 
 Bad leads were entering at sourcing and wasting research cycles. Three gates

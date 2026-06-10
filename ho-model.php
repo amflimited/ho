@@ -226,6 +226,31 @@ function ho_get_known_business_names(PDO $pdo, int $categoryId, string $area): a
     return array_column($s->fetchAll(), 'business_name');
 }
 
+// ─── App settings (key/value, table: app_settings) ───────────────────────────
+
+function ho_get_setting(PDO $pdo, string $key): string {
+    try {
+        $s = $pdo->prepare("SELECT setting_value FROM app_settings WHERE setting_key = ?");
+        $s->execute([$key]);
+        $v = $s->fetchColumn();
+        return $v === false ? '' : (string)$v;
+    } catch (PDOException) {
+        return ''; // table not migrated yet
+    }
+}
+
+function ho_set_setting(PDO $pdo, string $key, string $value): bool {
+    try {
+        $pdo->prepare("
+            INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+        ")->execute([$key, $value]);
+        return true;
+    } catch (PDOException) {
+        return false;
+    }
+}
+
 function ho_create_source_run(PDO $pdo, int $categoryId, string $area, int $count): int {
     $s = $pdo->prepare("
         INSERT INTO source_runs (run_uid, category_id, area_query, target_count, status)
@@ -235,8 +260,10 @@ function ho_create_source_run(PDO $pdo, int $categoryId, string $area, int $coun
     return (int)$pdo->lastInsertId();
 }
 
-function ho_generate_sourcing_prompt(array $category, string $area, int $count, array $exclusions): string {
+function ho_generate_sourcing_prompt(array $category, string $area, int $count, array $exclusions, int $runId = 0): string {
     $name    = $category['name'];
+    $runLine = $runId > 0 ? "\n  \"run_id\": {$runId}," : '';
+    $runRule = $runId > 0 ? "\n- run_id: include exactly as shown above — it routes this batch on import" : '';
     $exclude = count($exclusions) > 0
         ? "\n\nDo not return any of these businesses (already in the database):\n" . implode("\n", array_map(fn($n) => "- $n", $exclusions))
         : '';
@@ -260,7 +287,7 @@ VERIFICATION REQUIREMENTS — these matter more than the count:
 
 Return ONLY valid JSON, no explanation, no markdown:
 
-{
+{{$runLine}
   "candidates": [
     {
       "raw_name": "Full Business Name",
@@ -280,7 +307,10 @@ Return ONLY valid JSON, no explanation, no markdown:
 confidence rules:
 - "high" — you saw a live listing/page/site that names this business in this city
 - "medium" — strong indirect evidence (e.g. recent reviews mention them) but no primary listing
-- "low" — uncertain. Do NOT include low-confidence businesses at all — leave them out.{$exclude}
+- "low" — uncertain. Do NOT include low-confidence businesses at all — leave them out.{$runRule}
+
+DELIVERY:
+- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.{$exclude}
 PROMPT;
 }
 
@@ -808,6 +838,10 @@ AI ASSESSMENT:
 - strengths: specific things working in their favor (strong reviews, active Facebook, area reputation, etc.)
 - gaps: specific things missing or broken (no website, no contact form, inactive social, paying Angi, etc.)
 - recommended_package: "standard" ($499 site build) | "managed" ($999, businesses that need ongoing content)
+
+DELIVERY:
+- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.
+- Otherwise, ALSO save the complete JSON as a downloadable file named results.json — long replies are easier to import as a file than copied from chat.
 PROMPT;
 }
 
@@ -1997,6 +2031,7 @@ Rules:
 - Only include information you are confident is current and accurate
 - website_confidence: "high" if URL found on official source (Google Business, verified directory, the site itself names the business); "medium" if found via search and seems right; "low" if guessed, inferred from name, or uncertain — use empty string for website_url if low
 - Return ONLY valid JSON, no explanation, no markdown fences.
+- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.
 PROMPT;
 }
 
@@ -2785,6 +2820,10 @@ Rules:
 - has_service_guarantee: true if they offer a satisfaction guarantee or warranty
 - target_customer_type: "residential" | "commercial" | "both" | "unknown"
 - owner_age_band: "under35" | "35-55" | "55plus" | "unknown"
+
+DELIVERY:
+- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.
+- Otherwise, ALSO save the complete JSON as a downloadable file named results.json — long replies are easier to import as a file than copied from chat.
 PROMPT;
 }
 

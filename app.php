@@ -183,6 +183,20 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=research&flash=' . urlencode("Re-routed {$reRouted} decent-site lead(s) to the enhancement track."));
                 exit;
 
+            case 'save_setting':
+                $allowedKeys = ['gpt_actions_url', 'gpt_import_key'];
+                $sKey = trim((string)($_POST['setting_key'] ?? ''));
+                $sVal = trim((string)($_POST['setting_value'] ?? ''));
+                if (!in_array($sKey, $allowedKeys, true)) throw new RuntimeException('Unknown setting.');
+                if ($sKey === 'gpt_import_key' && $sVal === 'generate') {
+                    $sVal = bin2hex(random_bytes(24));
+                }
+                if (!ho_set_setting($pdo, $sKey, $sVal)) {
+                    throw new RuntimeException('Could not save — run the app_settings CREATE TABLE migration first.');
+                }
+                header('Location: ?tab=research&flash=' . urlencode('Setting saved.'));
+                exit;
+
             case 'requeue_no_contact':
                 ho_requeue_no_contact_leads($pdo);
                 $requeuedCount = ho_count_no_contact_ready($pdo); // should be 0 now
@@ -200,7 +214,9 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // already typed into the composer (universal link ?q=). Falls back to copy-only
 // guidance when the encoded prompt exceeds a safe URL length.
 function cp_gpt_row(string $prompt): string {
-    $url = 'https://chatgpt.com/?hints=search&q=' . rawurlencode($prompt);
+    global $gptActionsUrl;
+    $base = !empty($gptActionsUrl) ? rtrim($gptActionsUrl, '/') . '?q=' : 'https://chatgpt.com/?hints=search&q=';
+    $url  = $base . rawurlencode($prompt);
     if (strlen($url) > 30000) {
         return '<p class="cp-hint" style="margin-top:6px">This batch is too big for one-tap send &mdash; tap Copy, then paste into ChatGPT.</p>';
     }
@@ -247,6 +263,8 @@ $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $websiteReviewBatch = $pdo ? ho_get_website_review_batch($pdo) : [];
 $triageBatch        = $pdo ? ho_get_triage_batch($pdo) : [];
+$gptImportKey       = $pdo ? ho_get_setting($pdo, 'gpt_import_key') : '';
+$gptActionsUrl      = $pdo ? ho_get_setting($pdo, 'gpt_actions_url') : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 38) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
@@ -327,7 +345,7 @@ if ($runId > 0 && $pdo) {
     if ($activeRun) {
         $catForPrompt = ['name' => $activeRun['cat_name'], 'typical_services' => $activeRun['typical_services']];
         $exclusions   = ho_get_known_business_names($pdo, (int)$activeRun['category_id'], (string)$activeRun['area_query']);
-        $sourcePrompt = ho_generate_sourcing_prompt($catForPrompt, (string)$activeRun['area_query'], (int)$activeRun['target_count'], $exclusions);
+        $sourcePrompt = ho_generate_sourcing_prompt($catForPrompt, (string)$activeRun['area_query'], (int)$activeRun['target_count'], $exclusions, $runId);
     }
 }
 
@@ -683,7 +701,11 @@ if (!empty($unresearched)) {
   <?php
   // ─── Build unified prompt sequence ────────────────────────────────────────
   $hoPrompts = [];
-  $gptBase   = 'https://chatgpt.com/?hints=search&q=';
+  // When a Custom GPT with the import action is configured, deep-link to it —
+  // results then POST straight back into the pipeline, no copy/paste return.
+  $gptBase   = $gptActionsUrl !== ''
+      ? rtrim($gptActionsUrl, '/') . '?q='
+      : 'https://chatgpt.com/?hints=search&q=';
 
   if (!empty($unresearched) && $researchPrompt !== '') {
       $staleCount = count(array_filter($unresearched, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
@@ -761,6 +783,8 @@ if (!empty($unresearched)) {
               data-key="<?= ho_h($hoPrompts[0]['key']) ?>"
               data-noun="<?= ho_h($hoPrompts[0]['noun']) ?>"
               onclick="hoPaste(this)">&#x1F4CB; Paste &amp; Import &mdash; one tap</button>
+      <input type="file" id="hoFile" accept=".json,.txt,text/plain,application/json" hidden onchange="hoFileImport(this)">
+      <button type="button" class="cp-paste-btn cp-paste-btn-alt" onclick="document.getElementById('hoFile').click()">&#x1F4C1; Import a results.json file</button>
       <p id="hoPasteNote" class="cp-paste-note" hidden></p>
       <textarea id="hoResult" class="cp-textarea" name="result_json" rows="6"
                 placeholder="Paste ChatGPT&#x2019;s response here&#x2026;"></textarea>
@@ -1022,6 +1046,81 @@ if (!empty($unresearched)) {
     </div>
   </section>
   <?php endif; ?>
+
+  <!-- ── AUTO-IMPORT SETUP (one-time) ─────────────────────────────────────── -->
+  <section class="cp-section">
+    <details>
+      <summary class="cp-btn-outline" style="width:100%">⚙ Auto-import setup — results POST straight back, no copy/paste<?= $gptImportKey !== '' && $gptActionsUrl !== '' ? ' ✓' : '' ?></summary>
+      <div style="padding-top:12px">
+        <p class="cp-hint">One-time setup: a Custom GPT with an Action sends results directly into the pipeline the moment it finishes. After this, "Ask ChatGPT" → results just appear here.</p>
+
+        <h3 class="cp-sh" style="font-size:13px">1 &middot; Run once in phpMyAdmin</h3>
+        <div class="cp-prompt-box">
+          <pre class="cp-prompt" id="setupSql" style="max-height:120px">CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key   VARCHAR(60) PRIMARY KEY,
+  setting_value TEXT
+);</pre>
+          <button class="cp-copy" type="button" onclick="doCopy('setupSql', this)">Copy</button>
+        </div>
+
+        <h3 class="cp-sh" style="font-size:13px">2 &middot; API key</h3>
+        <?php if ($gptImportKey !== ''): ?>
+          <div class="cp-prompt-box">
+            <pre class="cp-prompt" id="setupKey" style="max-height:60px"><?= ho_h($gptImportKey) ?></pre>
+            <button class="cp-copy" type="button" onclick="doCopy('setupKey', this)">Copy</button>
+          </div>
+          <p class="cp-hint">In the GPT builder: Actions → Authentication → <strong>API Key</strong> → Auth Type <strong>Custom</strong> → header name <code>X-Api-Key</code> → paste this key.</p>
+        <?php else: ?>
+          <form method="POST" style="margin:0 0 10px">
+            <input type="hidden" name="action" value="save_setting">
+            <input type="hidden" name="setting_key" value="gpt_import_key">
+            <input type="hidden" name="setting_value" value="generate">
+            <button class="cp-btn-primary" type="submit" style="margin-top:0">Generate API key</button>
+          </form>
+        <?php endif; ?>
+
+        <h3 class="cp-sh" style="font-size:13px">3 &middot; Create the GPT (chatgpt.com &rarr; Explore GPTs &rarr; Create)</h3>
+        <p class="cp-hint">Paste this into the GPT&rsquo;s <strong>Instructions</strong>:</p>
+        <div class="cp-prompt-box">
+          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are the research engine for Hoosier Online, which builds websites for small Indiana service businesses. The user pastes a research, sourcing, contact, or enrichment prompt. Follow that prompt exactly and compile the JSON it specifies. Use web search to verify everything — never invent businesses, URLs, reviews, or contact info; empty strings beat guesses.
+
+When the JSON is complete, ALWAYS call the importResults action with the full JSON object as the request body, then give the user a one-line summary of the response (how many imported, any errors). If the action call fails, show the error and print the complete JSON in a code block as a fallback so it can be imported manually.</pre>
+          <button class="cp-copy" type="button" onclick="doCopy('setupInstr', this)">Copy</button>
+        </div>
+        <p class="cp-hint">Then Actions &rarr; <strong>Create new action</strong> &rarr; paste this schema:</p>
+        <div class="cp-prompt-box">
+          <pre class="cp-prompt" id="setupSchema" style="max-height:150px">{
+  "openapi": "3.1.0",
+  "info": { "title": "Hoosier Online Import", "version": "1.0.0" },
+  "servers": [{ "url": "https://<?= ho_h($_SERVER['HTTP_HOST'] ?? 'hoosieronline.com') ?>" }],
+  "paths": {
+    "/gpt-import.php": {
+      "post": {
+        "operationId": "importResults",
+        "summary": "Import compiled research/sourcing/contact/enrichment JSON into the lead pipeline",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object" } } }
+        },
+        "responses": { "200": { "description": "Import summary" } }
+      }
+    }
+  }
+}</pre>
+          <button class="cp-copy" type="button" onclick="doCopy('setupSchema', this)">Copy</button>
+        </div>
+
+        <h3 class="cp-sh" style="font-size:13px">4 &middot; Paste your GPT&rsquo;s link here</h3>
+        <form method="POST" style="display:flex;gap:8px;margin:0">
+          <input type="hidden" name="action" value="save_setting">
+          <input type="hidden" name="setting_key" value="gpt_actions_url">
+          <input class="cp-input" type="url" name="setting_value" value="<?= ho_h($gptActionsUrl) ?>" placeholder="https://chatgpt.com/g/g-…">
+          <button class="cp-btn-ghost" type="submit">Save</button>
+        </form>
+        <p class="cp-hint" style="margin-top:6px">Once saved, every &ldquo;Ask ChatGPT&rdquo; button opens YOUR GPT — it researches, then imports by itself.</p>
+      </div>
+    </details>
+  </section>
 
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'send'): ?>
@@ -1730,10 +1829,9 @@ function hoDoStep(btn) {
 }
 
 async function hoPaste(btn) {
-  var form = document.getElementById('hoImportForm');
   var ta   = document.getElementById('hoResult');
   var note = document.getElementById('hoPasteNote');
-  if (!form || !ta || !note) return;
+  if (!ta || !note) return;
   note.hidden = true;
 
   var txt;
@@ -1747,6 +1845,28 @@ async function hoPaste(btn) {
     note.textContent = 'Clipboard is empty — copy ChatGPT’s reply first.';
     note.style.color = '#a33327'; note.hidden = false; return;
   }
+  hoIngest(txt, btn);
+}
+
+// File path: ChatGPT saves results.json → pick it from Files. Avoids the
+// giant-clipboard freeze entirely; same detection + auto-import as paste.
+function hoFileImport(input) {
+  var btn  = document.getElementById('hoPasteBtn');
+  var file = input.files && input.files[0];
+  if (!file || !btn) return;
+  var reader = new FileReader();
+  reader.onload = function() { hoIngest(String(reader.result || '').trim(), btn); };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// Shared ingest for paste + file: fill textarea, detect JSON type, auto-import.
+function hoIngest(txt, btn) {
+  var form = document.getElementById('hoImportForm');
+  var ta   = document.getElementById('hoResult');
+  var note = document.getElementById('hoPasteNote');
+  if (!form || !ta || !note) return;
+  note.hidden = true;
   ta.value = txt;
 
   // Extraction: strip fences → find {…} → try […] → raw parse
@@ -1799,7 +1919,7 @@ async function hoPaste(btn) {
     note.textContent = 'JSON found, but no recognized data key — review below, then tap Import.';
     note.style.color = '#a33327'; note.hidden = false;
   } else {
-    note.textContent = 'Pasted — couldn’t parse JSON automatically. If it looks right, tap Import.';
+    note.textContent = 'Loaded — couldn’t parse JSON automatically. If it looks right, tap Import.';
     note.style.color = '#c49000'; note.hidden = false;
   }
 }

@@ -235,6 +235,10 @@ a { color: inherit; }
 }
 .cp-paste-btn:active   { background: rgba(42, 122, 53, .08); }
 .cp-paste-btn:disabled { opacity: .75; cursor: default; }
+.cp-paste-btn-alt {
+  border-style: dashed; border-color: var(--border); color: var(--ink2);
+  font-size: 13px; padding: 9px 16px;
+}
 .cp-paste-note { font-size: 13px; font-weight: 700; margin: -2px 0 8px; }
 
 /* ── STEP NAVIGATION ─────────────────────────────────────────────────────── */
