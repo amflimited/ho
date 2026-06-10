@@ -47,8 +47,11 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $rawJson = trim((string)($_POST['result_json'] ?? ''));
                 if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
                 $result = ho_import_research_json($pdo, $rawJson);
-                $msg    = "Updated {$result['updated']} businesses.";
-                if (!empty($result['errors'])) $msg .= ' Issues: ' . implode('; ', $result['errors']);
+                $n = $result['updated'];
+                $msg = $n > 0
+                    ? "Researched {$n} " . ($n === 1 ? 'business' : 'businesses') . " — leads moved to Send tab (or excluded if no gaps found)."
+                    : "0 businesses updated — IDs or names may not have matched. Check errors below.";
+                if (!empty($result['errors'])) $msg .= ' Skipped: ' . implode('; ', array_slice($result['errors'], 0, 3));
                 header('Location: ?tab=research&flash=' . urlencode($msg));
                 exit;
 
@@ -263,9 +266,10 @@ $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $websiteReviewBatch = $pdo ? ho_get_website_review_batch($pdo) : [];
 $triageBatch        = $pdo ? ho_get_triage_batch($pdo) : [];
-$gptImportKey       = $pdo ? ho_get_setting($pdo, 'gpt_import_key') : '';
-$gptActionsUrl      = $pdo ? ho_get_setting($pdo, 'gpt_actions_url') : '';
-$lastImportAt       = $pdo ? ho_get_setting($pdo, 'last_import_at')  : '';
+$gptImportKey       = $pdo ? ho_get_setting($pdo, 'gpt_import_key')    : '';
+$gptActionsUrl      = $pdo ? ho_get_setting($pdo, 'gpt_actions_url')  : '';
+$lastImportAt       = $pdo ? ho_get_setting($pdo, 'last_import_at')   : '';
+$lastRequestLog     = $pdo ? ho_get_setting($pdo, 'last_request_log') : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 38) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
@@ -1091,9 +1095,14 @@ if (!empty($unresearched)) {
         <h3 class="cp-sh" style="font-size:13px">3 &middot; Create the GPT (chatgpt.com &rarr; Explore GPTs &rarr; Create)</h3>
         <p class="cp-hint">Paste this into the GPT&rsquo;s <strong>Instructions</strong>:</p>
         <div class="cp-prompt-box">
-          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are the research engine for Hoosier Online, which builds websites for small Indiana service businesses. The user will paste a research, sourcing, contact, or enrichment prompt. Follow that prompt exactly and compile the JSON it specifies. Use web search to verify everything — never invent data; empty strings beat guesses.
+          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are a data submission agent for Hoosier Online. The user pastes a task prompt. Research exactly as instructed using web search. Never invent data; empty strings beat guesses.
 
-You have one tool: importResults. Every time you finish compiling JSON, use it immediately — send the complete JSON object as the raw request body exactly as compiled, with its top-level key (research_results, contacts, enrichment_results, or candidates) intact. Do not decompose it into fields. After the tool responds, tell the user one line: how many records imported and any errors. Do not print the JSON unless the tool call explicitly fails with an error message.</pre>
+CRITICAL — your only output is to call the importResults tool. This is mandatory on every task, no exceptions:
+1. Research and compile the JSON specified in the prompt.
+2. Call importResults — send the complete JSON object as the raw body, top-level key intact (research_results / contacts / enrichment_results / candidates). Do not decompose it.
+3. After the tool responds, output one line only: the count from the response.
+
+Do not print JSON in the chat. Do not explain your work. Do not ask questions. The tool call IS your response.</pre>
           <button class="cp-copy" type="button" onclick="doCopy('setupInstr', this)">Copy</button>
         </div>
         <p class="cp-hint">Then Actions &rarr; <strong>Create new action</strong> &rarr; paste this schema:</p>
@@ -1106,6 +1115,7 @@ You have one tool: importResults. Every time you finish compiling JSON, use it i
     "/gpt-import.php": {
       "post": {
         "operationId": "importResults",
+        "x-openai-isConsequential": false,
         "summary": "Import research/sourcing/contact/enrichment JSON into the lead pipeline",
         "requestBody": {
           "required": true,
@@ -1142,9 +1152,15 @@ You have one tool: importResults. Every time you finish compiling JSON, use it i
           <span id="gptTestResult" style="font-size:12px"></span>
         </div>
         <?php if ($lastImportAt !== ''): ?>
-        <p class="cp-hint" style="margin-top:6px">Last auto-import: <strong><?= ho_h($lastImportAt) ?></strong></p>
+        <p class="cp-hint" style="margin-top:6px">Last successful import: <strong><?= ho_h($lastImportAt) ?></strong></p>
+        <?php endif; ?>
+        <?php if ($lastRequestLog !== ''): ?>
+        <div style="margin-top:8px">
+          <p class="cp-hint" style="margin-bottom:4px">Recent endpoint activity (newest first):</p>
+          <pre style="font-size:11px;background:#f5f5f5;padding:8px;border-radius:4px;overflow:auto;max-height:120px;white-space:pre-wrap"><?= ho_h($lastRequestLog) ?></pre>
+        </div>
         <?php else: ?>
-        <p class="cp-hint" style="margin-top:6px;color:#999">No auto-imports recorded yet &mdash; use the test button to verify the endpoint.</p>
+        <p class="cp-hint" style="margin-top:6px;color:#999">No endpoint activity yet &mdash; use Test endpoint to verify, or check your GPT&rsquo;s Action authentication settings.</p>
         <?php endif; ?>
         <?php endif; ?>
       </div>

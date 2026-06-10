@@ -34,6 +34,16 @@ function gi_log(PDO $pdo, string $type, int $count): void {
     } catch (\Throwable $e) {}
 }
 
+function gi_log_attempt(PDO $pdo, int $httpCode, string $detail): void {
+    try {
+        $entry = date('Y-m-d H:i:s') . ' HTTP ' . $httpCode . ' — ' . $detail;
+        $prev  = ho_get_setting($pdo, 'last_request_log');
+        $lines = $prev !== '' ? explode("\n", $prev) : [];
+        array_unshift($lines, $entry);
+        ho_set_setting($pdo, 'last_request_log', implode("\n", array_slice($lines, 0, 10)));
+    } catch (\Throwable $e) {}
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     gi_out(405, ['ok' => false, 'error' => 'POST only.']);
 }
@@ -55,6 +65,7 @@ if ($givenKey === '' && preg_match('/^Bearer\s+(.+)$/i', (string)($_SERVER['HTTP
 }
 if ($givenKey === '') $givenKey = trim((string)($_GET['key'] ?? ''));
 if ($givenKey === '' || !hash_equals($configuredKey, $givenKey)) {
+    gi_log_attempt($pdo, 401, 'Bad key — given: ' . (strlen($givenKey) > 0 ? substr($givenKey, 0, 6) . '…' : 'none'));
     gi_out(401, ['ok' => false, 'error' => 'Invalid or missing API key.']);
 }
 
@@ -81,6 +92,7 @@ if (!isset($data['research_results']) && !isset($data['contacts'])
 // ── Dispatch by payload key ──────────────────────────────────────────────────
 try {
     if (isset($data['research_results'])) {
+        gi_log_attempt($pdo, 200, 'research — ' . count($data['research_results']) . ' entries received');
         $result = ho_import_research_json($pdo, json_encode($data));
         gi_log($pdo, 'research', $result['updated']);
         gi_out(200, [
@@ -91,6 +103,7 @@ try {
     }
 
     if (isset($data['contacts'])) {
+        gi_log_attempt($pdo, 200, 'contacts — ' . count($data['contacts']) . ' entries received');
         $result = ho_import_contact_json($pdo, json_encode($data));
         gi_log($pdo, 'contacts', $result['updated']);
         gi_out(200, [
@@ -101,6 +114,7 @@ try {
     }
 
     if (isset($data['enrichment_results'])) {
+        gi_log_attempt($pdo, 200, 'enrichment — ' . count($data['enrichment_results']) . ' entries received');
         $result = ho_import_enrichment_json($pdo, json_encode($data));
         gi_log($pdo, 'enrichment', $result['updated']);
         gi_out(200, [
