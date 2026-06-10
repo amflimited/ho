@@ -115,6 +115,11 @@ pitched → converted / not_a_fit / excluded
 - The two send-queue SELECTs (`ho_get_preview_ready`, `ho_get_enhancement_ready`)
   pull `review_quote_1/_author` + `competitor_google_rating/_review_count`,
   with a try/catch fallback so the Send tab survives a pending quote migration.
+- **Subject lines are hook-matched** (2026-06-10): each hook branch in both
+  message builders sets its own subject (quote author's name, competitor name,
+  review count, top gap…) so the inbox line and the email's first sentence
+  tell one story. `"A quick note for {name}"` survives only as the
+  no-signal fallback.
 
 ### Utilities
 - `ho_is_freemail(string $email): bool` — Detects Gmail/Yahoo/Hotmail/etc. + pattern catch.
