@@ -350,17 +350,40 @@ a { color: inherit; }
 }
 
 .cp-send-secondary {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap;
   padding: 0 12px 10px;
 }
+/* Compact inline actions share a row and wrap cleanly on narrow screens */
+.cp-send-secondary > .cp-btn-ghost,
+.cp-send-secondary > form:not(.cp-research-wrap):not(.cp-sent-wrap) {
+  flex: 1 1 auto; min-width: 0;
+}
+.cp-send-secondary .cp-btn-ghost {
+  font-size: 13px; padding: 8px 10px; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cp-send-secondary > form { display: flex; }
+.cp-send-secondary > form .cp-btn-ghost { width: 100%; }
+/* Disclosures (Research / Mark Sent) get their own full-width row — no overlap */
+.cp-send-secondary > .cp-research-wrap,
+.cp-send-secondary > .cp-sent-wrap { flex: 1 1 100%; }
 
 .cp-send-actions {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 12px 10px;
 }
 
-.cp-sent-wrap { flex: 1; }
 .cp-sent-wrap > summary { width: 100%; }
+
+/* ── Sent state (set instantly by markSent on a send-action tap) ──────────── */
+.cp-sent-flag {
+  font-family: var(--fn); font-size: 11px; font-weight: 900;
+  letter-spacing: .04em; color: var(--green);
+  background: #E4F0E6; padding: 3px 8px; border-radius: 4px;
+  margin-left: auto;
+}
+.cp-send-card.is-sent { opacity: .5; }
+.cp-send-card.is-sent .cp-btn-send { filter: grayscale(.4); }
 
 .cp-sent-form {
   display: flex; flex-direction: column; gap: 7px;

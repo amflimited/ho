@@ -190,13 +190,13 @@ if ($tab === '') $tab = $job;
 
 $categories    = $pdo ? ho_get_categories($pdo) : [];
 $resCatId      = (int)($_GET['research_cat_id'] ?? 0);
-$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 25, $resCatId) : [];
+$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 19, $resCatId) : [];
 $resCatCounts     = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $unresearched) : [];
-$needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 20) : [];
+$needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
-$enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 50) : [];
+$enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 38) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
 $enrichmentTotal  = 0;
 if ($pdo && !empty($enrichmentBatch)) {
@@ -414,7 +414,7 @@ if (!empty($unresearched)) {
           </select>
         </label>
         <label class="cp-label">Count
-          <input class="cp-input" type="number" name="count" value="25" min="5" max="50">
+          <input class="cp-input" type="number" name="count" value="19" min="5" max="50">
         </label>
         <button class="cp-btn-primary" type="submit">Generate Prompt</button>
       </form>
@@ -588,16 +588,8 @@ if (!empty($unresearched)) {
   <section class="cp-section" id="ho-prompt-stage">
     <div class="cp-step-nav">
       <span id="hoStepLabel" class="cp-step">
-        <?= count($hoPrompts) > 1 ? 'Step 1 of ' . count($hoPrompts) : ho_h($hoPrompts[0]['label']) ?>
+        <?= ho_h($hoPrompts[0]['label']) ?><?= count($hoPrompts) > 1 ? ' &middot; 1 of ' . count($hoPrompts) : '' ?>
       </span>
-      <?php if (count($hoPrompts) > 1): ?>
-      <div class="cp-step-dots">
-        <?php foreach ($hoPrompts as $pi => $hp): ?>
-        <button class="cp-step-dot<?= $pi === 0 ? ' is-active' : '' ?>" type="button"
-                onclick="hoGoStep(<?= $pi ?>)" title="<?= ho_h($hp['label']) ?>"></button>
-        <?php endforeach; ?>
-      </div>
-      <?php endif; ?>
     </div>
     <p id="hoStepDesc" class="cp-hint" style="margin-bottom:8px"><?= ho_h($hoPrompts[0]['step']) ?></p>
     <div class="cp-prompt-box">
@@ -605,7 +597,7 @@ if (!empty($unresearched)) {
       <button class="cp-copy" id="hoCopyBtn" type="button" onclick="hoDoStep(this)">Copy</button>
     </div>
     <?php if ($hoPrompts[0]['gptUrl'] !== ''): ?>
-    <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener">Ask ChatGPT &mdash; one tap, nothing to copy</a>
+    <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener" onclick="hoAfterGpt()">Ask ChatGPT &mdash; one tap, nothing to copy</a>
     <?php else: ?>
     <a id="hoGptLink" class="cp-gpt-btn" href="#" hidden>Ask ChatGPT</a>
     <p class="cp-hint" style="text-align:center;margin-top:4px">Batch too big for one-tap &mdash; use Copy above, then paste into ChatGPT.</p>
@@ -906,6 +898,16 @@ if (!empty($unresearched)) {
     <section class="cp-section">
       <?php $allSendable = array_merge($sendQueue, $enhancementQueue); ?>
       <div class="cp-send-filters">
+        <select class="cp-select" id="filterType" onchange="applyFilters()">
+          <option value="">All pitches</option>
+          <?php if (!empty($sendQueue)): ?><option value="build">New site builds</option><?php endif; ?>
+          <?php if (!empty($enhancementQueue)): ?><option value="enhance">Site enhancements</option><?php endif; ?>
+        </select>
+        <select class="cp-select" id="filterWebsite" onchange="applyFilters()">
+          <option value="">Website: any</option>
+          <option value="1">Has a website</option>
+          <option value="0">No website</option>
+        </select>
         <select class="cp-select" id="filterCat" onchange="applyFilters()">
           <option value="">All categories</option>
           <?php
@@ -972,7 +974,7 @@ if (!empty($unresearched)) {
             $gRating     = (float)($b['google_rating'] ?? 0);
             $fbActivity  = (string)($b['facebook_activity'] ?? '');
           ?>
-          <div class="cp-send-card <?= $accentCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+          <div class="cp-send-card <?= $accentCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite ? '1' : '0' ?>">
 
             <div class="cp-send-head">
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -990,25 +992,26 @@ if (!empty($unresearched)) {
                   <?php endif; ?>
                 </span>
               <?php endif; ?>
+              <span class="cp-sent-flag" hidden>✓ Sent</span>
             </div>
 
             <?php $pitchBody = ho_pitch_message($b, $previewUrl)['body']; $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb; ?>
             <div class="cp-send-primary">
               <?php if ($hasEmail): ?>
-                <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto($b, $previewUrl)) ?>">
+                <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto($b, $previewUrl)) ?>" data-to="<?= ho_h((string)$b['email_address']) ?>" onclick="markSent(this,'email')">
                   ✉&thinsp; Email <?= ho_h((string)$b['business_name']) ?>
                 </a>
               <?php elseif ($hasFb): ?>
-                <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">
+                <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener" data-to="<?= ho_h((string)$b['facebook_url']) ?>" onclick="markSent(this,'facebook_dm')">
                   Message on Facebook →
                 </a>
               <?php elseif ($hasSiteUrl): ?>
                 <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">
                   Contact via Website →
                 </a>
-                <button type="button" class="cp-btn-send cp-btn-send-copy" onclick="copyMessage(this)">⧉&thinsp; Copy the pitch to paste in their form</button>
+                <button type="button" class="cp-btn-send cp-btn-send-copy" data-to="<?= ho_h((string)$b['website_url']) ?>" onclick="copyMessage(this);markSent(this,'website_form')">⧉&thinsp; Copy the pitch to paste in their form</button>
               <?php elseif ($hasPhone): ?>
-                <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">
+                <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>" data-to="<?= ho_h((string)$b['phone_number']) ?>" onclick="markSent(this,'phone')">
                   Call <?= ho_h((string)$b['phone_number']) ?>
                 </a>
               <?php else: ?>
@@ -1086,20 +1089,22 @@ if (!empty($unresearched)) {
             $hasPhone   = (string)$b['phone_number'] !== '';
             $method     = (string)$b['best_contact_method'];
             $accentCls2 = $hasFb ? 'cp-send-card-fb' : ($hasPhone ? 'cp-send-card-phone' : 'cp-send-card-none');
+            $hasSite2   = (bool)($b['has_website'] ?? false);
           ?>
-            <div class="cp-send-card <?= $accentCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+            <div class="cp-send-card <?= $accentCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite2 ? '1' : '0' ?>">
               <div class="cp-send-head">
                 <strong><?= ho_h((string)$b['business_name']) ?></strong>
                 <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
               </div>
               <div class="cp-card-badges">
                 <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
+                <span class="cp-sent-flag" hidden>✓ Sent</span>
               </div>
               <div class="cp-send-primary">
                 <?php if ($hasFb): ?>
-                  <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">Message on Facebook →</a>
+                  <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener" data-to="<?= ho_h((string)$b['facebook_url']) ?>" onclick="markSent(this,'facebook_dm')">Message on Facebook →</a>
                 <?php elseif ($hasPhone): ?>
-                  <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">Call <?= ho_h((string)$b['phone_number']) ?></a>
+                  <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>" data-to="<?= ho_h((string)$b['phone_number']) ?>" onclick="markSent(this,'phone')">Call <?= ho_h((string)$b['phone_number']) ?></a>
                 <?php endif; ?>
               </div>
               <div class="cp-send-secondary">
@@ -1155,7 +1160,7 @@ if (!empty($unresearched)) {
             $method     = (string)$b['best_contact_method'];
             $eGaps      = (array)$b['enhancement_gaps'];
         ?>
-          <div class="cp-send-card cp-send-card-enhance" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>">
+          <div class="cp-send-card cp-send-card-enhance" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="enhance" data-haswebsite="1">
 
             <div class="cp-send-head">
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -1165,6 +1170,7 @@ if (!empty($unresearched)) {
                   &middot; <strong>$<?= number_format((float)$b['bundle_total']) ?> bundle</strong>
                 <?php endif; ?>
               </span>
+              <span class="cp-sent-flag" hidden>✓ Sent</span>
             </div>
 
             <?php if (!empty($eGaps)): ?>
@@ -1178,16 +1184,16 @@ if (!empty($unresearched)) {
             <?php $pitchBody = ho_pitch_message_enhancement($b, $previewUrl)['body']; $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb; ?>
             <div class="cp-send-primary">
               <?php if ($hasEmail): ?>
-                <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto_enhancement($b, $previewUrl)) ?>">
+                <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto_enhancement($b, $previewUrl)) ?>" data-to="<?= ho_h((string)$b['email_address']) ?>" onclick="markSent(this,'email')">
                   ✉&thinsp; Email <?= ho_h((string)$b['business_name']) ?>
                 </a>
               <?php elseif ($hasFb): ?>
-                <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener">Message on Facebook →</a>
+                <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener" data-to="<?= ho_h((string)$b['facebook_url']) ?>" onclick="markSent(this,'facebook_dm')">Message on Facebook →</a>
               <?php elseif ($hasSiteUrl): ?>
                 <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">Contact via Website →</a>
-                <button type="button" class="cp-btn-send cp-btn-send-copy" onclick="copyMessage(this)">⧉&thinsp; Copy the pitch to paste in their form</button>
+                <button type="button" class="cp-btn-send cp-btn-send-copy" data-to="<?= ho_h((string)$b['website_url']) ?>" onclick="copyMessage(this);markSent(this,'website_form')">⧉&thinsp; Copy the pitch to paste in their form</button>
               <?php elseif ($hasPhone): ?>
-                <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>">Call <?= ho_h((string)$b['phone_number']) ?></a>
+                <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>" data-to="<?= ho_h((string)$b['phone_number']) ?>" onclick="markSent(this,'phone')">Call <?= ho_h((string)$b['phone_number']) ?></a>
               <?php else: ?>
                 <span class="cp-send-no-contact">No contact info on file</span>
               <?php endif; ?>
@@ -1488,6 +1494,13 @@ function hoGoStep(n) {
   hoRenderStep();
 }
 
+// Advance to the next queued prompt after the user opens ChatGPT.
+function hoAfterGpt() {
+  setTimeout(function() {
+    if (hoStep + 1 < HO_PROMPTS.length) { hoStep++; hoRenderStep(); }
+  }, 600);
+}
+
 function hoRenderStep() {
   if (!HO_PROMPTS.length) return;
   var p   = HO_PROMPTS[hoStep];
@@ -1500,8 +1513,7 @@ function hoRenderStep() {
   var btn  = document.getElementById('hoPasteBtn');
   var note = document.getElementById('hoPasteNote');
   var ta   = document.getElementById('hoResult');
-  var dots = document.querySelectorAll('.cp-step-dot');
-  if (lbl)  lbl.textContent  = tot > 1 ? 'Step ' + (hoStep + 1) + ' of ' + tot : p.label;
+  if (lbl)  lbl.textContent  = p.label + (tot > 1 ? ' · ' + (hoStep + 1) + ' of ' + tot : '');
   if (desc) desc.textContent = p.step;
   if (pre)  pre.textContent  = p.prompt;
   if (gpt) {
@@ -1517,7 +1529,6 @@ function hoRenderStep() {
   }
   if (note) { note.hidden = true; note.textContent = ''; }
   if (ta)   ta.value = '';
-  dots.forEach(function(d, i) { d.classList.toggle('is-active', i === hoStep); });
 }
 
 function hoDoStep(btn) {
@@ -1675,18 +1686,48 @@ function copyMessage(btn) {
   });
 }
 function applyFilters() {
-  var cat    = document.getElementById('filterCat')    ? document.getElementById('filterCat').value    : '';
-  var region = document.getElementById('filterRegion') ? document.getElementById('filterRegion').value : '';
+  var cat    = document.getElementById('filterCat')     ? document.getElementById('filterCat').value     : '';
+  var region = document.getElementById('filterRegion')  ? document.getElementById('filterRegion').value  : '';
+  var type   = document.getElementById('filterType')    ? document.getElementById('filterType').value    : '';
+  var web    = document.getElementById('filterWebsite') ? document.getElementById('filterWebsite').value : '';
   var cards  = document.querySelectorAll('#sendList .cp-send-card');
   var visible = 0;
   cards.forEach(function(card) {
     var show = (!cat    || card.dataset.cat    === cat) &&
-               (!region || card.dataset.region === region);
+               (!region || card.dataset.region === region) &&
+               (!type   || card.dataset.type   === type) &&
+               (web === '' || card.dataset.haswebsite === web);
     card.style.display = show ? '' : 'none';
     if (show) visible++;
   });
   var h = document.getElementById('sendCount');
   if (h) h.textContent = visible + ' ready to send';
+}
+
+// Fire-and-forget: clicking a primary send action records the lead as
+// reached out to, so it drops off the next time the queue loads.
+function markSent(el, via) {
+  var card = el.closest('.cp-send-card');
+  if (!card || card.classList.contains('is-sent')) return;
+  var biz = card.getAttribute('data-biz');
+  if (!biz) return;
+  var to = el.getAttribute('data-to') || '';
+  var body = 'action=mark_sent&tab=send'
+           + '&business_id=' + encodeURIComponent(biz)
+           + '&sent_via='    + encodeURIComponent(via)
+           + '&sent_to='     + encodeURIComponent(to);
+  try {
+    fetch(window.location.pathname, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body,
+      keepalive: true,
+      redirect: 'manual'
+    }).catch(function(){});
+  } catch (e) {}
+  card.classList.add('is-sent');
+  var flag = card.querySelector('.cp-sent-flag');
+  if (flag) flag.hidden = false;
 }
 function openDash() {
   var el = document.getElementById('cpDash');
