@@ -1805,6 +1805,28 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
 
 // ─── Needs-contact channel ────────────────────────────────────────────────────
 
+function ho_get_website_review_batch(PDO $pdo, int $limit = 60): array {
+    try {
+        $s = $pdo->prepare("
+            SELECT b.id, b.business_name, b.location_city, b.website_url,
+                   c.name AS category_name,
+                   r.has_website, r.website_quality
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            LEFT JOIN research_records r ON r.business_id = b.id
+            WHERE b.website_url != ''
+              AND b.website_verified = 0
+            ORDER BY b.updated_at DESC
+            LIMIT " . (int)$limit . "
+        ");
+        $s->execute([]);
+        return $s->fetchAll();
+    } catch (PDOException) {
+        // website_verified column not yet migrated
+        return [];
+    }
+}
+
 function ho_get_needs_contact_businesses(PDO $pdo, int $limit = 20): array {
     $s = $pdo->prepare("
         SELECT b.*, c.name AS category_name
@@ -1839,6 +1861,7 @@ Return ONLY valid JSON:
       "raw_name": "Exact business name from the list above",
       "email": "owner@example.com or empty string",
       "website_url": "Business's own website URL only — NOT Angi, Thumbtack, Yelp, HomeAdvisor, Houzz, Bark, or Porch profile pages. Empty string if no real owned website found.",
+      "website_confidence": "high",
       "phone": "10 digits or empty string",
       "notes": "where you found this, or empty string"
     }
@@ -1849,6 +1872,7 @@ Rules:
 - business_id: copy the [ID:N] number exactly from the list above for each business
 - Return an entry for every business — use empty strings if nothing is found
 - Only include information you are confident is current and accurate
+- website_confidence: "high" if URL found on official source (Google Business, verified directory, the site itself names the business); "medium" if found via search and seems right; "low" if guessed, inferred from name, or uncertain — use empty string for website_url if low
 - Return ONLY valid JSON, no explanation, no markdown fences.
 PROMPT;
 }
@@ -1867,9 +1891,12 @@ function ho_import_contact_json(PDO $pdo, string $rawJson): array {
 
         if ($name === '' && $bizId === 0) continue;
 
-        $email   = strtolower(trim((string)($c['email']       ?? '')));
-        $website = trim((string)($c['website_url'] ?? ''));
-        $phone   = ho_norm_phone((string)($c['phone'] ?? ''));
+        $email      = strtolower(trim((string)($c['email']            ?? '')));
+        $website    = trim((string)($c['website_url']      ?? ''));
+        $confidence = strtolower(trim((string)($c['website_confidence'] ?? 'medium')));
+        $phone      = ho_norm_phone((string)($c['phone'] ?? ''));
+        // 'low' confidence = don't store the URL at all
+        if ($confidence === 'low') $website = '';
 
         $bizRow = null;
 
@@ -1897,11 +1924,15 @@ function ho_import_contact_json(PDO $pdo, string $rawJson): array {
         $resolvedId = (int)$bizRow['id'];
         $fields = [];
         $params = [];
+        $storeWebsite = false;
+        $websiteVerified = 0;
         if ($email !== '') { $fields[] = 'email_address = ?'; $params[] = $email; }
         // Reject lead-platform URLs (Angi, Thumbtack, Yelp, etc.) — not contactable via those pages
         if ($website !== '' && !ho_is_lead_platform_url($website)) {
             $fields[] = 'website_url = ?';
             $params[] = $website;
+            $storeWebsite    = true;
+            $websiteVerified = ($confidence === 'high') ? 1 : 0;
         }
         if ($phone !== '') { $fields[] = 'phone_number = ?'; $params[] = $phone; }
 
@@ -1916,6 +1947,13 @@ function ho_import_contact_json(PDO $pdo, string $rawJson): array {
 
         $pdo->prepare("UPDATE businesses SET " . implode(', ', $fields) . " WHERE id = ?")
             ->execute($params);
+
+        if ($storeWebsite) {
+            try {
+                $pdo->prepare("UPDATE businesses SET website_verified = ? WHERE id = ?")
+                    ->execute([$websiteVerified, $resolvedId]);
+            } catch (PDOException) {} // column not yet migrated — safe to skip
+        }
 
         $updated++;
     }

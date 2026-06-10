@@ -114,6 +114,21 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=research&flash=' . urlencode($msg));
                 exit;
 
+            case 'verify_website':
+                $bizId = (int)($_POST['business_id'] ?? 0);
+                if ($bizId === 0) throw new RuntimeException('Business ID missing.');
+                $pdo->prepare("UPDATE businesses SET website_verified=1, updated_at=NOW() WHERE id=?")->execute([$bizId]);
+                header('Location: ?tab=research&flash=' . urlencode('Domain verified.'));
+                exit;
+
+            case 'clear_website':
+                $bizId = (int)($_POST['business_id'] ?? 0);
+                if ($bizId === 0) throw new RuntimeException('Business ID missing.');
+                $pdo->prepare("UPDATE businesses SET website_url='', website_verified=0, updated_at=NOW() WHERE id=?")->execute([$bizId]);
+                $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$bizId]);
+                header('Location: ?tab=research&flash=' . urlencode('Domain cleared.'));
+                exit;
+
             case 'audit_websites':
                 set_time_limit(180);
                 $result = ho_audit_and_fix_websites($pdo);
@@ -195,6 +210,7 @@ $resCatCounts     = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $unresearched) : [];
 $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
+$websiteReviewBatch = $pdo ? ho_get_website_review_batch($pdo) : [];
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 38) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
@@ -840,6 +856,38 @@ if (!empty($unresearched)) {
     <?php endif; ?>
 
   </details>
+  <?php endif; ?>
+
+  <?php if (!empty($websiteReviewBatch)): ?>
+  <section class="cp-section">
+    <h2 class="cp-sh" style="font-size:14px">Review website domains <span style="font-weight:400;font-size:12px;color:var(--ink2)"><?= count($websiteReviewBatch) ?> unverified</span></h2>
+    <p class="cp-hint">Each domain below came from AI research. Tap the URL to check it, then Keep or Clear.</p>
+    <div class="cp-domain-table">
+      <?php foreach ($websiteReviewBatch as $d): ?>
+      <div class="cp-domain-row" id="dr-<?= (int)$d['id'] ?>">
+        <div class="cp-domain-info">
+          <strong class="cp-domain-biz"><?= ho_h((string)$d['business_name']) ?></strong>
+          <span class="cp-domain-meta"><?= ho_h((string)($d['category_name'] ?? '')) ?> &middot; <?= ho_h((string)$d['location_city']) ?></span>
+          <a class="cp-domain-url" href="<?= ho_h((string)$d['website_url']) ?>" target="_blank" rel="noopener"><?= ho_h((string)$d['website_url']) ?></a>
+        </div>
+        <div class="cp-domain-actions">
+          <form method="POST" style="display:contents">
+            <input type="hidden" name="action" value="verify_website">
+            <input type="hidden" name="tab" value="research">
+            <input type="hidden" name="business_id" value="<?= (int)$d['id'] ?>">
+            <button type="submit" class="cp-btn-domain-keep" onclick="domainRowDone(<?= (int)$d['id'] ?>)">Keep ✓</button>
+          </form>
+          <form method="POST" style="display:contents" onsubmit="return domainRowDone(<?= (int)$d['id'] ?>)">
+            <input type="hidden" name="action" value="clear_website">
+            <input type="hidden" name="tab" value="research">
+            <input type="hidden" name="business_id" value="<?= (int)$d['id'] ?>">
+            <button type="submit" class="cp-btn-domain-clear">Clear ✗</button>
+          </form>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
   <?php endif; ?>
 
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
@@ -1729,6 +1777,12 @@ function markSent(el, via) {
   var flag = card.querySelector('.cp-sent-flag');
   if (flag) flag.hidden = false;
 }
+function domainRowDone(id) {
+  var row = document.getElementById('dr-' + id);
+  if (row) { row.style.opacity = '.35'; row.style.pointerEvents = 'none'; }
+  return true;
+}
+
 function openDash() {
   var el = document.getElementById('cpDash');
   if (el) { el.hidden = false; document.body.style.overflow = 'hidden'; }
