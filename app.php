@@ -1093,7 +1093,7 @@ if (!empty($unresearched)) {
         <div class="cp-prompt-box">
           <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are the research engine for Hoosier Online, which builds websites for small Indiana service businesses. The user pastes a research, sourcing, contact, or enrichment prompt. Follow that prompt exactly and compile the JSON it specifies. Use web search to verify everything — never invent businesses, URLs, reviews, or contact info; empty strings beat guesses.
 
-When the JSON is complete, ALWAYS call the importResults action with the full JSON object as the request body, then give the user a one-line summary of the response (how many imported, any errors). If the action call fails, show the error and print the complete JSON in a code block as a fallback so it can be imported manually.</pre>
+When the JSON is complete, call the importResults action. Send the ENTIRE JSON object as the raw request body exactly as you compiled it — do not restructure it, rename keys, or extract individual fields. The object will have a top-level key such as research_results, contacts, enrichment_results, or candidates. After calling the action, give the user a one-line summary of the response. If the action call fails, print the complete JSON in a code block so it can be imported manually.</pre>
           <button class="cp-copy" type="button" onclick="doCopy('setupInstr', this)">Copy</button>
         </div>
         <p class="cp-hint">Then Actions &rarr; <strong>Create new action</strong> &rarr; paste this schema:</p>
@@ -1106,20 +1106,18 @@ When the JSON is complete, ALWAYS call the importResults action with the full JS
     "/gpt-import.php": {
       "post": {
         "operationId": "importResults",
-        "summary": "Import compiled research/sourcing/contact/enrichment JSON into the lead pipeline",
+        "summary": "Import research/sourcing/contact/enrichment JSON into the lead pipeline",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": {
-            "type": "object",
-            "additionalProperties": true,
-            "properties": {
-              "run_id": { "type": "integer", "description": "Required for candidates payloads — copy from the sourcing prompt." },
-              "research_results":   { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-              "contacts":           { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-              "enrichment_results": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-              "candidates":         { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "The complete JSON object exactly as compiled — pass it as-is. Top-level key must be one of: research_results, contacts, enrichment_results, or candidates (plus run_id for candidates).",
+                "additionalProperties": true
+              }
             }
-          } } }
+          }
         },
         "responses": { "200": { "description": "Import summary" } }
       }
