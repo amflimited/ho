@@ -545,6 +545,12 @@ Return ONLY valid JSON — no markdown fences, no explanations. One entry per bu
       "gbp_photo_count": null,
       "responds_to_reviews": false,
       "last_review_date": "",
+      "review_quote_1": "",
+      "review_quote_1_author": "",
+      "review_quote_1_date": "",
+      "review_quote_2": "",
+      "review_quote_2_author": "",
+      "review_quote_2_date": "",
 
       "has_facebook": false,
       "facebook_activity": "none",
@@ -626,6 +632,9 @@ GOOGLE BUSINESS — set GBP sub-fields to null when has_google_business=false:
 - gbp_photo_count: approximate total photo count on GBP (integer or null if unknown)
 - responds_to_reviews: true if the owner visibly replies to Google reviews (even occasionally)
 - last_review_date: most recent Google review date as YYYY-MM. Empty string if unknown.
+- review_quote_1 / review_quote_2: VERBATIM text copied word-for-word from their two strongest Google reviews. Prefer quotes that name specific work, reliability, or the owner by name. Max 40 words each — trim to the best sentence(s), no paraphrasing, no leading ellipses. Empty string if no usable reviews.
+- review_quote_1_author / review_quote_2_author: that reviewer's first name only (e.g. "Linda"). Empty string if not visible.
+- review_quote_1_date / review_quote_2_date: that review's month as YYYY-MM. Empty string if unknown.
 
 FACEBOOK — set facebook sub-fields to null when has_facebook=false:
 - facebook_activity: "none" | "dormant" (no posts 3+ months) | "active" (posting regularly)
@@ -755,6 +764,15 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
         $targetCustType     = in_array($r['target_customer_type']  ?? '', $validCustType,   true) ? $r['target_customer_type']  : 'unknown';
 
         $lastReviewDate = substr(trim((string)($r['last_review_date'] ?? '')), 0, 20);
+        $reviewQuote = function (string $base) use ($r): array {
+            $text   = substr(trim((string)($r[$base] ?? '')), 0, 400);
+            $author = substr(trim((string)($r[$base . '_author'] ?? '')), 0, 60);
+            $date   = trim((string)($r[$base . '_date'] ?? ''));
+            if (!preg_match('/^\d{4}-\d{2}$/', $date)) $date = '';
+            return [$text, $author, $date];
+        };
+        [$q1, $q1Author, $q1Date] = $reviewQuote('review_quote_1');
+        [$q2, $q2Author, $q2Date] = $reviewQuote('review_quote_2');
         $yearsInBiz     = isset($r['years_in_business']) && $r['years_in_business'] !== null && is_numeric($r['years_in_business']) ? (int)$r['years_in_business'] : null;
         $gbpPhotos      = $nint('gbp_photo_count');
         $compName       = substr(trim((string)($r['competitor_name']    ?? '')), 0, 200);
@@ -776,6 +794,8 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
                has_google_business, google_review_count, google_rating, google_notes,
                has_gbp_posts, gbp_services_listed, gbp_hours_listed, gbp_photo_count,
                responds_to_reviews, last_review_date,
+               review_quote_1, review_quote_1_author, review_quote_1_date,
+               review_quote_2, review_quote_2_author, review_quote_2_date,
                has_facebook, facebook_activity, facebook_notes,
                facebook_page_type, facebook_last_post_months, facebook_follower_band, facebook_has_cta_button,
                has_instagram, instagram_activity,
@@ -794,7 +814,7 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
             VALUES
               (?,
                ?,?,?,  ?,?,?,?,  ?,?,?,?,  ?,?,?,?,
-               ?,?,?,?,  ?,?,?,?,  ?,?,
+               ?,?,?,?,  ?,?,?,?,  ?,?,  ?,?,?,?,?,?,
                ?,?,?,  ?,?,?,?,
                ?,?,  ?,?,?,
                ?,?,?,?,  ?,?,?,?,?,
@@ -818,6 +838,10 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
               has_gbp_posts=VALUES(has_gbp_posts), gbp_services_listed=VALUES(gbp_services_listed),
               gbp_hours_listed=VALUES(gbp_hours_listed), gbp_photo_count=VALUES(gbp_photo_count),
               responds_to_reviews=VALUES(responds_to_reviews), last_review_date=VALUES(last_review_date),
+              review_quote_1=VALUES(review_quote_1), review_quote_1_author=VALUES(review_quote_1_author),
+              review_quote_1_date=VALUES(review_quote_1_date),
+              review_quote_2=VALUES(review_quote_2), review_quote_2_author=VALUES(review_quote_2_author),
+              review_quote_2_date=VALUES(review_quote_2_date),
               has_facebook=VALUES(has_facebook), facebook_activity=VALUES(facebook_activity),
               facebook_notes=VALUES(facebook_notes), facebook_page_type=VALUES(facebook_page_type),
               facebook_last_post_months=VALUES(facebook_last_post_months),
@@ -860,6 +884,7 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
             (int)($r['has_google_business'] ?? 0), $reviews, $rating, substr(trim((string)($r['google_notes'] ?? '')), 0, 500),
             $nbool('has_gbp_posts'), $nbool('gbp_services_listed'), $nbool('gbp_hours_listed'), $gbpPhotos,
             (int)($r['responds_to_reviews'] ?? 0), $lastReviewDate,
+            $q1, $q1Author, $q1Date, $q2, $q2Author, $q2Date,
             // Facebook
             (int)($r['has_facebook'] ?? 0), $fbActivity, substr(trim((string)($r['facebook_notes'] ?? '')), 0, 500),
             $fbPageType, $nint('facebook_last_post_months'), $fbFollowerBand, $nbool('facebook_has_cta_button'),
@@ -1019,6 +1044,45 @@ function ho_seasonal_urgency_note(string $catSlug): string {
         if ($nearest === 2) return "Peak season is about 6 weeks out — the right time to have something live.";
     }
     return '';
+}
+
+/**
+ * Conservative average job ticket by category slug, in dollars.
+ * Returns 0 for unknown categories — callers must skip the stakes
+ * block entirely when 0, never guess.
+ */
+function ho_category_avg_ticket(string $catSlug): int {
+    static $map = [
+        'lawn_care'        => 60,   'landscaping'      => 300,
+        'handyman'         => 300,  'pressure_washing' => 200,
+        'junk_removal'     => 250,  'snow_removal'     => 75,
+        'tree_service'     => 500,  'gutter_cleaning'  => 150,
+        'deck_fence'       => 800,  'concrete_work'    => 1000,
+        'small_engine'     => 75,   'moving'           => 400,
+        'garage_door'      => 250,  'roof_cleaning'    => 300,
+        'house_cleaning'   => 150,  'painting'         => 500,
+        'carpet_cleaning'  => 175,  'window_cleaning'  => 150,
+        'chimney_sweep'    => 200,  'appliance_repair' => 150,
+        'pool_service'     => 150,  'pest_control'     => 125,
+        'flooring'         => 800,  'pet_grooming'     => 75,
+        'pet_care'         => 50,   'mobile_detailing' => 175,
+        'carpentry'        => 400,
+    ];
+    return $map[$catSlug] ?? 0;
+}
+
+/**
+ * Honest stakes math for the "what this costs you" block.
+ * High-ticket trades claim only 1 missed job/month; annual is
+ * floored to the nearest $100 — always round DOWN, never up.
+ * Returns null when the category has no ticket data.
+ */
+function ho_stakes_estimate(string $catSlug): ?array {
+    $ticket = ho_category_avg_ticket($catSlug);
+    if ($ticket <= 0) return null;
+    $jobs   = $ticket >= 400 ? 1 : 2;
+    $annual = (int)(floor(($ticket * $jobs * 12) / 100) * 100);
+    return ['ticket' => $ticket, 'jobs_per_month' => $jobs, 'annual' => $annual];
 }
 
 // ─── Website technical check (SSL + mobile viewport) ─────────────────────────
@@ -1827,7 +1891,7 @@ function ho_mark_outcome(PDO $pdo, int $logId, string $outcome): void {
 // ─── Preview page (go.php support) ────────────────────────────────────────────
 
 function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
-    $s = $pdo->prepare("
+    $baseCols = "
         SELECT b.*, c.name AS category_name, c.slug AS category_slug, c.typical_services,
                p.id AS preview_id, p.headline, p.subheadline,
                p.services_display, p.opportunity_statement, p.package_recommendation,
@@ -1838,15 +1902,29 @@ function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
                r.competitor_has_website, r.competitor_name, r.competitor_website,
                r.booking_method, r.last_review_date, r.years_in_business,
                r.has_angi, r.has_thumbtack, r.responds_to_reviews,
-               r.gbp_photo_count, r.owner_age_band, r.mobile_friendly, r.has_ssl
+               r.gbp_photo_count, r.owner_age_band, r.mobile_friendly, r.has_ssl,
+               r.competitor_google_rating, r.competitor_review_count,
+               r.has_yelp, r.yelp_rating, r.yelp_review_count, r.logo_quality";
+    $quoteCols = ",
+               r.review_quote_1, r.review_quote_1_author, r.review_quote_1_date,
+               r.review_quote_2, r.review_quote_2_author, r.review_quote_2_date";
+    $rest = "
         FROM previews p
         JOIN businesses b ON b.id = p.business_id
         JOIN categories c ON c.id = b.category_id
         LEFT JOIN research_records r ON r.business_id = b.id
         WHERE p.preview_slug = ? OR b.business_slug = ?
         LIMIT 1
-    ");
-    $s->execute([$slug, $slug]);
+    ";
+    // Quote columns may not exist until the review_quote migration runs —
+    // never let a pending ALTER take the public page down.
+    try {
+        $s = $pdo->prepare($baseCols . $quoteCols . $rest);
+        $s->execute([$slug, $slug]);
+    } catch (PDOException $e) {
+        $s = $pdo->prepare($baseCols . $rest);
+        $s->execute([$slug, $slug]);
+    }
     $row = $s->fetch();
     if (!$row) return null;
 
@@ -2366,6 +2444,12 @@ Return ONLY valid JSON — no markdown fences, no explanations:
       "competitor_review_count": null,
       "booking_method": "phone",
       "last_review_date": "",
+      "review_quote_1": "",
+      "review_quote_1_author": "",
+      "review_quote_1_date": "",
+      "review_quote_2": "",
+      "review_quote_2_author": "",
+      "review_quote_2_date": "",
       "years_in_business": null,
       "has_angi": false,
       "has_thumbtack": false,
@@ -2399,6 +2483,9 @@ Rules:
 - competitor_google_rating / competitor_review_count: that competitor's Google stats. null if unknown.
 - booking_method: "phone" | "facebook" | "email" | "form" | "app" | "unknown"
 - last_review_date: most recent Google review as YYYY-MM. Empty if unknown.
+- review_quote_1 / review_quote_2: VERBATIM text from their two strongest Google reviews — word-for-word, max 40 words each, no paraphrasing. Prefer quotes naming specific work, reliability, or the owner. Empty string if no usable reviews.
+- review_quote_1_author / review_quote_2_author: that reviewer's first name only. Empty if not visible.
+- review_quote_1_date / review_quote_2_date: that review's month as YYYY-MM. Empty if unknown.
 - years_in_business: integer from GBP or site. null if unknown.
 - has_gbp_posts: true if GBP has posts/updates. null if no GBP profile.
 - gbp_services_listed: true if GBP Services section is filled out. null if no GBP.
@@ -2459,6 +2546,15 @@ function ho_import_enrichment_json(PDO $pdo, string $rawJson): array {
         $targetCustType = in_array($r['target_customer_type'] ?? '', $validCustType,true) ? $r['target_customer_type'] : 'unknown';
 
         $lastReviewDate = substr(trim((string)($r['last_review_date'] ?? '')), 0, 20);
+        $reviewQuote = function (string $base) use ($r): array {
+            $text   = substr(trim((string)($r[$base] ?? '')), 0, 400);
+            $author = substr(trim((string)($r[$base . '_author'] ?? '')), 0, 60);
+            $date   = trim((string)($r[$base . '_date'] ?? ''));
+            if (!preg_match('/^\d{4}-\d{2}$/', $date)) $date = '';
+            return [$text, $author, $date];
+        };
+        [$q1, $q1Author, $q1Date] = $reviewQuote('review_quote_1');
+        [$q2, $q2Author, $q2Date] = $reviewQuote('review_quote_2');
         $yearsInBiz     = isset($r['years_in_business']) && is_numeric($r['years_in_business']) ? (int)$r['years_in_business'] : null;
         $gbpPhotos      = $nint('gbp_photo_count');
         $compName       = substr(trim((string)($r['competitor_name']    ?? '')), 0, 200);
@@ -2474,6 +2570,12 @@ function ho_import_enrichment_json(PDO $pdo, string $rawJson): array {
                   competitor_review_count  = ?,
                   booking_method           = ?,
                   last_review_date         = ?,
+                  review_quote_1           = COALESCE(NULLIF(?, ''), review_quote_1),
+                  review_quote_1_author    = COALESCE(NULLIF(?, ''), review_quote_1_author),
+                  review_quote_1_date      = COALESCE(NULLIF(?, ''), review_quote_1_date),
+                  review_quote_2           = COALESCE(NULLIF(?, ''), review_quote_2),
+                  review_quote_2_author    = COALESCE(NULLIF(?, ''), review_quote_2_author),
+                  review_quote_2_date      = COALESCE(NULLIF(?, ''), review_quote_2_date),
                   years_in_business        = ?,
                   has_angi                 = ?,
                   has_thumbtack            = ?,
@@ -2500,7 +2602,9 @@ function ho_import_enrichment_json(PDO $pdo, string $rawJson): array {
             ")->execute([
                 (int)($r['competitor_has_website'] ?? 0), $compName, $compWebsite,
                 $ndec('competitor_google_rating'), $nint('competitor_review_count'),
-                $bookingMethod, $lastReviewDate, $yearsInBiz,
+                $bookingMethod, $lastReviewDate,
+                $q1, $q1Author, $q1Date, $q2, $q2Author, $q2Date,
+                $yearsInBiz,
                 (int)($r['has_angi']             ?? 0),
                 (int)($r['has_thumbtack']         ?? 0),
                 (int)($r['has_youtube']           ?? 0),

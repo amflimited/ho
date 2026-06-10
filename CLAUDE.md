@@ -185,11 +185,49 @@ ALTER TABLE research_records
 
 ## ⚠️ REQUIRED MIGRATION — research_records 37 columns
 
-The 69-field research import (`ho_import_research_json`) writes to 37 columns that
-must exist or **every research import will error out**. As of 2026-06-09 Adam had
-run the `gap_prices` + `previews.package_items` SQL but NOT confirmed this one.
-The full ALTER is in the "research_records Columns" section above — run it in
-phpMyAdmin before importing any new research.
+✅ CONFIRMED RUN 2026-06-10 — all 37 columns verified present via INFORMATION_SCHEMA.
+
+---
+
+## ⚠️ REQUIRED MIGRATION — review_quote columns (2026-06-10)
+
+The trust/emotion upgrade adds 6 quote columns. Research and enrichment imports
+will error on quote data until this runs. `ho_get_preview_by_slug()` has a
+fallback so go.php stays up either way — but quotes won't render until the
+ALTER runs and leads are re-enriched.
+
+```sql
+ALTER TABLE research_records
+  ADD COLUMN review_quote_1        VARCHAR(400) NULL AFTER last_review_date,
+  ADD COLUMN review_quote_1_author VARCHAR(60)  NULL AFTER review_quote_1,
+  ADD COLUMN review_quote_1_date   VARCHAR(10)  NULL AFTER review_quote_1_author,
+  ADD COLUMN review_quote_2        VARCHAR(400) NULL AFTER review_quote_1_date,
+  ADD COLUMN review_quote_2_author VARCHAR(60)  NULL AFTER review_quote_2,
+  ADD COLUMN review_quote_2_date   VARCHAR(10)  NULL AFTER review_quote_2_author;
+```
+
+---
+
+## go.php Trust/Emotion Layer (2026-06-10)
+
+Five blocks added to go.php (both tracks unless noted), all data-gated —
+silently absent when data is missing:
+
+1. **"In their own words" pull-quote** — `review_quote_1/2` rendered as
+   blockquotes between WHY and the track fork. Gate: quote text non-empty.
+2. **Competitor scoreboard** (`.fd-score`) — You vs `{competitor_name}` stars +
+   review counts, inside WHY after the rating badge. Gate includes
+   `googleRating >= compRating` — NEVER renders a board the lead is losing.
+3. **Stakes block** (`.fd-stakes`) — `ho_stakes_estimate($catSlug)` →
+   conservative "$X/year walking past you" before each track's money moment.
+   `ho_category_avg_ticket()` map in ho-model.php; unknown slug → block absent.
+   Annual floored to nearest $100; 1 job/mo claimed for tickets ≥ $400.
+4. **Adam photo** — upload square `assets/img/adam.jpg` and it auto-replaces
+   the "AF" avatar in WHO BUILT THIS (is_file gate, no code change needed).
+5. **P.S. line** (`.fd-trust-ps`) — handwritten-style closer on the trust card;
+   fact priority: quote author → years → review count → competitor. Also:
+   Yelp cross-platform rating line (only when both ≥ 4.0) and professional-logo
+   strength prepended to "Working in your favour".
 
 ---
 

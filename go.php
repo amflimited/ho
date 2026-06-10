@@ -83,9 +83,34 @@ if ($lastReviewDate !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewDate,
     $reviewAgeMonths = ((int)date('Y') - (int)$lrdm[1]) * 12 + ((int)date('n') - (int)$lrdm[2]);
 }
 
+// ── Trust & emotion data ─────────────────────────────────────────────────────
+$compRating  = isset($row['competitor_google_rating']) && $row['competitor_google_rating'] !== null ? (float)$row['competitor_google_rating'] : null;
+$compReviews = isset($row['competitor_review_count'])  && $row['competitor_review_count']  !== null ? (int)$row['competitor_review_count']   : null;
+$hasYelp     = (bool)($row['has_yelp'] ?? false);
+$yelpRating  = isset($row['yelp_rating'])       && $row['yelp_rating']       !== null ? (float)$row['yelp_rating']      : null;
+$yelpCount   = isset($row['yelp_review_count']) && $row['yelp_review_count'] !== null ? (int)$row['yelp_review_count']  : null;
+$logoQuality = (string)($row['logo_quality'] ?? 'none');
+
+// YYYY-MM → "March 2026", empty-safe
+$quoteMonth = function (string $d): string {
+    if (!preg_match('/^\d{4}-\d{2}$/', $d)) return '';
+    $ts = strtotime($d . '-01');
+    return $ts !== false ? date('F Y', $ts) : '';
+};
+$quote1       = $row ? trim((string)($row['review_quote_1']        ?? '')) : '';
+$quote1Author = $row ? trim((string)($row['review_quote_1_author'] ?? '')) : '';
+$quote1When   = $row ? $quoteMonth(trim((string)($row['review_quote_1_date'] ?? ''))) : '';
+$quote2       = $row ? trim((string)($row['review_quote_2']        ?? '')) : '';
+$quote2Author = $row ? trim((string)($row['review_quote_2_author'] ?? '')) : '';
+$quote2When   = $row ? $quoteMonth(trim((string)($row['review_quote_2_date'] ?? ''))) : '';
+
+$adamPhotoFile = __DIR__ . '/assets/img/adam.jpg';
+$hasAdamPhoto  = is_file($adamPhotoFile);
+
 $email        = $row ? trim((string)($row['email_address'] ?? '')) : '';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $seasonalNote = $row ? ho_seasonal_urgency_note($catSlug) : '';
+$stakes       = $row ? ho_stakes_estimate($catSlug) : null;
 $isEnhancement = $row && isset($row['preview_type']) && $row['preview_type'] === 'enhancement';
 $enhancementGaps = ($isEnhancement && $row) ? ho_enhancement_gaps($row) : [];
 
@@ -344,6 +369,11 @@ if ($paid && $row && $pdo !== null) {
     } elseif ($googleRating < 4.0 && $googleCount >= 5) {
         $ratingNote = 'Room to grow &mdash; the next customers who find you will shape the next five reviews. A site makes it easy to send happy ones straight to Google.';
     }
+    // Cross-platform proof — only when both numbers are worth bragging about
+    $crossPlatform = '';
+    if ($hasYelp && $yelpRating !== null && $yelpRating >= 4.0 && ($yelpCount ?? 0) >= 3 && $googleRating >= 4.0) {
+        $crossPlatform = number_format($googleRating, 1) . '★ on Google, ' . number_format($yelpRating, 1) . '★ on Yelp &mdash; your reputation is real on every platform that matters.';
+    }
     ?>
     <div class="fd-rating-block">
       <div class="fd-rating-badge">
@@ -351,8 +381,31 @@ if ($paid && $row && $pdo !== null) {
         <strong><?= number_format($googleRating, 1) ?></strong>
         <span class="fd-rating-count"><?= number_format($googleCount) ?> Google reviews</span>
       </div>
-      <p class="fd-rating-source">Your live rating pulled directly from Google.<?= $ratingNote !== '' ? ' ' . $ratingNote : '' ?></p>
+      <p class="fd-rating-source">Your live rating pulled directly from Google.<?= $crossPlatform !== '' ? ' ' . $crossPlatform : '' ?><?= $ratingNote !== '' ? ' ' . $ratingNote : '' ?></p>
     </div>
+    <?php endif; ?>
+
+    <?php // ── Competitor scoreboard — only render a board they're winning ──── ?>
+    <?php if ($googleRating > 0 && $googleCount > 0 && $compName !== ''
+              && $compRating !== null && $compReviews !== null && $googleRating >= $compRating):
+      $scoreNote = ($googleCount < $compReviews)
+          ? 'You&rsquo;re winning on quality and losing on visibility. ' . ho_h($compName) . ' isn&rsquo;t better &mdash; they just show up in more places. That&rsquo;s the part I can fix.'
+          : 'You&rsquo;re ahead on both. The job now is making sure every single search shows it &mdash; before ' . ho_h($compName) . ' catches up.';
+    ?>
+    <div class="fd-score">
+      <div class="fd-score-col fd-score-you">
+        <span class="fd-score-name">You</span>
+        <strong><?= number_format($googleRating, 1) ?>★</strong>
+        <span class="fd-score-count"><?= number_format($googleCount) ?> reviews</span>
+      </div>
+      <div class="fd-score-vs" aria-hidden="true">vs</div>
+      <div class="fd-score-col">
+        <span class="fd-score-name"><?= ho_h($compName) ?></span>
+        <strong><?= number_format($compRating, 1) ?>★</strong>
+        <span class="fd-score-count"><?= number_format($compReviews) ?> reviews</span>
+      </div>
+    </div>
+    <p class="fd-score-note"><?= $scoreNote ?></p>
     <?php endif; ?>
 
     <?php if (!empty($sources)): ?>
@@ -454,6 +507,7 @@ if ($paid && $row && $pdo !== null) {
     </div>
     <?php endif; ?>
 
+    <?php if ($logoQuality === 'professional') array_unshift($strengths, 'A clean, professional logo — your branding already looks the part. Most local competitors can\'t say that.'); ?>
     <?php if (!empty($strengths)): ?>
       <p class="fd-str-intro">Working in your favour:</p>
       <div class="fd-str-list">
@@ -493,6 +547,29 @@ if ($paid && $row && $pdo !== null) {
     <p class="fd-why-scroll">I built something to fix that. See it below &darr;</p>
     <?php endif; ?>
   </section>
+
+  <?php if ($quote1 !== ''): ?>
+  <!-- ── IN THEIR OWN WORDS — their customers' actual review text ─────────── -->
+  <section class="fd-card fd-quote-card fd-reveal">
+    <p class="fd-kicker">Your customers already said it best</p>
+    <h2>I didn&rsquo;t write this. <?= $quote1Author !== '' ? ho_h($quote1Author) . ' did.' : 'Your customers did.' ?></h2>
+    <blockquote class="fd-quote">
+      <p>&ldquo;<?= ho_h($quote1) ?>&rdquo;</p>
+      <cite>&mdash; <?= $quote1Author !== '' ? ho_h($quote1Author) . ' &middot; ' : '' ?>Google review<?= $quote1When !== '' ? ', ' . ho_h($quote1When) : '' ?></cite>
+    </blockquote>
+    <?php if ($quote2 !== ''): ?>
+    <blockquote class="fd-quote">
+      <p>&ldquo;<?= ho_h($quote2) ?>&rdquo;</p>
+      <cite>&mdash; <?= $quote2Author !== '' ? ho_h($quote2Author) . ' &middot; ' : '' ?>Google review<?= $quote2When !== '' ? ', ' . ho_h($quote2When) : '' ?></cite>
+    </blockquote>
+    <?php endif; ?>
+    <p class="fd-quote-frame"><?php if ($isEnhancement): ?>
+      That&rsquo;s the kind of thing that wins jobs &mdash; and right now a customer has to go digging through Google to find it. Part of what I&rsquo;d fix below is putting words like these where every visitor sees them first.
+    <?php else: ?>
+      That&rsquo;s the kind of thing that wins jobs &mdash; and right now it&rsquo;s buried in a Google listing nobody scrolls. The site I built puts words like these front and center, where every new customer sees them before they ever call.
+    <?php endif; ?></p>
+  </section>
+  <?php endif; ?>
 
   <?php if ($isEnhancement): ?>
   <!-- ── WHAT I'D FIX (enhancement only) — contact-first, no checkout ─────── -->
@@ -637,6 +714,20 @@ if ($paid && $row && $pdo !== null) {
     <?php endif; ?>
   </section>
 
+  <?php if ($stakes !== null): ?>
+  <!-- ── WHAT THIS COSTS YOU (enhancement) ─────────────────────────────── -->
+  <section class="fd-card fd-stakes fd-reveal">
+    <p class="fd-kicker">What this actually costs you</p>
+    <h2>Run the math with me.</h2>
+    <p>The average <?= ho_h(strtolower($catName)) ?> job runs around
+       <span class="fd-stakes-num">$<?= number_format($stakes['ticket']) ?></span>.
+       The gaps above lose jobs the same quiet way &mdash; nobody tells you they almost called.
+       Even at just <?= $stakes['jobs_per_month'] ?> missed job<?= $stakes['jobs_per_month'] > 1 ? 's' : '' ?> a month,
+       that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span>.</p>
+    <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero.<?= $fixItemsTotal > 0 ? ' Everything above, fixed for good, is $' . number_format($fixItemsTotal) . ' &mdash; once.' : '' ?></p>
+  </section>
+  <?php endif; ?>
+
   <!-- ── CONTACT CTA (enhancement only) ────────────────────────────────── -->
   <section class="fd-card fd-offer fd-reveal" id="pricing">
     <p class="fd-kicker">Let&rsquo;s talk it through</p>
@@ -751,20 +842,32 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-card fd-trust fd-reveal" id="about">
     <p class="fd-kicker">Who built this</p>
     <div class="fd-trust-inner">
+      <?php if ($hasAdamPhoto): ?>
+      <img class="fd-trust-avatar fd-trust-photo" src="/assets/img/adam.jpg?v=<?= filemtime($adamPhotoFile) ?>" alt="Adam Ferree" width="52" height="52">
+      <?php else: ?>
       <div class="fd-trust-avatar" aria-hidden="true">AF</div>
+      <?php endif; ?>
       <div>
         <h2>Adam Ferree</h2>
         <p class="fd-trust-location">New Castle, Indiana &mdash; not a call centre, not an agency</p>
       </div>
     </div>
-    <?php if (!$isEnhancement):
-    // Build a list of specific facts to prove the research was real
+    <?php
+    // Build a list of specific facts to prove the research was real (both tracks)
     $adamKnows = [];
     if ($yearsInBiz >= 3) $adamKnows[] = 'you&rsquo;ve been running ' . ho_h($name) . ' for ' . $yearsInBiz . ' years';
     if ($googleCount >= 5) $adamKnows[] = 'you have ' . number_format($googleCount) . ' Google reviews';
     if ($compHasSite && $compName !== '') $adamKnows[] = ho_h($compName) . ' already has a site and is outranking you';
     if (!$hasWebsite && $phone !== '') $adamKnows[] = 'customers can only reach you by calling ' . ho_h($telDisplay);
+
+    // Handwritten P.S. — strongest single fact, no phone numbers (iOS rule)
+    $psFact = '';
+    if ($quote1Author !== '')   $psFact = 'I read what ' . ho_h($quote1Author) . ' wrote about you before I ever wrote a word of this page.';
+    elseif ($yearsInBiz >= 3)   $psFact = $yearsInBiz . ' years of work deserves better than being invisible online.';
+    elseif ($googleCount >= 5)  $psFact = 'Anyone who earns ' . number_format($googleCount) . ' reviews is doing the work right.';
+    elseif ($compName !== '')   $psFact = 'I checked what ' . ho_h($compName) . ' is doing too. You should be ahead of them.';
     ?>
+    <?php if (!$isEnhancement): ?>
     <p>I build websites for Indiana service businesses &mdash; that&rsquo;s the whole business. <?= $ownerFirst !== '' ? ho_h($ownerFirst) . ', before' : 'Before' ?> I reached out, I already knew: <?php if (!empty($adamKnows)): ?><?= implode('; ', $adamKnows) ?>. <?php endif; ?>I built this preview before sending a single message. I only do that when I think it&rsquo;s worth it.</p>
     <p style="margin-top:10px">When you say yes, you&rsquo;re not entering a queue &mdash; I start the same day. <?= ho_h($name) ?>&rsquo;s site is live within 24 hours. That&rsquo;s a guarantee, not a target.</p>
     <?php else: ?>
@@ -788,6 +891,9 @@ if ($paid && $row && $pdo !== null) {
         <a href="tel:<?= ho_h(preg_replace('/\D/', '', $adamPhone)) ?>"><?= ho_h($adamPhone) ?></a>
       <?php endif; ?>
     </div>
+    <?php if ($psFact !== ''): ?>
+    <p class="fd-trust-ps">P.S. <?= $ownerFirst !== '' ? ho_h($ownerFirst) . ' &mdash; ' : '' ?><?= $psFact ?> This page wasn&rsquo;t mass-mailed. It only exists for <?= ho_h($name) ?>.</p>
+    <?php endif; ?>
   </section>
 
   <?php if (!$isEnhancement): ?>
@@ -820,6 +926,20 @@ if ($paid && $row && $pdo !== null) {
       <?php endforeach; ?>
     </div>
   </section>
+
+  <?php if ($stakes !== null): ?>
+  <!-- ── WHAT THIS COSTS YOU (site-build) ─────────────────────────────────── -->
+  <section class="fd-card fd-stakes fd-reveal">
+    <p class="fd-kicker">What this actually costs you</p>
+    <h2>Run the math with me.</h2>
+    <p>The average <?= ho_h(strtolower($catName)) ?> job runs around
+       <span class="fd-stakes-num">$<?= number_format($stakes['ticket']) ?></span>.
+       If being invisible online costs you just <?= $stakes['jobs_per_month'] ?> job<?= $stakes['jobs_per_month'] > 1 ? 's' : '' ?> a month
+       &mdash; the 11pm searcher, the person who called whoever Google showed first &mdash;
+       that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span> walking past you.</p>
+    <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero. And the fix is $199, once.</p>
+  </section>
+  <?php endif; ?>
 
   <!-- ── THE OFFER ────────────────────────────────────────────────────────── -->
   <?php
