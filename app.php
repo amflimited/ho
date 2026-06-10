@@ -265,6 +265,7 @@ $websiteReviewBatch = $pdo ? ho_get_website_review_batch($pdo) : [];
 $triageBatch        = $pdo ? ho_get_triage_batch($pdo) : [];
 $gptImportKey       = $pdo ? ho_get_setting($pdo, 'gpt_import_key') : '';
 $gptActionsUrl      = $pdo ? ho_get_setting($pdo, 'gpt_actions_url') : '';
+$lastImportAt       = $pdo ? ho_get_setting($pdo, 'last_import_at')  : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 38) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
@@ -701,11 +702,16 @@ if (!empty($unresearched)) {
   <?php
   // ─── Build unified prompt sequence ────────────────────────────────────────
   $hoPrompts = [];
-  // When a Custom GPT with the import action is configured, deep-link to it —
-  // results then POST straight back into the pipeline, no copy/paste return.
-  $gptBase   = $gptActionsUrl !== ''
-      ? rtrim($gptActionsUrl, '/') . '?q='
+  // Standard ChatGPT deep link auto-submits via ?hints=search&q=.
+  // Custom GPT pages don't auto-submit from ?q= — so the link just opens the GPT
+  // and hoAfterGpt() copies the prompt to clipboard so the user can paste it in.
+  $usingCustomGpt = $gptActionsUrl !== '';
+  $gptBase = $usingCustomGpt
+      ? rtrim($gptActionsUrl, '/')  // no ?q= — Custom GPTs don't honour it
       : 'https://chatgpt.com/?hints=search&q=';
+  $gptLabel = $usingCustomGpt
+      ? 'Open your Custom GPT — prompt is copied, paste & send'
+      : 'Ask ChatGPT — one tap, nothing to copy';
 
   if (!empty($unresearched) && $researchPrompt !== '') {
       $staleCount = count(array_filter($unresearched, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
@@ -713,41 +719,44 @@ if (!empty($unresearched)) {
       $hintParts  = [];
       if ($newCount   > 0) $hintParts[] = $newCount . ' new';
       if ($staleCount > 0) $hintParts[] = $staleCount . ' to update';
-      $gUrl = $gptBase . rawurlencode($researchPrompt);
+      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($researchPrompt);
       $hoPrompts[] = [
-          'label'  => 'Research',
-          'step'   => count($unresearched) . ' businesses — ' . implode(', ', $hintParts),
-          'prompt' => $researchPrompt,
-          'action' => 'import_research',
-          'key'    => 'research_results',
-          'noun'   => 'business',
-          'gptUrl' => strlen($gUrl) <= 30000 ? $gUrl : '',
+          'label'    => 'Research',
+          'step'     => count($unresearched) . ' businesses — ' . implode(', ', $hintParts),
+          'prompt'   => $researchPrompt,
+          'action'   => 'import_research',
+          'key'      => 'research_results',
+          'noun'     => 'business',
+          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
+          'gptLabel' => $gptLabel,
       ];
   }
   if (!empty($needsContactBatch) && $needsContactPrompt !== '') {
       $ncTotal = $counts['needs_contact']; $ncBatch = count($needsContactBatch);
       $stepNote = $ncBatch < $ncTotal ? "{$ncBatch} of {$ncTotal} to find" : "{$ncTotal} to find";
-      $gUrl = $gptBase . rawurlencode($needsContactPrompt);
+      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($needsContactPrompt);
       $hoPrompts[] = [
-          'label'  => 'Contact',
-          'step'   => 'Contact info — ' . $stepNote,
-          'prompt' => $needsContactPrompt,
-          'action' => 'import_contact_research',
-          'key'    => 'contacts',
-          'noun'   => 'contact',
-          'gptUrl' => strlen($gUrl) <= 30000 ? $gUrl : '',
+          'label'    => 'Contact',
+          'step'     => 'Contact info — ' . $stepNote,
+          'prompt'   => $needsContactPrompt,
+          'action'   => 'import_contact_research',
+          'key'      => 'contacts',
+          'noun'     => 'contact',
+          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
+          'gptLabel' => $gptLabel,
       ];
   }
   if (!empty($enrichmentBatch) && $enrichmentPrompt !== '') {
-      $gUrl = $gptBase . rawurlencode($enrichmentPrompt);
+      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($enrichmentPrompt);
       $hoPrompts[] = [
-          'label'  => 'Enrich',
-          'step'   => count($enrichmentBatch) . ' of ' . $enrichmentTotal . ' leads to enrich',
-          'prompt' => $enrichmentPrompt,
-          'action' => 'import_enrichment',
-          'key'    => 'enrichment_results',
-          'noun'   => 'record',
-          'gptUrl' => strlen($gUrl) <= 30000 ? $gUrl : '',
+          'label'    => 'Enrich',
+          'step'     => count($enrichmentBatch) . ' of ' . $enrichmentTotal . ' leads to enrich',
+          'prompt'   => $enrichmentPrompt,
+          'action'   => 'import_enrichment',
+          'key'      => 'enrichment_results',
+          'noun'     => 'record',
+          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
+          'gptLabel' => $gptLabel,
       ];
   }
   ?>
@@ -768,7 +777,7 @@ if (!empty($unresearched)) {
       <button class="cp-copy" id="hoCopyBtn" type="button" onclick="hoDoStep(this)">Copy</button>
     </div>
     <?php if ($hoPrompts[0]['gptUrl'] !== ''): ?>
-    <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener" onclick="hoAfterGpt()">Ask ChatGPT &mdash; one tap, nothing to copy</a>
+    <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener" onclick="hoAfterGpt()"><?= ho_h($hoPrompts[0]['gptLabel']) ?></a>
     <?php else: ?>
     <a id="hoGptLink" class="cp-gpt-btn" href="#" hidden>Ask ChatGPT</a>
     <p class="cp-hint" style="text-align:center;margin-top:4px">Batch too big for one-tap &mdash; use Copy above, then paste into ChatGPT.</p>
@@ -1127,7 +1136,19 @@ When the JSON is complete, ALWAYS call the importResults action with the full JS
           <input class="cp-input" type="url" name="setting_value" value="<?= ho_h($gptActionsUrl) ?>" placeholder="https://chatgpt.com/g/g-…">
           <button class="cp-btn-ghost" type="submit">Save</button>
         </form>
-        <p class="cp-hint" style="margin-top:6px">Once saved, every &ldquo;Ask ChatGPT&rdquo; button opens YOUR GPT — it researches, then imports by itself.</p>
+        <p class="cp-hint" style="margin-top:6px">Once saved, the &ldquo;Open your Custom GPT&rdquo; button copies the prompt and opens your GPT &mdash; paste it in and send. The GPT then POSTs results back automatically.</p>
+
+        <?php if ($gptImportKey !== ''): ?>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="cp-btn-ghost" onclick="testGptEndpoint(this)">Test endpoint</button>
+          <span id="gptTestResult" style="font-size:12px"></span>
+        </div>
+        <?php if ($lastImportAt !== ''): ?>
+        <p class="cp-hint" style="margin-top:6px">Last auto-import: <strong><?= ho_h($lastImportAt) ?></strong></p>
+        <?php else: ?>
+        <p class="cp-hint" style="margin-top:6px;color:#999">No auto-imports recorded yet &mdash; use the test button to verify the endpoint.</p>
+        <?php endif; ?>
+        <?php endif; ?>
       </div>
     </details>
   </section>
@@ -1784,8 +1805,14 @@ function hoGoStep(n) {
   hoRenderStep();
 }
 
-// Advance to the next queued prompt after the user opens ChatGPT.
+// Copy current prompt to clipboard then advance the step.
+// Custom GPT pages don't auto-submit from ?q=, so the user needs to paste —
+// copying here means the clipboard is ready the moment the GPT tab opens.
 function hoAfterGpt() {
+  var el = document.getElementById('hoPrompt');
+  if (el && navigator.clipboard) {
+    navigator.clipboard.writeText(el.textContent.trim()).catch(function() {});
+  }
   setTimeout(function() {
     if (hoStep + 1 < HO_PROMPTS.length) { hoStep++; hoRenderStep(); }
   }, 600);
@@ -1807,8 +1834,10 @@ function hoRenderStep() {
   if (desc) desc.textContent = p.step;
   if (pre)  pre.textContent  = p.prompt;
   if (gpt) {
-    if (p.gptUrl) { gpt.href = p.gptUrl; gpt.hidden = false; }
-    else          { gpt.hidden = true; }
+    if (p.gptUrl) {
+      gpt.href = p.gptUrl; gpt.hidden = false;
+      if (p.gptLabel) gpt.textContent = p.gptLabel;
+    } else { gpt.hidden = true; }
   }
   if (act) act.value = p.action;
   if (btn) {
@@ -1969,6 +1998,36 @@ async function hoPasteImport(btn, key, noun) {
   btn.disabled = true;
   btn.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' — importing…';
   form.submit();
+}
+
+function testGptEndpoint(btn) {
+  var res = document.getElementById('gptTestResult');
+  if (!res) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Testing…'; }
+  res.textContent = ''; res.style.color = '';
+  fetch('/gpt-import.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-Api-Key': <?= json_encode($gptImportKey ?? '') ?>},
+    body: '{}'
+  })
+  .then(function(r) { return r.json().then(function(d) { return {status: r.status, data: d}; }); })
+  .then(function(r) {
+    var d = r.data;
+    if (!d.ok && typeof d.error === 'string' && d.error.indexOf('No recognized') !== -1) {
+      res.textContent = '✓ Endpoint reachable, key valid'; res.style.color = '#2a7a35';
+    } else if (r.status === 401) {
+      res.textContent = '✗ Key mismatch — re-paste the key in your GPT Action'; res.style.color = '#a33327';
+    } else if (r.status === 503 && d.error && d.error.indexOf('not configured') !== -1) {
+      res.textContent = '✗ Key not saved — generate one first'; res.style.color = '#a33327';
+    } else {
+      res.textContent = JSON.stringify(d); res.style.color = d.ok ? '#2a7a35' : '#a33327';
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Test endpoint'; }
+  })
+  .catch(function(e) {
+    res.textContent = '✗ ' + e.message; res.style.color = '#a33327';
+    if (btn) { btn.disabled = false; btn.textContent = 'Test endpoint'; }
+  });
 }
 
 function doCopy(id, btn) {

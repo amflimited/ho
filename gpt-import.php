@@ -27,6 +27,13 @@ function gi_out(int $code, array $data): never {
     exit;
 }
 
+function gi_log(PDO $pdo, string $type, int $count): void {
+    try {
+        ho_set_setting($pdo, 'last_import_at',
+            date('Y-m-d H:i:s') . ' — ' . $type . ' — ' . $count . ' record' . ($count !== 1 ? 's' : ''));
+    } catch (\Throwable $e) {}
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     gi_out(405, ['ok' => false, 'error' => 'POST only.']);
 }
@@ -75,6 +82,7 @@ if (!isset($data['research_results']) && !isset($data['contacts'])
 try {
     if (isset($data['research_results'])) {
         $result = ho_import_research_json($pdo, json_encode($data));
+        gi_log($pdo, 'research', $result['updated']);
         gi_out(200, [
             'ok' => true, 'type' => 'research',
             'updated' => $result['updated'], 'errors' => $result['errors'],
@@ -84,6 +92,7 @@ try {
 
     if (isset($data['contacts'])) {
         $result = ho_import_contact_json($pdo, json_encode($data));
+        gi_log($pdo, 'contacts', $result['updated']);
         gi_out(200, [
             'ok' => true, 'type' => 'contacts',
             'updated' => $result['updated'], 'errors' => $result['errors'],
@@ -93,6 +102,7 @@ try {
 
     if (isset($data['enrichment_results'])) {
         $result = ho_import_enrichment_json($pdo, json_encode($data));
+        gi_log($pdo, 'enrichment', $result['updated']);
         gi_out(200, [
             'ok' => true, 'type' => 'enrichment',
             'updated' => $result['updated'], 'errors' => $result['errors'],
@@ -112,6 +122,7 @@ try {
         }
         $result   = ho_import_sourcing_json($pdo, $runId, json_encode($data));
         $promoted = ho_promote_candidates($pdo, $runId);
+        gi_log($pdo, 'sourcing', $result['imported']);
         gi_out(200, [
             'ok' => true, 'type' => 'sourcing',
             'imported' => $result['imported'], 'skipped' => $result['skipped'],
