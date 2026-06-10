@@ -1100,7 +1100,17 @@ When the JSON is complete, ALWAYS call the importResults action with the full JS
         "summary": "Import compiled research/sourcing/contact/enrichment JSON into the lead pipeline",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "type": "object" } } }
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "run_id": { "type": "integer", "description": "Required for candidates payloads — copy from the sourcing prompt." },
+              "research_results":   { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+              "contacts":           { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+              "enrichment_results": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+              "candidates":         { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+            }
+          } } }
         },
         "responses": { "200": { "description": "Import summary" } }
       }
