@@ -39,7 +39,8 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
                 $result   = ho_import_sourcing_json($pdo, $runId, $rawJson);
                 $promoted = ho_promote_candidates($pdo, $runId);
-                header('Location: ?tab=source&flash=' . urlencode("Imported {$result['imported']} leads ({$result['skipped']} skipped). {$promoted} added to pipeline."));
+                $deadNote = ($result['dead_urls'] ?? 0) > 0 ? " {$result['dead_urls']} dead website URL(s) auto-cleared." : '';
+                header('Location: ?tab=source&flash=' . urlencode("Imported {$result['imported']} leads ({$result['skipped']} skipped). {$promoted} added to pipeline.{$deadNote}"));
                 exit;
 
             case 'import_research':
@@ -564,12 +565,19 @@ if (!empty($unresearched)) {
         if ((string)$t['google_business_url'] !== '') $tChips[] = 'gbp';
         if ((string)$t['phone_number']        !== '') $tChips[] = 'phone';
         if ((string)$t['email_address']       !== '') $tChips[] = 'email';
-        $tSearch = 'https://www.google.com/search?q=' . rawurlencode('"' . $t['business_name'] . '" ' . $t['location_city'] . ' Indiana');
+        $tSearch   = 'https://www.google.com/search?q=' . rawurlencode('"' . $t['business_name'] . '" ' . $t['location_city'] . ' Indiana');
+        $tFoundVia = (string)($t['found_via']  ?? '');
+        $tConf     = (string)($t['confidence'] ?? '');
       ?>
       <div class="cp-domain-row" id="tr-<?= (int)$t['id'] ?>">
         <div class="cp-domain-info">
           <strong class="cp-domain-biz"><?= ho_h((string)$t['business_name']) ?></strong>
           <span class="cp-domain-meta"><?= ho_h((string)$t['category_name']) ?> &middot; <?= ho_h((string)$t['location_city']) ?><?= $tChips !== [] ? ' &middot; ' . implode(' / ', $tChips) : '' ?></span>
+          <?php if ($tFoundVia !== '' || $tConf !== ''): ?>
+          <span class="cp-domain-meta" style="color:var(--green)">
+            <?= $tFoundVia !== '' ? 'Found via: ' . ho_h($tFoundVia) : '' ?><?= $tFoundVia !== '' && $tConf !== '' ? ' &middot; ' : '' ?><?= $tConf !== '' ? ho_h($tConf) . ' confidence' : '' ?>
+          </span>
+          <?php endif; ?>
           <a class="cp-domain-url" href="<?= ho_h($tSearch) ?>" target="_blank" rel="noopener">Check on Google ↗</a>
         </div>
         <div class="cp-domain-actions">

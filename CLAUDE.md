@@ -245,6 +245,16 @@ WHERE pipeline_status IN ('identified','researched','needs_contact','preview_rea
 To undo the reset for a specific lead: set its `pipeline_status` back and
 clear `exclusion_reason`.
 
+**⚠️ Migration trap:** adding the `triaged` column (default 0) makes every
+EXISTING `identified` lead untriaged — they leave the research queue and
+flood the triage list. That's intentional if the reset (statement 3) runs
+too. If keeping the old leads instead, backfill right after the ALTER:
+
+```sql
+-- Escape hatch: trust all pre-existing identified leads
+UPDATE businesses SET triaged = 1 WHERE pipeline_status = 'identified';
+```
+
 ## Data-quality gates (2026-06-10)
 
 Bad leads were entering at sourcing and wasting research cycles. Three gates

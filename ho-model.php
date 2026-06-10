@@ -306,6 +306,8 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
     $imported = 0;
     $skipped  = 0;
 
+    // Pass 1: per-candidate gates, collect cleaned rows
+    $cleaned = [];
     foreach ($candidates as $c) {
         if (!is_array($c)) continue;
         $name = trim((string)($c['raw_name'] ?? $c['business_name'] ?? ''));
@@ -321,31 +323,57 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
         $websiteUrl = trim((string)($c['website_url'] ?? ''));
         // Lead-platform profile pages are not the business's own site
         if ($websiteUrl !== '' && ho_is_lead_platform_url($websiteUrl)) $websiteUrl = '';
-        $facebookUrl = trim((string)($c['facebook_url'] ?? ''));
-        $googleUrl   = trim((string)($c['google_url'] ?? $c['google_profile_url'] ?? ''));
-        $phone       = ho_norm_phone((string)($c['phone'] ?? $c['public_phone'] ?? ''));
-        $email       = strtolower(trim((string)($c['email'] ?? $c['public_email'] ?? '')));
 
-        // Quality gate: a lead with zero contact paths can never be pitched — don't import it
-        if ($websiteUrl === '' && $facebookUrl === '' && $googleUrl === '' && $phone === '' && $email === '') {
+        $cleaned[] = [
+            'name'     => $name,
+            'city'     => trim((string)($c['city'] ?? '')),
+            'state'    => $state,
+            'website'  => $websiteUrl,
+            'facebook' => trim((string)($c['facebook_url'] ?? '')),
+            'google'   => trim((string)($c['google_url'] ?? $c['google_profile_url'] ?? '')),
+            'phone'    => ho_norm_phone((string)($c['phone'] ?? $c['public_phone'] ?? '')),
+            'email'    => strtolower(trim((string)($c['email'] ?? $c['public_email'] ?? ''))),
+            'payload'  => $c,
+        ];
+    }
+
+    // Pass 2: liveness-check every claimed website in parallel — a hallucinated
+    // domain dies here instead of waiting for the manual review queue
+    @set_time_limit(90);
+    $urlsToCheck = [];
+    foreach ($cleaned as $i => $row) {
+        if ($row['website'] !== '') $urlsToCheck[$i] = $row['website'];
+    }
+    $deadUrls = 0;
+    if ($urlsToCheck !== []) {
+        try {
+            foreach (ho_check_urls_alive($urlsToCheck) as $i => $alive) {
+                if (!$alive) { $cleaned[$i]['website'] = ''; $deadUrls++; }
+            }
+        } catch (Throwable) {} // network hiccup — keep URLs, review queue catches them
+    }
+
+    // Pass 3: zero-contact gate + insert
+    foreach ($cleaned as $row) {
+        if ($row['website'] === '' && $row['facebook'] === '' && $row['google'] === ''
+            && $row['phone'] === '' && $row['email'] === '') {
             $skipped++;
             continue;
         }
-
         try {
             $insert->execute([
                 ho_uid('cand'),
                 $runId,
                 $categoryId,
-                $name,
-                trim((string)($c['city'] ?? '')),
-                $state,
-                $websiteUrl,
-                $facebookUrl,
-                $googleUrl,
-                $phone,
-                $email,
-                json_encode($c, JSON_UNESCAPED_SLASHES),
+                $row['name'],
+                $row['city'],
+                $row['state'],
+                $row['website'],
+                $row['facebook'],
+                $row['google'],
+                $row['phone'],
+                $row['email'],
+                json_encode($row['payload'], JSON_UNESCAPED_SLASHES),
             ]);
             $imported++;
         } catch (Throwable) {
@@ -356,7 +384,7 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
     $pdo->prepare("UPDATE source_runs SET status = 'sourced', businesses_found = ? WHERE id = ?")
         ->execute([$imported, $runId]);
 
-    return ['imported' => $imported, 'skipped' => $skipped, 'total' => count($candidates)];
+    return ['imported' => $imported, 'skipped' => $skipped, 'total' => count($candidates), 'dead_urls' => $deadUrls];
 }
 
 function ho_promote_candidates(PDO $pdo, int $runId): int {
@@ -410,8 +438,14 @@ function ho_promote_candidates(PDO $pdo, int $runId): int {
             $finalSlug = substr($slug, 0, 170) . '-' . $i++;
         }
 
+        // Zero contact paths = never pitchable — reject instead of promoting
         $hasContact = $c['website_url'] !== '' || $c['facebook_url'] !== ''
-            || $c['phone'] !== '' || $c['email'] !== '';
+            || $c['google_url'] !== '' || $c['phone'] !== '' || $c['email'] !== '';
+        if (!$hasContact) {
+            $pdo->prepare("UPDATE source_candidates SET candidate_status = 'rejected', rejection_reason = 'no_contact_path' WHERE id = ?")
+                ->execute([(int)$c['id']]);
+            continue;
+        }
 
         $bestMethod = 'unknown';
         if ($c['email']       !== '') $bestMethod = 'email';
@@ -467,16 +501,26 @@ function ho_get_triage_batch(PDO $pdo, int $limit = 60): array {
             SELECT b.id, b.business_name, b.location_city, b.website_url,
                    b.facebook_url, b.google_business_url, b.phone_number,
                    b.email_address, b.created_at,
-                   c.name AS category_name
+                   c.name AS category_name,
+                   sc.raw_payload AS source_payload
             FROM businesses b
             JOIN categories c ON c.id = b.category_id
+            LEFT JOIN source_candidates sc ON sc.id = b.source_candidate_id
             WHERE b.pipeline_status = 'identified'
               AND b.triaged = 0
             ORDER BY b.created_at ASC
             LIMIT " . (int)$limit . "
         ");
         $s->execute([]);
-        return $s->fetchAll();
+        $rows = $s->fetchAll();
+        // Surface GPT's sourcing evidence so triage decisions are fast
+        foreach ($rows as &$row) {
+            $payload = json_decode((string)($row['source_payload'] ?? ''), true) ?: [];
+            $row['found_via']  = trim((string)($payload['found_via']  ?? ''));
+            $row['confidence'] = strtolower(trim((string)($payload['confidence'] ?? '')));
+        }
+        unset($row);
+        return $rows;
     } catch (PDOException) {
         // triaged column not yet migrated
         return [];
@@ -2894,6 +2938,53 @@ function ho_get_website_businesses(PDO $pdo): array {
     ")->fetchAll();
 }
 
+/**
+ * Batch URL liveness check via parallel curl. Takes [key => url],
+ * returns [key => bool alive]. HTTP 200–399 after redirects counts as alive.
+ */
+function ho_check_urls_alive(array $urls): array {
+    $results = [];
+    $toCheck = [];
+    foreach ($urls as $key => $url) {
+        $url = trim((string)$url);
+        if ($url === '') { $results[$key] = false; continue; }
+        if (!preg_match('#^https?://#i', $url)) $url = 'https://' . $url;
+        $toCheck[$key] = $url;
+    }
+
+    foreach (array_chunk(array_keys($toCheck), 15, true) as $batch) {
+        $mh  = curl_multi_init();
+        $chs = [];
+        foreach ($batch as $key) {
+            $ch = curl_init($toCheck[$key]);
+            curl_setopt_array($ch, [
+                CURLOPT_NOBODY         => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 3,
+                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; HoosierOnline/1.0)',
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $chs[$key] = $ch;
+        }
+
+        $running = null;
+        do { curl_multi_exec($mh, $running); curl_multi_select($mh); } while ($running > 0);
+
+        foreach ($chs as $key => $ch) {
+            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $results[$key] = $code >= 200 && $code < 400;
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+        }
+        curl_multi_close($mh);
+    }
+
+    return $results;
+}
+
 function ho_audit_and_fix_websites(PDO $pdo): array {
     @set_time_limit(120);
     $businesses = ho_get_website_businesses($pdo);
@@ -2908,50 +2999,18 @@ function ho_audit_and_fix_websites(PDO $pdo): array {
             $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$biz['id']]);
             $fixed++;
         } else {
-            if (!preg_match('#^https?://#i', $url)) $url = 'https://' . $url;
-            $toCheck[$biz['id']] = ['biz' => $biz, 'url' => $url];
+            $toCheck[$biz['id']] = $url;
         }
     }
 
-    // Parallel curl_multi in batches of 15
-    $batchSize = 15;
-    $ids = array_keys($toCheck);
-    foreach (array_chunk($ids, $batchSize) as $batch) {
-        $mh   = curl_multi_init();
-        $chs  = [];
-        foreach ($batch as $bizId) {
-            $url = $toCheck[$bizId]['url'];
-            $ch  = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_NOBODY         => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS      => 3,
-                CURLOPT_TIMEOUT        => 8,
-                CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; HoosierOnline/1.0)',
-                CURLOPT_SSL_VERIFYPEER => false,
-            ]);
-            curl_multi_add_handle($mh, $ch);
-            $chs[$bizId] = $ch;
+    foreach (ho_check_urls_alive($toCheck) as $bizId => $alive) {
+        if ($alive) {
+            $live++;
+        } else {
+            $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$bizId]);
+            $pdo->prepare("UPDATE businesses SET website_url='', updated_at=NOW() WHERE id=?")->execute([$bizId]);
+            $fixed++;
         }
-
-        $running = null;
-        do { curl_multi_exec($mh, $running); curl_multi_select($mh); } while ($running > 0);
-
-        foreach ($chs as $bizId => $ch) {
-            $code  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $alive = $code >= 200 && $code < 400;
-            curl_multi_remove_handle($mh, $ch);
-            curl_close($ch);
-            if ($alive) {
-                $live++;
-            } else {
-                $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$bizId]);
-                $pdo->prepare("UPDATE businesses SET website_url='', updated_at=NOW() WHERE id=?")->execute([$bizId]);
-                $fixed++;
-            }
-        }
-        curl_multi_close($mh);
     }
 
     return ['total' => count($businesses), 'live' => $live, 'fixed' => $fixed];
