@@ -791,31 +791,49 @@ if ($paid && $row && $pdo !== null) {
   <?php if (!empty($available)): ?>
 
   <?php
-    // One offer, one look: show the single design matched to this category.
-    // No picker — the lead sees their site, already decided, not a menu.
-    $showKey = isset($available[$templateKey]) ? $templateKey : array_key_first($available);
-    $showTpl = $available[$showKey];
+    // Honest demo gallery: these are template designs with a placeholder
+    // business on them. The lead picks the style they like; Adam builds
+    // their real site in that style. Choice is recorded at checkout.
+    $showKey     = isset($available[$templateKey]) ? $templateKey : array_key_first($available);
+    $templateKey = $showKey; // keep the checkout hidden input in sync with what's shown
   ?>
   <section class="fd-card fd-reveal">
-    <p class="fd-kicker">Your website &mdash; live preview</p>
-    <h2 class="fd-design-title"><?= $subhead !== '' ? ho_h($subhead) : 'This is exactly what we\'d build for ' . ho_h($name) . '.' ?></h2>
-    <p class="fd-design-sub">Not a mockup. Not a template. This is the real <?= ho_h($name) ?> site &mdash; designed for your trade and ready to go live the moment you say yes.</p>
+    <p class="fd-kicker">Design styles &mdash; you pick</p>
+    <h2 class="fd-design-title"><?= $hasWebsite ? 'Pick the style your new site gets built in.' : 'Pick the style. I build ' . ho_h($name) . '&rsquo;s site in it.' ?></h2>
+    <p class="fd-design-sub">These are demo designs from my shop &mdash; the business on them isn&rsquo;t real. Yours gets built in the style you pick, with your name, your number, your services<?= $googleCount >= 3 ? ', your real reviews' : '' ?>. Tap through and see which one feels like <?= ho_h($name) ?>.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
       <span style="font-size:12px;font-weight:700;color:var(--fd-green);background:rgba(47,94,54,.1);border:1px solid rgba(47,94,54,.2);padding:4px 10px;border-radius:20px">⚡ Live in 24 hours</span>
-      <span style="font-size:12px;font-weight:700;color:#7a4800;background:rgba(184,112,32,.1);border:1px solid rgba(184,112,32,.2);padding:4px 10px;border-radius:20px">One <?= ho_h(strtolower($catName)) ?> site in <?= ho_h($city) ?></span>
+      <span style="font-size:12px;font-weight:700;color:#7a4800;background:rgba(184,112,32,.1);border:1px solid rgba(184,112,32,.2);padding:4px 10px;border-radius:20px"><?= count($available) ?> style<?= count($available) !== 1 ? 's' : '' ?> &mdash; your call</span>
     </div>
+
+    <?php if (count($available) > 1): ?>
+    <div class="fd-tpl-picker">
+      <?php foreach ($available as $k => $opt): ?>
+      <button type="button" class="fd-tpl-tab<?= $k === $showKey ? ' fd-tpl-tab--active' : '' ?>"
+              data-tpl="<?= ho_h($k) ?>" onclick="fdPickTpl(this)">
+        <span class="fd-tpl-dot" style="background:<?= ho_h((string)$opt['color']) ?>"></span><?= ho_h((string)$opt['label']) ?>
+      </button>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <div class="fd-phone-stage">
     <div class="fd-phone-frame">
       <div class="fd-phone-screen" id="fd-phone-screen">
-        <div class="fd-tpl-pane">
-          <?php include $showTpl['file']; ?>
-        </div>
+        <?php foreach ($available as $k => $opt):
+          ob_start();
+          include $opt['file'];
+          $paneHtml = ob_get_clean();
+          // Preview images are 2MB+ each — lazy-load so hidden styles cost nothing
+          $paneHtml = str_replace('<img ', '<img loading="lazy" decoding="async" ', $paneHtml);
+        ?>
+        <div class="fd-tpl-pane" data-tpl-pane="<?= ho_h($k) ?>"<?= $k === $showKey ? '' : ' hidden' ?>><?= $paneHtml ?></div>
+        <?php endforeach; ?>
       </div>
     </div>
     </div><!-- /.fd-phone-stage -->
 
-    <p class="fd-excl-note">Built from scratch for <?= ho_h($name) ?> &mdash; this design will never be used for another <?= ho_h(strtolower($catName)) ?> company in <?= ho_h($city) ?>.</p>
+    <p class="fd-excl-note">Whichever style you pick, I customize it for <?= ho_h($name) ?> &mdash; and I won&rsquo;t sell the same look to another <?= ho_h(strtolower($catName)) ?> company<?= $city !== '' ? ' in ' . ho_h($city) : '' ?>.</p>
   </section>
 
   <?php else: ?>
@@ -906,7 +924,7 @@ if ($paid && $row && $pdo !== null) {
     <div class="fd-section-head">
       <p class="fd-kicker">What We Build</p>
       <h2>Every page. What it does. Why it matters.</h2>
-      <p class="fd-design-sub" style="margin-top:-4px;margin-bottom:8px">Built specifically for <?= ho_h($name) ?> &mdash; not a template, not a placeholder. You own it the day it goes live.</p>
+      <p class="fd-design-sub" style="margin-top:-4px;margin-bottom:8px">Built in the style you pick, filled with <?= ho_h($name) ?>&rsquo;s real details &mdash; and you own it the day it goes live.</p>
     </div>
     <div class="fd-module-list">
       <?php foreach ($modules as $i => $m): ?>
@@ -1170,6 +1188,22 @@ if ($paid && $row && $pdo !== null) {
   })();
   </script>
   <?php endif; ?>
+
+  <script>
+  // Style picker: swap visible template pane, mark active tab,
+  // carry the chosen style into checkout via the hidden input.
+  function fdPickTpl(btn) {
+    var key = btn.getAttribute('data-tpl');
+    document.querySelectorAll('.fd-tpl-tab').forEach(function(b){
+      b.classList.toggle('fd-tpl-tab--active', b === btn);
+    });
+    document.querySelectorAll('[data-tpl-pane]').forEach(function(p){
+      p.hidden = p.getAttribute('data-tpl-pane') !== key;
+    });
+    var h = document.getElementById('fd-h-template');
+    if (h) h.value = key;
+  }
+  </script>
 
   <script>
   (function(){

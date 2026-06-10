@@ -1714,3 +1714,6 @@ body.front-door-preview-page{
 .fd-stakes{border-left:4px solid #8b0e17}
 .fd-stakes-num{font-weight:900;color:#8b0e17;white-space:nowrap}
 .fd-stakes-honest{font-size:13px;color:var(--fd-muted);margin-top:10px}
+
+/* ── Template style picker panes ─────────────────────────────────────────── */
+.fd-tpl-pane[hidden]{display:none!important}
