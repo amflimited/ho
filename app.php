@@ -129,6 +129,20 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=research&flash=' . urlencode('Domain cleared.'));
                 exit;
 
+            case 'triage_keep':
+                $bizId = (int)($_POST['business_id'] ?? 0);
+                if ($bizId === 0) throw new RuntimeException('Business ID missing.');
+                $pdo->prepare("UPDATE businesses SET triaged=1, updated_at=NOW() WHERE id=?")->execute([$bizId]);
+                header('Location: ?tab=research&flash=' . urlencode('Lead confirmed — queued for research.'));
+                exit;
+
+            case 'triage_reject':
+                $bizId = (int)($_POST['business_id'] ?? 0);
+                if ($bizId === 0) throw new RuntimeException('Business ID missing.');
+                ho_mark_excluded($pdo, $bizId, 'failed_triage');
+                header('Location: ?tab=research&flash=' . urlencode('Lead rejected.'));
+                exit;
+
             case 'audit_websites':
                 set_time_limit(180);
                 $result = ho_audit_and_fix_websites($pdo);
@@ -211,6 +225,7 @@ $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $u
 $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $websiteReviewBatch = $pdo ? ho_get_website_review_batch($pdo) : [];
+$triageBatch        = $pdo ? ho_get_triage_batch($pdo) : [];
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
 $enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 38) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
@@ -536,6 +551,46 @@ if (!empty($unresearched)) {
 
 <!-- ═══ RESEARCH ════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'research'): ?>
+
+  <?php if (!empty($triageBatch)): ?>
+  <section class="cp-section">
+    <h2 class="cp-sh" style="font-size:14px">Confirm new leads are real <span style="font-weight:400;font-size:12px;color:var(--ink2)"><?= count($triageBatch) ?> waiting</span></h2>
+    <p class="cp-hint">Sourced leads wait here until confirmed — research only runs on real businesses. Tap Check to verify on Google, then Real or Reject.</p>
+    <div class="cp-domain-table">
+      <?php foreach ($triageBatch as $t):
+        $tChips = [];
+        if ((string)$t['website_url']         !== '') $tChips[] = 'web';
+        if ((string)$t['facebook_url']        !== '') $tChips[] = 'fb';
+        if ((string)$t['google_business_url'] !== '') $tChips[] = 'gbp';
+        if ((string)$t['phone_number']        !== '') $tChips[] = 'phone';
+        if ((string)$t['email_address']       !== '') $tChips[] = 'email';
+        $tSearch = 'https://www.google.com/search?q=' . rawurlencode('"' . $t['business_name'] . '" ' . $t['location_city'] . ' Indiana');
+      ?>
+      <div class="cp-domain-row" id="tr-<?= (int)$t['id'] ?>">
+        <div class="cp-domain-info">
+          <strong class="cp-domain-biz"><?= ho_h((string)$t['business_name']) ?></strong>
+          <span class="cp-domain-meta"><?= ho_h((string)$t['category_name']) ?> &middot; <?= ho_h((string)$t['location_city']) ?><?= $tChips !== [] ? ' &middot; ' . implode(' / ', $tChips) : '' ?></span>
+          <a class="cp-domain-url" href="<?= ho_h($tSearch) ?>" target="_blank" rel="noopener">Check on Google ↗</a>
+        </div>
+        <div class="cp-domain-actions">
+          <form method="POST" style="display:contents" onsubmit="return domainRowDone(<?= (int)$t['id'] ?>, 'tr')">
+            <input type="hidden" name="action" value="triage_keep">
+            <input type="hidden" name="tab" value="research">
+            <input type="hidden" name="business_id" value="<?= (int)$t['id'] ?>">
+            <button type="submit" class="cp-btn-domain-keep">Real ✓</button>
+          </form>
+          <form method="POST" style="display:contents" onsubmit="return domainRowDone(<?= (int)$t['id'] ?>, 'tr')">
+            <input type="hidden" name="action" value="triage_reject">
+            <input type="hidden" name="tab" value="research">
+            <input type="hidden" name="business_id" value="<?= (int)$t['id'] ?>">
+            <button type="submit" class="cp-btn-domain-clear">Reject ✗</button>
+          </form>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
 
   <?php if (!empty($resCatCounts)): ?>
   <div class="cp-cat-toggle">
@@ -1777,8 +1832,8 @@ function markSent(el, via) {
   var flag = card.querySelector('.cp-sent-flag');
   if (flag) flag.hidden = false;
 }
-function domainRowDone(id) {
-  var row = document.getElementById('dr-' + id);
+function domainRowDone(id, prefix) {
+  var row = document.getElementById((prefix || 'dr') + '-' + id);
   if (row) { row.style.opacity = '.35'; row.style.pointerEvents = 'none'; }
   return true;
 }

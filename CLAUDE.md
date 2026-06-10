@@ -219,6 +219,50 @@ ALTER TABLE research_records
 
 ---
 
+## ⚠️ REQUIRED MIGRATION — data-quality reset (2026-06-10)
+
+Two columns + one optional reset statement. The code degrades gracefully
+before the ALTERs run (review queues just stay empty, research queue keeps
+old behavior).
+
+```sql
+-- 1. Domain review queue (Keep/Clear UI in Research tab)
+ALTER TABLE businesses
+ADD COLUMN website_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER website_url;
+
+-- 2. Triage gate — sourced leads wait for human confirmation before research
+ALTER TABLE businesses
+ADD COLUMN triaged TINYINT(1) NOT NULL DEFAULT 0 AFTER pipeline_status;
+
+-- 3. OPTIONAL data reset — archives all unpitched leads (reversible).
+--    Keeps pitched/converted history + blocklist. Run only when ready to
+--    re-source through the new evidence-gated sourcing prompt.
+UPDATE businesses
+SET pipeline_status='excluded', exclusion_reason='pre_reset', updated_at=NOW()
+WHERE pipeline_status IN ('identified','researched','needs_contact','preview_ready','enhancement_ready');
+```
+
+To undo the reset for a specific lead: set its `pipeline_status` back and
+clear `exclusion_reason`.
+
+## Data-quality gates (2026-06-10)
+
+Bad leads were entering at sourcing and wasting research cycles. Three gates
+now exist, in pipeline order:
+
+1. **Sourcing prompt** (`ho_generate_sourcing_prompt`) demands evidence:
+   verifiable Google Maps/FB/website presence, at least one contact path,
+   `found_via` + `confidence` per candidate, "return fewer rather than guess".
+2. **Import gate** (`ho_import_sourcing_json`) rejects: low confidence,
+   zero contact paths, lead-platform URLs as website_url.
+3. **Triage queue** (Research tab, `ho_get_triage_batch`) — promoted leads sit
+   at `identified`/`triaged=0` until a human taps Real ✓ (triaged=1) or
+   Reject ✗ (`excluded`/`failed_triage`). `ho_triage_clause()` keeps
+   untriaged leads out of `ho_get_unresearched_businesses` and the category
+   counts. Plus: **domain review queue** (`ho_get_website_review_batch`) for
+   `website_url` with `website_verified=0`; contact prompt now returns
+   `website_confidence` (high=verified, medium=review queue, low=discarded).
+
 ## go.php Trust/Emotion Layer (2026-06-10)
 
 Five blocks added to go.php (both tracks unless noted), all data-gated —

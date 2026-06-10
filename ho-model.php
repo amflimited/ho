@@ -250,7 +250,13 @@ function ho_generate_sourcing_prompt(array $category, string $area, int $count, 
     $cityList = $regions[$area] ?? $area;
 
     return <<<PROMPT
-Find {$count} {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint} Do NOT include national franchises, corporate chains, or multi-territory platforms (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, TruGreen, ServiceMaster, Junk King, MaidPro, Lawn Love).
+Find up to {$count} REAL, VERIFIABLE {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint} Do NOT include national franchises, corporate chains, or multi-territory platforms (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, TruGreen, ServiceMaster, Junk King, MaidPro, Lawn Love).
+
+VERIFICATION REQUIREMENTS — these matter more than the count:
+- Only include a business you can actually verify exists right now: a live Google Maps/Google Business listing, an active Facebook page, or a working website that names the business and city.
+- Every business MUST have at least one real contact path: a phone number, email, website, or Facebook page. If you cannot find any contact path, leave the business out.
+- NEVER guess or construct a website URL from the business name. Only include a website_url you actually found and that loads. An empty string is always better than a guess.
+- It is COMPLETELY FINE to return fewer than {$count} — even 3 verified businesses beat {$count} guesses. Do not pad the list.
 
 Return ONLY valid JSON, no explanation, no markdown:
 
@@ -264,10 +270,17 @@ Return ONLY valid JSON, no explanation, no markdown:
       "facebook_url": "https://facebook.com/... or empty string",
       "google_url": "https://maps.google.com/... or empty string",
       "phone": "3175551234 or empty string",
-      "email": "owner@example.com or empty string"
+      "email": "owner@example.com or empty string",
+      "found_via": "where you verified this business exists — e.g. Google Maps listing, Facebook page, their website",
+      "confidence": "high"
     }
   ]
-}{$exclude}
+}
+
+confidence rules:
+- "high" — you saw a live listing/page/site that names this business in this city
+- "medium" — strong indirect evidence (e.g. recent reviews mention them) but no primary listing
+- "low" — uncertain. Do NOT include low-confidence businesses at all — leave them out.{$exclude}
 PROMPT;
 }
 
@@ -301,6 +314,24 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
         if ($state !== 'IN') { $skipped++; continue; }
         if ($blocklistNorms !== [] && in_array(ho_norm_name($name), $blocklistNorms, true)) { $skipped++; continue; }
 
+        // Quality gate: low-confidence candidates are guesses — reject at the door
+        $confidence = strtolower(trim((string)($c['confidence'] ?? 'high')));
+        if ($confidence === 'low') { $skipped++; continue; }
+
+        $websiteUrl = trim((string)($c['website_url'] ?? ''));
+        // Lead-platform profile pages are not the business's own site
+        if ($websiteUrl !== '' && ho_is_lead_platform_url($websiteUrl)) $websiteUrl = '';
+        $facebookUrl = trim((string)($c['facebook_url'] ?? ''));
+        $googleUrl   = trim((string)($c['google_url'] ?? $c['google_profile_url'] ?? ''));
+        $phone       = ho_norm_phone((string)($c['phone'] ?? $c['public_phone'] ?? ''));
+        $email       = strtolower(trim((string)($c['email'] ?? $c['public_email'] ?? '')));
+
+        // Quality gate: a lead with zero contact paths can never be pitched — don't import it
+        if ($websiteUrl === '' && $facebookUrl === '' && $googleUrl === '' && $phone === '' && $email === '') {
+            $skipped++;
+            continue;
+        }
+
         try {
             $insert->execute([
                 ho_uid('cand'),
@@ -309,11 +340,11 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
                 $name,
                 trim((string)($c['city'] ?? '')),
                 $state,
-                trim((string)($c['website_url'] ?? '')),
-                trim((string)($c['facebook_url'] ?? '')),
-                trim((string)($c['google_url'] ?? $c['google_profile_url'] ?? '')),
-                ho_norm_phone((string)($c['phone'] ?? $c['public_phone'] ?? '')),
-                strtolower(trim((string)($c['email'] ?? $c['public_email'] ?? ''))),
+                $websiteUrl,
+                $facebookUrl,
+                $googleUrl,
+                $phone,
+                $email,
                 json_encode($c, JSON_UNESCAPED_SLASHES),
             ]);
             $imported++;
@@ -425,10 +456,55 @@ function ho_promote_candidates(PDO $pdo, int $runId): int {
     return $promoted;
 }
 
+// ─── Triage gate ──────────────────────────────────────────────────────────────
+// Freshly sourced leads sit at 'identified' with triaged=0 until a human
+// confirms they're real. Research only ever pulls triaged leads, so GPT
+// research cycles are never spent on hallucinated businesses.
+
+function ho_get_triage_batch(PDO $pdo, int $limit = 60): array {
+    try {
+        $s = $pdo->prepare("
+            SELECT b.id, b.business_name, b.location_city, b.website_url,
+                   b.facebook_url, b.google_business_url, b.phone_number,
+                   b.email_address, b.created_at,
+                   c.name AS category_name
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            WHERE b.pipeline_status = 'identified'
+              AND b.triaged = 0
+            ORDER BY b.created_at ASC
+            LIMIT " . (int)$limit . "
+        ");
+        $s->execute([]);
+        return $s->fetchAll();
+    } catch (PDOException) {
+        // triaged column not yet migrated
+        return [];
+    }
+}
+
+/**
+ * SQL fragment that hides untriaged identified leads from research queues.
+ * Falls back to '1=1' (old behavior) until the triaged column exists.
+ */
+function ho_triage_clause(PDO $pdo): string {
+    static $hasColumn = null;
+    if ($hasColumn === null) {
+        try {
+            $pdo->query("SELECT triaged FROM businesses LIMIT 1");
+            $hasColumn = true;
+        } catch (PDOException) {
+            $hasColumn = false;
+        }
+    }
+    return $hasColumn ? "(b.pipeline_status != 'identified' OR b.triaged = 1)" : '1=1';
+}
+
 // ─── Research ─────────────────────────────────────────────────────────────────
 
 function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10, int $categoryId = 0): array {
-    $catClause = $categoryId > 0 ? 'AND b.category_id = ' . $categoryId : '';
+    $catClause    = $categoryId > 0 ? 'AND b.category_id = ' . $categoryId : '';
+    $triageClause = ho_triage_clause($pdo);
     $s = $pdo->prepare("
         SELECT b.*, c.name AS category_name,
                CASE WHEN r.id IS NULL THEN 'new' ELSE 'stale' END AS research_queue_reason
@@ -437,6 +513,7 @@ function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10, int $category
         LEFT JOIN research_records r ON r.business_id = b.id
         WHERE b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
           AND (r.id IS NULL OR r.has_contact_form IS NULL)
+          AND {$triageClause}
           {$catClause}
         ORDER BY (r.id IS NULL) DESC, b.created_at ASC
         LIMIT " . (int)$limit . "
@@ -446,6 +523,7 @@ function ho_get_unresearched_businesses(PDO $pdo, int $limit = 10, int $category
 }
 
 function ho_unresearched_category_counts(PDO $pdo): array {
+    $triageClause = ho_triage_clause($pdo);
     return $pdo->query("
         SELECT c.id, c.name, c.slug, COUNT(b.id) AS cnt
         FROM businesses b
@@ -453,6 +531,7 @@ function ho_unresearched_category_counts(PDO $pdo): array {
         LEFT JOIN research_records r ON r.business_id = b.id
         WHERE b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
           AND (r.id IS NULL OR r.has_contact_form IS NULL)
+          AND {$triageClause}
         GROUP BY c.id
         ORDER BY cnt DESC
     ")->fetchAll();
