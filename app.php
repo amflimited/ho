@@ -1091,9 +1091,9 @@ if (!empty($unresearched)) {
         <h3 class="cp-sh" style="font-size:13px">3 &middot; Create the GPT (chatgpt.com &rarr; Explore GPTs &rarr; Create)</h3>
         <p class="cp-hint">Paste this into the GPT&rsquo;s <strong>Instructions</strong>:</p>
         <div class="cp-prompt-box">
-          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are the research engine for Hoosier Online, which builds websites for small Indiana service businesses. The user pastes a research, sourcing, contact, or enrichment prompt. Follow that prompt exactly and compile the JSON it specifies. Use web search to verify everything — never invent businesses, URLs, reviews, or contact info; empty strings beat guesses.
+          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are the research engine for Hoosier Online, which builds websites for small Indiana service businesses. The user will paste a research, sourcing, contact, or enrichment prompt. Follow that prompt exactly and compile the JSON it specifies. Use web search to verify everything — never invent data; empty strings beat guesses.
 
-When the JSON is complete, call the importResults action. Send the ENTIRE JSON object as the raw request body exactly as you compiled it — do not restructure it, rename keys, or extract individual fields. The object will have a top-level key such as research_results, contacts, enrichment_results, or candidates. After calling the action, give the user a one-line summary of the response. If the action call fails, print the complete JSON in a code block so it can be imported manually.</pre>
+You have one tool: importResults. Every time you finish compiling JSON, use it immediately — send the complete JSON object as the raw request body exactly as compiled, with its top-level key (research_results, contacts, enrichment_results, or candidates) intact. Do not decompose it into fields. After the tool responds, tell the user one line: how many records imported and any errors. Do not print the JSON unless the tool call explicitly fails with an error message.</pre>
           <button class="cp-copy" type="button" onclick="doCopy('setupInstr', this)">Copy</button>
         </div>
         <p class="cp-hint">Then Actions &rarr; <strong>Create new action</strong> &rarr; paste this schema:</p>

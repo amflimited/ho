@@ -310,7 +310,8 @@ confidence rules:
 - "low" — uncertain. Do NOT include low-confidence businesses at all — leave them out.{$runRule}
 
 DELIVERY:
-- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.{$exclude}
+- Save the complete JSON as a downloadable file named results.json — always, so it can be uploaded if needed.
+- Keep your response brief: one line saying what you found.{$exclude}
 PROMPT;
 }
 
@@ -840,8 +841,8 @@ AI ASSESSMENT:
 - recommended_package: "standard" ($499 site build) | "managed" ($999, businesses that need ongoing content)
 
 DELIVERY:
-- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.
-- Otherwise, ALSO save the complete JSON as a downloadable file named results.json — long replies are easier to import as a file than copied from chat.
+- Save the complete JSON as a downloadable file named results.json — always, so it can be uploaded if needed.
+- Keep your response brief: one line saying what you found.
 PROMPT;
 }
 
@@ -2031,7 +2032,7 @@ Rules:
 - Only include information you are confident is current and accurate
 - website_confidence: "high" if URL found on official source (Google Business, verified directory, the site itself names the business); "medium" if found via search and seems right; "low" if guessed, inferred from name, or uncertain — use empty string for website_url if low
 - Return ONLY valid JSON, no explanation, no markdown fences.
-- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.
+- Save the complete JSON as a downloadable file named results.json — always, so it can be uploaded if needed.
 PROMPT;
 }
 
@@ -2822,8 +2823,8 @@ Rules:
 - owner_age_band: "under35" | "35-55" | "55plus" | "unknown"
 
 DELIVERY:
-- If you have an importResults action available, call it with the complete JSON instead of printing it, then summarize what was imported.
-- Otherwise, ALSO save the complete JSON as a downloadable file named results.json — long replies are easier to import as a file than copied from chat.
+- Save the complete JSON as a downloadable file named results.json — always, so it can be uploaded if needed.
+- Keep your response brief: one line saying what you found.
 PROMPT;
 }
 
