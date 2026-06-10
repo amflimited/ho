@@ -214,6 +214,26 @@ $runId    = (int)($_GET['run_id']           ?? 0);
 $flashMsg = trim((string)($_GET['flash']   ?? ''));
 $errorMsg = trim((string)($_GET['error']   ?? ''));
 
+// Global lead search — find any business by name/city/email/phone from any tab
+$searchQ       = trim((string)($_GET['q'] ?? ''));
+$searchResults = [];
+if ($pdo && $searchQ !== '') {
+    $like = '%' . $searchQ . '%';
+    $sq = $pdo->prepare("
+        SELECT b.id, b.business_name, b.business_slug, b.location_city,
+               b.pipeline_status, b.email_address, b.phone_number, b.website_url,
+               c.name AS category_name
+        FROM businesses b
+        JOIN categories c ON c.id = b.category_id
+        WHERE b.business_name LIKE ? OR b.location_city LIKE ?
+           OR b.email_address LIKE ? OR b.phone_number LIKE ?
+        ORDER BY b.updated_at DESC
+        LIMIT 25
+    ");
+    $sq->execute([$like, $like, $like, $like]);
+    $searchResults = $sq->fetchAll();
+}
+
 $counts = $pdo ? ho_pipeline_counts($pdo) : ['identified'=>0,'researched'=>0,'preview_ready'=>0,'enhancement_ready'=>0,'pitched'=>0,'converted'=>0,'needs_contact'=>0,'excluded'=>0,'total'=>0];
 $job    = ho_current_job($counts);
 if ($tab === '') $tab = $job;
@@ -354,6 +374,56 @@ if (!empty($unresearched)) {
 </nav>
 
 <main class="cp-main">
+
+<form class="cp-search-form" method="GET" action="">
+  <input type="hidden" name="tab" value="<?= ho_h($tab) ?>">
+  <input class="cp-input" type="search" name="q" value="<?= ho_h($searchQ) ?>"
+         placeholder="Find a lead — name, city, email, phone&hellip;" autocomplete="off">
+  <button class="cp-btn-ghost" type="submit">Search</button>
+</form>
+
+<?php if ($searchQ !== ''): ?>
+<section class="cp-section">
+  <h2 class="cp-sh" style="font-size:14px"><?= count($searchResults) ?> match<?= count($searchResults) !== 1 ? 'es' : '' ?> for &ldquo;<?= ho_h($searchQ) ?>&rdquo;
+    <a href="?tab=<?= ho_h($tab) ?>" style="font-weight:400;font-size:12px;color:var(--ink2);margin-left:8px">clear ✕</a>
+  </h2>
+  <?php if (!empty($searchResults)): ?>
+  <div class="cp-domain-table">
+    <?php
+    $statusLabels = [
+        'identified' => 'sourced', 'researched' => 'researched',
+        'preview_ready' => 'ready to send', 'enhancement_ready' => 'ready to send',
+        'needs_contact' => 'needs contact', 'pitched' => 'pitched',
+        'converted' => 'WON', 'excluded' => 'excluded', 'not_a_fit' => 'not a fit',
+    ];
+    foreach ($searchResults as $sr):
+      $srStatus = (string)$sr['pipeline_status'];
+      $srChipCls = match($srStatus) {
+          'converted'                          => 'cp-status-won',
+          'pitched'                            => 'cp-status-pitched',
+          'preview_ready', 'enhancement_ready' => 'cp-status-ready',
+          'excluded', 'not_a_fit'              => 'cp-status-out',
+          default                              => 'cp-status-mid',
+      };
+      $srContact = implode(' · ', array_filter([(string)$sr['email_address'], (string)$sr['phone_number']]));
+    ?>
+    <div class="cp-domain-row">
+      <div class="cp-domain-info">
+        <strong class="cp-domain-biz"><?= ho_h((string)$sr['business_name']) ?> <span class="cp-status-chip <?= $srChipCls ?>"><?= ho_h($statusLabels[$srStatus] ?? $srStatus) ?></span></strong>
+        <span class="cp-domain-meta"><?= ho_h((string)$sr['category_name']) ?> &middot; <?= ho_h((string)$sr['location_city']) ?><?= $srContact !== '' ? ' &middot; ' . ho_h($srContact) : '' ?></span>
+      </div>
+      <div class="cp-domain-actions" style="flex-direction:row">
+        <a class="cp-btn-ghost" style="font-size:12px;padding:6px 10px" href="/go/<?= ho_h((string)$sr['business_slug']) ?>" target="_blank">Preview ↗</a>
+        <a class="cp-btn-ghost" style="font-size:12px;padding:6px 10px" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $sr['business_name'] . '" ' . $sr['location_city'] . ' Indiana')) ?>" target="_blank">Google ↗</a>
+      </div>
+    </div>
+    <?php endforeach; ?>
+  </div>
+  <?php else: ?>
+  <p class="cp-hint">Nothing found. Check the spelling, or it may not be in the pipeline yet.</p>
+  <?php endif; ?>
+</section>
+<?php endif; ?>
 
 <?php if ($dbError): ?>
   <div class="cp-alert cp-alert-err">Database error: <?= ho_h($dbError) ?></div>
@@ -555,7 +625,7 @@ if (!empty($unresearched)) {
 
   <?php if (!empty($triageBatch)): ?>
   <section class="cp-section">
-    <h2 class="cp-sh" style="font-size:14px">Confirm new leads are real <span style="font-weight:400;font-size:12px;color:var(--ink2)"><?= count($triageBatch) ?> waiting</span></h2>
+    <h2 class="cp-sh" style="font-size:14px">Confirm new leads are real <span style="font-weight:400;font-size:12px;color:var(--ink2)" data-queue-count="<?= count($triageBatch) ?>"><?= count($triageBatch) ?> waiting</span></h2>
     <p class="cp-hint">Sourced leads wait here until confirmed — research only runs on real businesses. Tap Check to verify on Google, then Real or Reject.</p>
     <div class="cp-domain-table">
       <?php foreach ($triageBatch as $t):
@@ -581,13 +651,13 @@ if (!empty($unresearched)) {
           <a class="cp-domain-url" href="<?= ho_h($tSearch) ?>" target="_blank" rel="noopener">Check on Google ↗</a>
         </div>
         <div class="cp-domain-actions">
-          <form method="POST" style="display:contents" onsubmit="return domainRowDone(<?= (int)$t['id'] ?>, 'tr')">
+          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
             <input type="hidden" name="action" value="triage_keep">
             <input type="hidden" name="tab" value="research">
             <input type="hidden" name="business_id" value="<?= (int)$t['id'] ?>">
             <button type="submit" class="cp-btn-domain-keep">Real ✓</button>
           </form>
-          <form method="POST" style="display:contents" onsubmit="return domainRowDone(<?= (int)$t['id'] ?>, 'tr')">
+          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
             <input type="hidden" name="action" value="triage_reject">
             <input type="hidden" name="tab" value="research">
             <input type="hidden" name="business_id" value="<?= (int)$t['id'] ?>">
@@ -923,7 +993,7 @@ if (!empty($unresearched)) {
 
   <?php if (!empty($websiteReviewBatch)): ?>
   <section class="cp-section">
-    <h2 class="cp-sh" style="font-size:14px">Review website domains <span style="font-weight:400;font-size:12px;color:var(--ink2)"><?= count($websiteReviewBatch) ?> unverified</span></h2>
+    <h2 class="cp-sh" style="font-size:14px">Review website domains <span style="font-weight:400;font-size:12px;color:var(--ink2)" data-queue-count="<?= count($websiteReviewBatch) ?>"><?= count($websiteReviewBatch) ?> unverified</span></h2>
     <p class="cp-hint">Each domain below came from AI research. Tap the URL to check it, then Keep or Clear.</p>
     <div class="cp-domain-table">
       <?php foreach ($websiteReviewBatch as $d): ?>
@@ -934,13 +1004,13 @@ if (!empty($unresearched)) {
           <a class="cp-domain-url" href="<?= ho_h((string)$d['website_url']) ?>" target="_blank" rel="noopener"><?= ho_h((string)$d['website_url']) ?></a>
         </div>
         <div class="cp-domain-actions">
-          <form method="POST" style="display:contents">
+          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
             <input type="hidden" name="action" value="verify_website">
             <input type="hidden" name="tab" value="research">
             <input type="hidden" name="business_id" value="<?= (int)$d['id'] ?>">
-            <button type="submit" class="cp-btn-domain-keep" onclick="domainRowDone(<?= (int)$d['id'] ?>)">Keep ✓</button>
+            <button type="submit" class="cp-btn-domain-keep">Keep ✓</button>
           </form>
-          <form method="POST" style="display:contents" onsubmit="return domainRowDone(<?= (int)$d['id'] ?>)">
+          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
             <input type="hidden" name="action" value="clear_website">
             <input type="hidden" name="tab" value="research">
             <input type="hidden" name="business_id" value="<?= (int)$d['id'] ?>">
@@ -1840,10 +1910,31 @@ function markSent(el, via) {
   var flag = card.querySelector('.cp-sent-flag');
   if (flag) flag.hidden = false;
 }
-function domainRowDone(id, prefix) {
-  var row = document.getElementById((prefix || 'dr') + '-' + id);
-  if (row) { row.style.opacity = '.35'; row.style.pointerEvents = 'none'; }
-  return true;
+// Review-queue actions (triage Real/Reject, domain Keep/Clear) post in the
+// background — no page reload, no scroll loss. The row fades out and the
+// section counter ticks down, so bulk cleanup is tap-tap-tap.
+function queueAjax(form) {
+  try {
+    fetch(window.location.pathname, {
+      method: 'POST',
+      body: new FormData(form),
+      redirect: 'manual',
+      keepalive: true
+    }).catch(function(){});
+  } catch (e) { return true; } // fetch unavailable — fall back to normal submit
+  var row = form.closest('.cp-domain-row');
+  if (row) {
+    row.style.opacity = '.35';
+    row.style.pointerEvents = 'none';
+    var section = row.closest('.cp-section');
+    var counter = section ? section.querySelector('[data-queue-count]') : null;
+    if (counter) {
+      var n = Math.max(0, parseInt(counter.getAttribute('data-queue-count'), 10) - 1);
+      counter.setAttribute('data-queue-count', n);
+      counter.textContent = counter.textContent.replace(/\d+/, n);
+    }
+  }
+  return false;
 }
 
 function openDash() {

@@ -872,3 +872,20 @@ a { color: inherit; }
   padding: 6px 10px; border-radius: 6px; cursor: pointer;
   background: #F8D7DA; color: #721c24; border: 1.5px solid #f1aeb5;
 }
+
+/* ── Global lead search ──────────────────────────────────────────────────── */
+.cp-search-form { display: flex; gap: 8px; margin-bottom: 14px; }
+.cp-search-form .cp-input { flex: 1; min-width: 0; }
+.cp-search-form .cp-btn-ghost { flex-shrink: 0; }
+
+.cp-status-chip {
+  display: inline-block; vertical-align: 2px; margin-left: 4px;
+  font-family: var(--fn); font-size: 10px; font-weight: 900;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 20px;
+}
+.cp-status-won     { background: #D4EDDA; color: #155724; }
+.cp-status-pitched { background: #E8F0FE; color: #1a3a8a; }
+.cp-status-ready   { background: #FEF4D3; color: #7A5300; }
+.cp-status-out     { background: #F1F1ED; color: var(--ink2); }
+.cp-status-mid     { background: rgba(46,91,52,.08); color: var(--green); }
