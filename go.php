@@ -454,6 +454,85 @@ endif; ?>
     </nav>
   </section>
 
+  <?php if (!$isEnhancement): ?>
+  <?php
+  $gsimQuery   = strtolower($catName) . ' ' . strtolower($city) . ' indiana';
+  $gsimLink    = 'https://www.google.com/search?q=' . rawurlencode($gsimQuery);
+  $gsimHasComp = $compHasSite && $compName !== '';
+  $gsimHost    = $gsimHasComp
+      ? strtolower(ltrim((string)(parse_url($compWebsite, PHP_URL_HOST) ?: $compName . '.com'), 'www.'))
+      : '';
+  ?>
+  <!-- ── SEARCH GAP — what a customer sees when they search ────────────────── -->
+  <section class="fd-gsim-section fd-reveal">
+    <p class="fd-gsim-eyebrow">What someone sees when they search for you right now</p>
+    <div class="fd-gsim">
+      <div class="fd-gsim-chrome">
+        <div class="fd-gsim-dots"><span></span><span></span><span></span></div>
+        <a href="<?= ho_h($gsimLink) ?>" target="_blank" rel="noopener" class="fd-gsim-urlbar"><?= ho_h($gsimQuery) ?></a>
+      </div>
+      <div class="fd-gsim-body">
+
+        <?php if ($gsimHasComp): ?>
+        <div class="fd-gsim-result">
+          <div class="fd-gsim-meta">
+            <span class="fd-gsim-favicon" aria-hidden="true">🌐</span>
+            <span class="fd-gsim-host"><?= ho_h($gsimHost) ?></span>
+            <span class="fd-gsim-badge fd-gsim-badge-live">Ranking #1</span>
+          </div>
+          <div class="fd-gsim-title"><?= ho_h($compName) ?> &mdash; <?= ho_h($catName) ?> in <?= ho_h($city) ?></div>
+          <?php if ($compRating !== null): ?>
+          <div class="fd-gsim-stars">
+            <span class="fd-gsim-starfill">★★★★★</span>
+            <span class="fd-gsim-startext"><?= number_format($compRating, 1) ?><?= $compReviews !== null ? ' &middot; ' . number_format($compReviews) . ' reviews' : '' ?></span>
+          </div>
+          <?php endif; ?>
+          <p class="fd-gsim-snippet">Professional <?= ho_h(strtolower($catName)) ?> serving <?= ho_h($city) ?> and surrounding areas &mdash; free estimates, fully licensed.</p>
+        </div>
+        <?php else: ?>
+        <div class="fd-gsim-result">
+          <div class="fd-gsim-meta">
+            <span class="fd-gsim-favicon" aria-hidden="true">🌐</span>
+            <span class="fd-gsim-host"><?= ho_h(strtolower(str_replace([' ', "'", '&'], '', $catName))) ?>-<?= ho_h(strtolower($city)) ?>.com</span>
+            <span class="fd-gsim-badge fd-gsim-badge-live">Ranking</span>
+          </div>
+          <div class="fd-gsim-title"><?= ho_h($catName) ?> <?= ho_h($city) ?> &mdash; Licensed &amp; Insured</div>
+          <p class="fd-gsim-snippet">Serving <?= ho_h($city) ?> and surrounding Indiana communities. Call for a free estimate today.</p>
+        </div>
+        <?php endif; ?>
+
+        <div class="fd-gsim-result fd-gsim-result-dir">
+          <div class="fd-gsim-meta">
+            <span class="fd-gsim-favicon" aria-hidden="true">📋</span>
+            <span class="fd-gsim-host">yelp.com &middot; angi.com</span>
+          </div>
+          <div class="fd-gsim-title fd-gsim-title-dim">Best <?= ho_h($catName) ?> near <?= ho_h($city) ?>, IN &mdash; Yelp</div>
+          <p class="fd-gsim-snippet">Find top-rated <?= ho_h(strtolower($catName)) ?> near you &mdash; compare quotes and read reviews.</p>
+        </div>
+
+        <div class="fd-gsim-notfound">
+          <div class="fd-gsim-nf-inner">
+            <span class="fd-gsim-nf-x" aria-hidden="true">✗</span>
+            <div>
+              <strong><?= ho_h($name) ?></strong>
+              <span>No website &mdash; doesn&rsquo;t appear in search results</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <p class="fd-gsim-cta">
+      <?php if ($gsimHasComp): ?>
+        Every customer who searched that phrase found <?= ho_h($compName) ?> first &mdash; not <?= ho_h($name) ?>.
+      <?php else: ?>
+        Every customer who searched that phrase this week found a business with a website. Not <?= ho_h($name) ?>.
+      <?php endif; ?>
+      <a href="#preview">Here&rsquo;s what I built to change that &darr;</a>
+    </p>
+  </section>
+  <?php endif; ?>
+
   <!-- ── WHY I REACHED OUT ─────────────────────────────────────────────────── -->
   <section class="fd-card fd-why-card fd-reveal">
     <p class="fd-kicker">Why I reached out</p>
