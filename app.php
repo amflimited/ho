@@ -740,18 +740,8 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           <a class="cp-domain-url" href="<?= ho_h($tSearch) ?>" target="_blank" rel="noopener">Check on Google ↗</a>
         </div>
         <div class="cp-domain-actions">
-          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
-            <input type="hidden" name="action" value="triage_keep">
-            <input type="hidden" name="tab" value="research">
-            <input type="hidden" name="business_id" value="<?= (int)$t['id'] ?>">
-            <button type="submit" class="cp-btn-domain-keep">Real ✓</button>
-          </form>
-          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
-            <input type="hidden" name="action" value="triage_reject">
-            <input type="hidden" name="tab" value="research">
-            <input type="hidden" name="business_id" value="<?= (int)$t['id'] ?>">
-            <button type="submit" class="cp-btn-domain-clear">Reject ✗</button>
-          </form>
+          <button type="button" class="cp-btn-domain-keep" onclick="queueAction(this,'triage_keep',<?= (int)$t['id'] ?>)">Real ✓</button>
+          <button type="button" class="cp-btn-domain-clear" onclick="queueAction(this,'triage_reject',<?= (int)$t['id'] ?>)">Reject ✗</button>
         </div>
       </div>
       <?php endforeach; ?>
@@ -1073,18 +1063,8 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           <a class="cp-domain-url" href="<?= ho_h((string)$d['website_url']) ?>" target="_blank" rel="noopener"><?= ho_h((string)$d['website_url']) ?></a>
         </div>
         <div class="cp-domain-actions">
-          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
-            <input type="hidden" name="action" value="verify_website">
-            <input type="hidden" name="tab" value="research">
-            <input type="hidden" name="business_id" value="<?= (int)$d['id'] ?>">
-            <button type="submit" class="cp-btn-domain-keep">Keep ✓</button>
-          </form>
-          <form method="POST" style="display:contents" onsubmit="return queueAjax(this)">
-            <input type="hidden" name="action" value="clear_website">
-            <input type="hidden" name="tab" value="research">
-            <input type="hidden" name="business_id" value="<?= (int)$d['id'] ?>">
-            <button type="submit" class="cp-btn-domain-clear">Clear ✗</button>
-          </form>
+          <button type="button" class="cp-btn-domain-keep" onclick="queueAction(this,'verify_website',<?= (int)$d['id'] ?>)">Keep ✓</button>
+          <button type="button" class="cp-btn-domain-clear" onclick="queueAction(this,'clear_website',<?= (int)$d['id'] ?>)">Clear ✗</button>
         </div>
       </div>
       <?php endforeach; ?>
@@ -2130,39 +2110,37 @@ function markSent(el, via) {
   var flag = card.querySelector('.cp-sent-flag');
   if (flag) flag.hidden = false;
 }
-// Review-queue actions (triage Real/Reject, domain Keep/Clear) post in the
-// background — no page reload. The row fades out and is removed; the next
-// card in the queue auto-appears. Section hides when the queue is empty.
-function queueAjax(form) {
+// Review-queue actions (triage Real/Reject, domain Keep/Clear).
+// type="button" + onclick means no form submission ever happens.
+function queueAction(btn, action, bizId) {
+  var fd = new FormData();
+  fd.append('action', action);
+  fd.append('business_id', bizId);
+  fd.append('tab', 'research');
   try {
     fetch(window.location.pathname, {
-      method: 'POST',
-      body: new FormData(form),
-      redirect: 'manual',
-      keepalive: true
+      method: 'POST', body: fd, redirect: 'manual', keepalive: true
     }).catch(function(){});
-  } catch (e) { return true; }
-  var row = form.closest('.cp-domain-row');
-  if (row) {
-    row.style.opacity = '0';
-    row.style.transform = 'translateY(-6px)';
-    row.style.pointerEvents = 'none';
-    var section = row.closest('.cp-section');
-    var counter = section ? section.querySelector('[data-queue-count]') : null;
-    if (counter) {
-      var n = Math.max(0, parseInt(counter.getAttribute('data-queue-count'), 10) - 1);
-      counter.setAttribute('data-queue-count', n);
-      counter.textContent = counter.textContent.replace(/\d+/, n);
-    }
-    setTimeout(function() {
-      var table = row.parentNode;
-      row.remove();
-      if (table && table.children.length === 0 && section) {
-        section.style.display = 'none';
-      }
-    }, 230);
+  } catch(e) {}
+  var row = btn.closest('.cp-domain-row');
+  if (!row) return;
+  row.style.opacity = '0';
+  row.style.transform = 'translateY(-6px)';
+  row.style.pointerEvents = 'none';
+  var section = row.closest('.cp-section');
+  var counter = section ? section.querySelector('[data-queue-count]') : null;
+  if (counter) {
+    var n = Math.max(0, parseInt(counter.getAttribute('data-queue-count'), 10) - 1);
+    counter.setAttribute('data-queue-count', n);
+    counter.textContent = counter.textContent.replace(/\d+/, n);
   }
-  return false;
+  setTimeout(function() {
+    var table = row.parentNode;
+    row.remove();
+    if (table && table.children.length === 0 && section) {
+      section.style.display = 'none';
+    }
+  }, 230);
 }
 
 function openDash() {
