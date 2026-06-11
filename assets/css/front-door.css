@@ -1734,6 +1734,37 @@ body.front-door-preview-page{
 .fd-stakes-num{font-weight:900;color:#8b0e17;white-space:nowrap}
 .fd-stakes-honest{font-size:13px;color:var(--fd-muted);margin-top:10px}
 
+/* ── ROI Calculator ──────────────────────────────────────────────────────── */
+.fd-roi-calc{margin-top:18px;padding:16px;background:rgba(47,94,54,.07);border-radius:14px;border:1px solid rgba(47,94,54,.18)}
+.fd-roi-label{font-size:13px;font-weight:700;color:var(--fd-ink);margin:0 0 8px}
+.fd-roi-input-row{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.fd-roi-dollar{font-size:22px;font-weight:800;color:var(--fd-green)}
+.fd-roi-per{font-size:13px;color:var(--fd-muted)}
+.fd-roi-input{font-family:inherit;font-size:24px;font-weight:800;color:var(--fd-green);background:#fff;border:2px solid rgba(47,94,54,.25);border-radius:10px;padding:6px 10px;width:130px;-moz-appearance:textfield}
+.fd-roi-input::-webkit-outer-spin-button,.fd-roi-input::-webkit-inner-spin-button{-webkit-appearance:none}
+.fd-roi-input:focus{outline:none;border-color:var(--fd-green)}
+.fd-roi-result{font-size:15px;line-height:1.5;color:var(--fd-ink);margin:0;min-height:1.5em}
+.fd-roi-result strong{color:var(--fd-green)}
+
+/* ── Before/After Audit Card ─────────────────────────────────────────────── */
+.fd-audit-table{margin:18px 0 0;border-radius:14px;overflow:hidden;border:1px solid var(--fd-line)}
+.fd-audit-head{display:grid;grid-template-columns:88px 1fr 1fr;background:rgba(34,23,19,.06)}
+.fd-audit-head>div{padding:7px 10px;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--fd-muted)}
+.fd-audit-col-now{color:#b51222}
+.fd-audit-col-after{color:var(--fd-green)}
+.fd-audit-row{display:grid;grid-template-columns:88px 1fr 1fr;border-top:1px solid var(--fd-line)}
+.fd-audit-cell{padding:10px 10px;font-size:13px;line-height:1.4;vertical-align:top}
+.fd-audit-label{font-weight:700;font-size:12px;color:var(--fd-muted);display:flex;align-items:flex-start;padding-top:11px}
+.fd-audit-before{color:#b51222}
+.fd-audit-after{color:var(--fd-green);font-weight:600}
+.fd-audit-x,.fd-audit-chk{font-weight:900;margin-right:3px}
+@media(max-width:460px){
+  .fd-audit-head{grid-template-columns:72px 1fr 1fr}
+  .fd-audit-row{grid-template-columns:72px 1fr 1fr}
+  .fd-audit-cell{padding:8px 7px;font-size:12px}
+  .fd-audit-label{font-size:11px;padding-top:9px}
+}
+
 /* ── Template style picker panes ─────────────────────────────────────────── */
 .fd-tpl-pane[hidden]{display:none!important}
 

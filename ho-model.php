@@ -2230,6 +2230,51 @@ function ho_contact_form_message(array $biz, string $previewUrl): array {
     return ['subject' => $subject, 'body' => $body];
 }
 
+// SMS pitch — under ~300 chars so it fits in 2 segments; no salesy openers
+function ho_sms_message(array $biz, string $previewUrl): string {
+    $name        = (string)$biz['business_name'];
+    $firstName   = trim((string)($biz['owner_first_name'] ?? ''));
+    $hi          = $firstName !== '' ? $firstName : $name;
+    $catLower    = strtolower((string)$biz['category_name']);
+    $city        = (string)$biz['location_city'];
+    $reviews     = (int)($biz['google_review_count'] ?? 0);
+    $rating      = (float)($biz['google_rating'] ?? 0);
+    $years       = (int)($biz['years_in_business'] ?? 0);
+    $hasSite     = (bool)($biz['has_website'] ?? false);
+    $siteQual    = (string)($biz['website_quality'] ?? 'none');
+    $noSite      = !$hasSite || in_array($siteQual, ['none', 'poor'], true);
+    $quote       = ho_quote_inline((string)($biz['review_quote_1'] ?? ''), 60);
+    $quoteAuthor = trim((string)($biz['review_quote_1_author'] ?? ''));
+    $compName    = trim((string)($biz['competitor_name']    ?? ''));
+    $compRating  = isset($biz['competitor_google_rating']) && $biz['competitor_google_rating'] !== null
+                   ? (float)$biz['competitor_google_rating'] : null;
+    $isEnhance   = !empty($biz['enhancement_gaps']);
+
+    if ($isEnhance) {
+        if ($quote !== '' && $quoteAuthor !== '') {
+            $hook = "\u{201C}{$quote}\u{201D} \u{2014} {$quoteAuthor} left that. Put it to work.";
+        } elseif ($compName !== '' && $compRating !== null && $rating > 0 && $rating >= $compRating) {
+            $hook = "You outrate {$compName} on Google \u{2014} they still show up first. I put together a plan.";
+        } else {
+            $hook = "I looked at {$name}\u{2019}s site and put together a specific improvement plan.";
+        }
+    } else {
+        if ($quote !== '' && $quoteAuthor !== '') {
+            $hook = "\u{201C}{$quote}\u{201D} \u{2014} {$quoteAuthor} said that. That review deserves a homepage.";
+        } elseif ($compName !== '' && $compRating !== null && $noSite) {
+            $hook = "{$compName} has a site. You don\u{2019}t. They get the call. I built you a free mockup.";
+        } elseif ($reviews >= 10 && $noSite) {
+            $hook = "{$reviews} Google reviews and no website. Built you a free mockup to change that.";
+        } elseif ($years >= 5 && $noSite) {
+            $hook = "{$years} years of {$catLower} in {$city} \u{2014} you deserve a real web presence. I built one.";
+        } else {
+            $hook = "Built a free website mockup for {$name}. 2 mins to look, nothing to buy.";
+        }
+    }
+
+    return "Hi {$hi} \u{2014} Adam Ferree, Hoosier Online. {$hook}\n{$previewUrl}";
+}
+
 // ─── Needs-contact channel ────────────────────────────────────────────────────
 
 function ho_get_website_review_batch(PDO $pdo, int $limit = 60): array {

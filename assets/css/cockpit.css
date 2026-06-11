@@ -1118,6 +1118,14 @@ a { color: inherit; }
   max-height: 160px; overflow-y: auto;
 }
 
+/* ── SMS pitch block ─────────────────────────────────────────────────────── */
+.cp-sms-block { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.cp-sms-label { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--ink2); letter-spacing: .04em; text-transform: uppercase; }
+.cp-sms-open { font-size: 11px; font-weight: 600; color: var(--green); text-decoration: none; text-transform: none; letter-spacing: 0; }
+.cp-sms-preview { font-family: inherit; font-size: 12px; line-height: 1.55; color: var(--ink); background: #f7f5f0; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 0; white-space: pre-wrap; word-break: break-word; max-height: 120px; overflow-y: auto; }
+.cp-btn-sms { font-family: var(--fn); font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px; border: 1.5px solid #4a7e52; background: transparent; color: #4a7e52; cursor: pointer; transition: background .15s, color .15s; align-self: flex-start; }
+.cp-btn-sms:hover, .cp-btn-sms:active { background: #4a7e52; color: #fff; }
+
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .cp-send-card-hot-badge { animation: none; }

@@ -1585,6 +1585,17 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
               <?php endif; ?>
             </div>
             <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($msgBody) ?></textarea><?php endif; ?>
+            <?php if ($hasPhone): ?><?php $smsMsg = ho_sms_message($b, $previewUrl); ?>
+            <div class="cp-sms-block">
+              <div class="cp-sms-label">
+                <span>📱 Text</span>
+                <a class="cp-sms-open" href="sms:<?= ho_h((string)$b['phone_number']) ?>"><?= ho_h((string)$b['phone_number']) ?> ↗</a>
+              </div>
+              <pre class="cp-sms-preview"><?= ho_h($smsMsg) ?></pre>
+              <textarea class="cp-sms-src" hidden><?= ho_h($smsMsg) ?></textarea>
+              <button type="button" class="cp-btn-sms" onclick="copySms(this)">⧉ Copy SMS</button>
+            </div>
+            <?php endif; ?>
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
@@ -1787,6 +1798,17 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
               <?php endif; ?>
             </div>
             <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($msgBody) ?></textarea><?php endif; ?>
+            <?php if ($hasPhone): ?><?php $smsMsg = ho_sms_message($b, $previewUrl); ?>
+            <div class="cp-sms-block">
+              <div class="cp-sms-label">
+                <span>📱 Text</span>
+                <a class="cp-sms-open" href="sms:<?= ho_h((string)$b['phone_number']) ?>"><?= ho_h((string)$b['phone_number']) ?> ↗</a>
+              </div>
+              <pre class="cp-sms-preview"><?= ho_h($smsMsg) ?></pre>
+              <textarea class="cp-sms-src" hidden><?= ho_h($smsMsg) ?></textarea>
+              <button type="button" class="cp-btn-sms" onclick="copySms(this)">⧉ Copy SMS</button>
+            </div>
+            <?php endif; ?>
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
@@ -2339,6 +2361,21 @@ function copyMessage(btn) {
   }).catch(function() {
     btn.textContent = 'Press & hold to copy';
     setTimeout(function(){ btn.textContent = orig; }, 2200);
+  });
+}
+// SMS copy — reads from the nearest .cp-sms-src textarea
+function copySms(btn) {
+  var block = btn.closest('.cp-sms-block');
+  var src   = block ? block.querySelector('.cp-sms-src') : null;
+  if (!src) return;
+  var orig = btn.textContent;
+  navigator.clipboard.writeText(src.value).then(function() {
+    btn.textContent = '✓ Copied — open Messages app';
+    setTimeout(function() { btn.textContent = orig; }, 3000);
+  }).catch(function() {
+    src.select();
+    btn.textContent = 'Select text above to copy';
+    setTimeout(function() { btn.textContent = orig; }, 2200);
   });
 }
 // One-tap contact form flow: copy the short message then open their site.

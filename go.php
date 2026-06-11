@@ -657,6 +657,64 @@ endif; ?>
   </section>
   <?php endif; ?>
 
+  <?php
+  // ── BEFORE / AFTER AUDIT — build rows from real data ─────────────────────
+  $auditRows = [];
+  if ($isEnhancement) {
+      $auditGapDefs = [
+          'contact_form'    => ['Contact',      'No way to reach you in writing',         'Contact form on every page'],
+          'tech_issues'     => ['Mobile/SSL',   ($notMobile && $noSsl) ? 'Not mobile + no HTTPS' : ($notMobile ? 'Not mobile-friendly' : 'No HTTPS'), 'Fast, secure, mobile-ready'],
+          'site_outdated'   => ['Design',       'Looks dated — visitors bounce',          'Modern, trust-building design'],
+          'paid_leads'      => ['Lead cost',    'Paying per Angi lead',                   'Own your traffic, no cut taken'],
+          'google_business' => ['Google Maps',  'Not showing in local results',           'Verified, showing locally'],
+          'gbp_photos'      => ['GBP photos',   'Few or no work photos',                 '20+ job photos published'],
+          'stale_reviews'   => ['Reviews',      'Last review 6+ months ago',             'Active review request system'],
+          'no_before_after' => ['Portfolio',    'No before/after photos',                'Before/after gallery live'],
+          'no_gallery'      => ['Gallery',      'No work photos on site',                'Real job photos on every page'],
+          'no_testimonials' => ['Testimonials', 'Reviews buried on Google',              'Quotes front and center'],
+          'dead_facebook'   => ['Facebook',     'No posts in months',                    'Active presence, monthly posts'],
+          'freemail'        => ['Email',        'Gmail / Yahoo address',                 'Professional @yourdomain'],
+          'no_trust_signals'=> ['License',      'Not mentioned anywhere',                'License + insurance badge'],
+          'yelp_unclaimed'  => ['Yelp',         'Unclaimed — anyone can edit it',        'Claimed & locked down'],
+          'online_booking'  => ['Booking',      "Can't book online",                     'Online booking enabled'],
+          'gbp_incomplete'  => ['GBP',          'Incomplete profile',                    'Complete, optimized'],
+      ];
+      foreach (array_slice($enhancementGaps, 0, 5) as $gk) {
+          if (isset($auditGapDefs[$gk])) $auditRows[] = $auditGapDefs[$gk];
+      }
+  } else {
+      $auditRows[] = ['Website',  "None — you're invisible online",           'Live in 48 hours'];
+      if ($notMobile)   $auditRows[] = ['Mobile',   'Not working on phones',            '100% responsive'];
+      elseif ($noSsl)   $auditRows[] = ['Security', '"Not Secure" browser warning',      'HTTPS included'];
+      $contactBefore    = ($bookingMethod === 'phone') ? 'Phone only — 11pm leads leave' : 'Limited contact options';
+      $auditRows[]      = ['Contact',  $contactBefore,                                  'Form + phone, always on'];
+      $reviewBefore     = $googleCount > 0 ? $googleCount . ' reviews buried in Google' : 'No visible social proof';
+      $auditRows[]      = ['Reviews',  $reviewBefore,                                   'Front and center on your site'];
+      $auditRows[]      = ['Search',   'Not showing in Google or Maps',                 'Indexed & appearing locally'];
+  }
+  ?>
+  <?php if (!empty($auditRows)): ?>
+  <!-- ── BEFORE / AFTER AUDIT CARD ──────────────────────────────────────────── -->
+  <section class="fd-card fd-audit fd-reveal">
+    <p class="fd-kicker">The honest picture</p>
+    <h2>Where things stand right now.</h2>
+    <div class="fd-audit-table" role="table" aria-label="Before and after comparison">
+      <div class="fd-audit-head" role="row">
+        <div role="columnheader"></div>
+        <div class="fd-audit-col-now" role="columnheader">Now</div>
+        <div class="fd-audit-col-after" role="columnheader">After</div>
+      </div>
+      <?php foreach ($auditRows as $ar): ?>
+      <div class="fd-audit-row" role="row">
+        <div class="fd-audit-cell fd-audit-label" role="rowheader"><?= ho_h($ar[0]) ?></div>
+        <div class="fd-audit-cell fd-audit-before" role="cell"><span class="fd-audit-x" aria-hidden="true">✗</span><?= ho_h($ar[1]) ?></div>
+        <div class="fd-audit-cell fd-audit-after" role="cell"><span class="fd-audit-chk" aria-hidden="true">✓</span><?= ho_h($ar[2]) ?></div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
+
   <?php if ($isEnhancement): ?>
   <!-- ── WHAT I'D FIX (enhancement only) — contact-first, no checkout ─────── -->
   <?php
@@ -829,6 +887,15 @@ endif; ?>
        Even at just <?= $stakes['jobs_per_month'] ?> missed job<?= $stakes['jobs_per_month'] > 1 ? 's' : '' ?> a month,
        that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span>.</p>
     <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero.<?= $fixItemsTotal > 0 ? ' Everything above, fixed for good, is $' . number_format($fixItemsTotal) . ' &mdash; once.' : '' ?></p>
+    <div class="fd-roi-calc" data-jpm="<?= (int)$stakes['jobs_per_month'] ?>" data-offer="<?= $fixItemsTotal > 0 ? (int)$fixItemsTotal : 199 ?>">
+      <p class="fd-roi-label">What&rsquo;s your average job worth?</p>
+      <div class="fd-roi-input-row">
+        <span class="fd-roi-dollar" aria-hidden="true">$</span>
+        <input type="number" class="fd-roi-input" value="<?= (int)$stakes['ticket'] ?>" min="50" max="50000" step="50" aria-label="Average job price in dollars" oninput="roiUpdate(this)">
+        <span class="fd-roi-per">/ job</span>
+      </div>
+      <p class="fd-roi-result" aria-live="polite"></p>
+    </div>
   </section>
   <?php endif; ?>
 
@@ -1074,6 +1141,15 @@ endif; ?>
        &mdash; the 11pm searcher, the person who called whoever Google showed first &mdash;
        that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span> walking past you.</p>
     <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero. And the fix is $199, once.</p>
+    <div class="fd-roi-calc" data-jpm="<?= (int)$stakes['jobs_per_month'] ?>" data-offer="199">
+      <p class="fd-roi-label">What&rsquo;s your average job worth?</p>
+      <div class="fd-roi-input-row">
+        <span class="fd-roi-dollar" aria-hidden="true">$</span>
+        <input type="number" class="fd-roi-input" value="<?= (int)$stakes['ticket'] ?>" min="50" max="50000" step="50" aria-label="Average job price in dollars" oninput="roiUpdate(this)">
+        <span class="fd-roi-per">/ job</span>
+      </div>
+      <p class="fd-roi-result" aria-live="polite"></p>
+    </div>
   </section>
   <?php endif; ?>
 
@@ -1361,6 +1437,25 @@ endif; ?>
     var h = document.getElementById('fd-h-template');
     if (h) h.value = key;
   }
+  </script>
+
+  <script>
+  function roiUpdate(inp) {
+    var ticket = parseFloat(inp.value) || 0;
+    var wrap   = inp.closest('[data-jpm]');
+    var result = wrap ? wrap.querySelector('.fd-roi-result') : null;
+    if (!result) return;
+    if (ticket <= 0) { result.innerHTML = ''; return; }
+    var jpm   = parseFloat(wrap.dataset.jpm) || 1;
+    var offer = parseFloat(wrap.dataset.offer) || 199;
+    if (ticket >= offer) {
+      result.innerHTML = '<strong>One new job covers it.</strong> Everything after that is pure profit.';
+    } else {
+      var weeks = Math.max(1, Math.ceil(offer / (ticket * jpm / 4.33)));
+      result.innerHTML = 'Pays for itself in about <strong>' + weeks + ' week' + (weeks !== 1 ? 's' : '') + '</strong> — from jobs you’re not landing now.';
+    }
+  }
+  document.querySelectorAll('.fd-roi-input').forEach(function(inp){ roiUpdate(inp); });
   </script>
 
   <script>
