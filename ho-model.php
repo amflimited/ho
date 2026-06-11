@@ -2492,7 +2492,8 @@ function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
                r.has_angi, r.has_thumbtack, r.responds_to_reviews,
                r.gbp_photo_count, r.owner_age_band, r.mobile_friendly, r.has_ssl,
                r.competitor_google_rating, r.competitor_review_count,
-               r.has_yelp, r.yelp_rating, r.yelp_review_count, r.logo_quality";
+               r.has_yelp, r.yelp_rating, r.yelp_review_count, r.logo_quality,
+               r.researched_at, r.verified_at";
     $quoteCols = ",
                r.review_quote_1, r.review_quote_1_author, r.review_quote_1_date,
                r.review_quote_2, r.review_quote_2_author, r.review_quote_2_date";

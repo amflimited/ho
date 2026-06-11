@@ -462,10 +462,18 @@ endif; ?>
   $gsimHost    = $gsimHasComp
       ? strtolower(ltrim((string)(parse_url($compWebsite, PHP_URL_HOST) ?: $compName . '.com'), 'www.'))
       : '';
+  // Show "right now" only when data is ≤14 days old; stamp the month otherwise.
+  $gsimResearchedAt = $row ? trim((string)($row['researched_at'] ?? '')) : '';
+  $gsimDaysOld = ($gsimResearchedAt !== '' && strtotime($gsimResearchedAt))
+      ? (int)round((time() - strtotime($gsimResearchedAt)) / 86400)
+      : 99;
+  $gsimEyebrow = $gsimDaysOld <= 14
+      ? 'What someone sees when they search for you right now'
+      : 'What someone saw when they searched for you in ' . ($gsimResearchedAt !== '' ? date('F Y', strtotime($gsimResearchedAt)) : 'recent weeks');
   ?>
   <!-- ── SEARCH GAP — what a customer sees when they search ────────────────── -->
   <section class="fd-gsim-section fd-reveal">
-    <p class="fd-gsim-eyebrow">What someone sees when they search for you right now</p>
+    <p class="fd-gsim-eyebrow"><?= ho_h($gsimEyebrow) ?></p>
     <div class="fd-gsim">
       <div class="fd-gsim-chrome">
         <div class="fd-gsim-dots"><span></span><span></span><span></span></div>
@@ -478,7 +486,7 @@ endif; ?>
           <div class="fd-gsim-meta">
             <span class="fd-gsim-favicon" aria-hidden="true">🌐</span>
             <span class="fd-gsim-host"><?= ho_h($gsimHost) ?></span>
-            <span class="fd-gsim-badge fd-gsim-badge-live">Ranking #1</span>
+            <span class="fd-gsim-badge fd-gsim-badge-live">Has a website</span>
           </div>
           <div class="fd-gsim-title"><?= ho_h($compName) ?> &mdash; <?= ho_h($catName) ?> in <?= ho_h($city) ?></div>
           <?php if ($compRating !== null): ?>
@@ -1039,13 +1047,13 @@ endif; ?>
     <h2><?= count($fixItems) > 1 ? 'All of it' : 'This' ?> for $<?= number_format($fixItemsTotal) ?> &mdash; flat, one-time.</h2>
     <p style="font-size:16px;line-height:1.6">One-time price for the work, no contract. Pay online now &mdash; I start today. Want just one piece? That&rsquo;s fine too, each line above stands on its own.</p>
     <?php if ($slotHeldUntil !== ''): ?>
-    <p class="fd-slot-note">⏳ I take on one <?= ho_h(strtolower($catName)) ?> project in <?= ho_h($city) ?> at a time. This slot is held for <?= ho_h($name) ?> until <strong><?= ho_h($slotHeldUntil) ?></strong> &mdash; then it opens to the next business.</p>
+    <p class="fd-slot-note">⏳ I have time set aside for <?= ho_h($name) ?> through <strong><?= ho_h($slotHeldUntil) ?></strong>.</p>
     <?php endif; ?>
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
       <input type="hidden" name="pkg"  value="enhancement">
       <label class="fd-care-opt">
-        <input type="checkbox" name="care" value="1" checked>
+        <input type="checkbox" name="care" value="1">
         <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> I keep everything I fix working: hosting help, security, unlimited small edits, and a fresh post on your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
       </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
@@ -1060,13 +1068,13 @@ endif; ?>
     <h2>Let me fix what&rsquo;s holding you back.</h2>
     <p style="font-size:16px;line-height:1.6">Flat, one-time price for the work, no contract. Pay online now &mdash; I start today.</p>
     <?php if ($slotHeldUntil !== ''): ?>
-    <p class="fd-slot-note">⏳ I take on one <?= ho_h(strtolower($catName)) ?> project in <?= ho_h($city) ?> at a time. This slot is held for <?= ho_h($name) ?> until <strong><?= ho_h($slotHeldUntil) ?></strong> &mdash; then it opens to the next business.</p>
+    <p class="fd-slot-note">⏳ I have time set aside for <?= ho_h($name) ?> through <strong><?= ho_h($slotHeldUntil) ?></strong>.</p>
     <?php endif; ?>
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
       <input type="hidden" name="pkg"  value="enhancement">
       <label class="fd-care-opt">
-        <input type="checkbox" name="care" value="1" checked>
+        <input type="checkbox" name="care" value="1">
         <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> I keep everything I fix working: hosting help, security, unlimited small edits, and a fresh post on your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
       </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
@@ -1317,7 +1325,7 @@ endif; ?>
     <p class="fd-kicker">One decision</p>
     <h2><?= ho_h($name) ?>&rsquo;s site &mdash; live in 48 hours.</h2>
     <?php if ($slotHeldUntil !== ''): ?>
-    <p class="fd-slot-note">⏳ I build one <?= ho_h(strtolower($catName)) ?> site in <?= ho_h($city) ?> at a time. This slot is held for <?= ho_h($name) ?> until <strong><?= ho_h($slotHeldUntil) ?></strong> &mdash; then it opens to the next <?= ho_h($city) ?> business.</p>
+    <p class="fd-slot-note">⏳ I have time set aside for <?= ho_h($name) ?> through <strong><?= ho_h($slotHeldUntil) ?></strong>.</p>
     <?php endif; ?>
 
     <div class="fd-offer-price-block">
@@ -1420,7 +1428,7 @@ endif; ?>
       <input type="hidden" name="template_key" id="fd-h-template"  value="<?= ho_h($templateKey ?? '') ?>">
       <input type="hidden" name="chosen_com"   id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
       <label class="fd-care-opt">
-        <input type="checkbox" name="care" value="1" checked>
+        <input type="checkbox" name="care" value="1">
         <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> The site is yours forever either way. This adds: I host it, keep it secure, make unlimited small edits, and post to your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
       </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
@@ -1507,7 +1515,7 @@ endif; ?>
     <?php endif; ?>
     <?php if ($captureState === 'ok'): ?>
     <div class="fd-capture-done">
-      <strong>Sent.</strong> Your request went straight to <?= ho_h($name) ?> &mdash; expect to hear back soon.
+      <strong>Sent.</strong> I'll pass this to <?= ho_h($name) ?> right away &mdash; expect to hear back soon.
     </div>
     <?php else: ?>
     <?php if ($captureState === 'err'): ?><p class="fd-start-err">Your name plus a phone number or email is all that&rsquo;s needed.</p><?php endif; ?>
@@ -1529,7 +1537,7 @@ endif; ?>
         <textarea name="c_job" rows="3" maxlength="2000" placeholder="A sentence or two is plenty"></textarea>
       </label>
       <button type="submit" class="fd-btn fd-btn-primary">Send my request &rarr;</button>
-      <p class="fd-muted" style="text-align:center;margin-top:8px">Goes directly to <?= ho_h($name) ?>. No middleman, no fee.</p>
+      <p class="fd-muted" style="text-align:center;margin-top:8px">I&rsquo;ll forward this to <?= ho_h($name) ?> on your behalf &mdash; free, no obligation.</p>
     </form>
     <?php endif; ?>
   </section>
