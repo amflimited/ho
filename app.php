@@ -2129,6 +2129,7 @@ function queueAction(btn, action, bizId) {
   } catch(e) {}
   var row = btn.closest('.cp-domain-row');
   if (!row) return;
+  var next = row.nextElementSibling;
   row.style.opacity = '0';
   row.style.transform = 'translateY(-6px)';
   row.style.pointerEvents = 'none';
@@ -2140,9 +2141,10 @@ function queueAction(btn, action, bizId) {
     counter.textContent = counter.textContent.replace(/\d+/, n);
   }
   setTimeout(function() {
-    var table = row.parentNode;
     row.remove();
-    if (table && table.children.length === 0 && section) {
+    if (next) {
+      next.style.display = 'flex';
+    } else if (section) {
       section.style.display = 'none';
     }
   }, 230);
