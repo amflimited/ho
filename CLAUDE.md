@@ -494,3 +494,83 @@ and show on go.php with correct prices.
   no contactable info — a re-queue button sends them back to needs_contact
 - Platform URLs (Angi/Thumbtack/etc.) are filtered at every contact path decision via
   `ho_is_lead_platform_url()` — do not use these as website_url or outreach paths
+
+## 🤖 AUTOPILOT (2026-06-11) — server-side outreach engine
+
+Adam does no phone work. The machine now handles outreach end-to-end; his only
+jobs are triage taps and answering replies.
+
+**New file `cron.php`** — heartbeat, every 15 min via cPanel cron:
+`/usr/bin/curl -s "https://hoosieronline.com/cron.php?key=IMPORT_KEY" >/dev/null 2>&1`
+Auth = `gpt_import_key` (same as gpt-import.php) or CLI. Loads
+`/home1/spofnkte/llm-config.php` when present (enables research/source tasks).
+
+**Tasks (each toggled via `ap_*` settings, run in this order):**
+| Task | Function | What it does |
+|---|---|---|
+| digest | `ho_send_daily_digest()` | One morning email to Adam: hot leads, counts, yesterday's sends. Once/day after 7am. |
+| drip | `ho_run_followup_drip()` | Sends touches 2–4 by email when due, records via `ho_record_followup_sent()`. |
+| hotstrike | `ho_run_hot_strikes()` | "Saw you took a look" email to pitched leads visited <6h ago. Max 1/lead/7d, never <24h after any other email. |
+| autopitch | `ho_run_auto_pitch()` | First-touch pitch to preview_ready/enhancement_ready leads with email. `ap_pitch_per_run` (default 3) per run. |
+| research | `ho_run_auto_research()` | Claude API + web search researches queue, 1/run, `ap_research_daily_cap` (default 25)/day. |
+| source | `ho_run_auto_source()` | One sourcing run/day: rotates `ap_source_areas` cities, picks least-covered category, imports through the evidence gate → triage queue. |
+
+**Safety:** every outreach email passes `ho_autopilot_gate()`: master on, postal
+address set (CAN-SPAM footer is appended by `ho_send_email()` and sending hard-fails
+without it), 8am–6pm America/Indiana/Indianapolis window, daily cap
+(`ap_daily_cap`, default 30) counted from `email_log`. Missing email_log table
+blocks all automated sends. `ho_send_email()` sends via PHP `mail()` with
+From/Reply-To = `ap_from_email` (default adam@hoosieronline.com) and `-f`
+envelope sender; logs every send to email_log.
+
+**Settings keys (app_settings):** `ap_master`, `ap_drip`, `ap_hotstrike`,
+`ap_autopitch`, `ap_research`, `ap_source`, `ap_digest`, `ap_daily_cap`,
+`ap_postal`, `ap_from_email`, `ap_digest_email`, `ap_site_base`,
+`ap_source_areas`, `ap_pitch_per_run`, `ap_research_daily_cap`,
+`ap_last_run`, `ap_last_log`, `ap_last_source_date`, `ap_last_digest_date`,
+`ap_research_counter`.
+
+**UI:** Autopilot panel at top of Send tab (`save_autopilot` POST action) —
+master + per-feature toggles, cap/postal/from/digest/site-base/areas fields,
+migration SQL (shown until email_log exists), exact cron command with key filled in.
+
+**⚠ REQUIRED MIGRATION (phpMyAdmin) before autopilot can send:**
+```sql
+CREATE TABLE IF NOT EXISTS email_log (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL DEFAULT 0,
+  kind VARCHAR(20) NOT NULL DEFAULT 'pitch',
+  touch TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  sent_to VARCHAR(190) NOT NULL DEFAULT '',
+  subject VARCHAR(255) NOT NULL DEFAULT '',
+  ok TINYINT(1) NOT NULL DEFAULT 1,
+  sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_el_biz (business_id),
+  INDEX idx_el_sent (sent_at)
+) ENGINE=InnoDB;
+```
+One-time cPanel steps (Adam, web UI only): add the cron job above; verify
+SPF + DKIM "valid" under Email Deliverability.
+
+**Shared LLM helpers:** `ho_llm_call(prompt, system, maxTokens)` (Anthropic
+Messages API + web_search tool) and `ho_llm_extract_json()` — used by
+auto-research/auto-source; llm-research.php still has its own inline copy.
+
+**Bug fix:** `ho_record_followup_sent()` previously stamped the new outreach_log
+row with the NEXT touch number, making the manual queue skip a touch (2→4).
+Now stamps the touch just sent; gap days keyed by upcoming touch (2:+3d, 3:+7d, 4:+11d).
+
+**Risk reversal (2026-06-11):** full-refund guarantee added to both pitch email
+closings, and `.fd-guarantee` line on both enhancement checkout CTAs (site-build
+offer already had the 30-day `.fd-guarantee-box`).
+
+## Three industry-changing features (2026-06-11, shipped earlier same day)
+
+1. **SMS pitch** — `ho_sms_message()` (hook-matched, ≤2 SMS segments); 📱 Text
+   block on every send card with a phone: preview + `copySms()` + sms: link.
+2. **ROI calculator** — `.fd-roi-calc` in both go.php stakes sections; input
+   pre-filled from `ho_stakes_estimate()`; `roiUpdate()` JS live-computes
+   "pays for itself in N weeks" / "one job covers it".
+3. **Before/After audit card** — `.fd-audit` section between quotes and track
+   fork; site-build = 5 standard rows from real signals; enhancement = up to 5
+   rows from `ho_enhancement_gaps()` with per-gap before/after copy (all 16 defined).

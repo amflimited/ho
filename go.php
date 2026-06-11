@@ -912,6 +912,7 @@ endif; ?>
         Yes &mdash; fix it &rarr; $<?= number_format($fixItemsTotal) ?>
       </button>
     </form>
+    <div class="fd-guarantee">💯 Don&rsquo;t love it? Full refund &mdash; you risk nothing.</div>
     <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
     <div class="fd-phone-fallback">Questions first? <a href="tel:<?= ADAM_TEL ?>">Call me: <?= ADAM_PHONE ?></a></div>
     <?php else: ?>
@@ -925,6 +926,7 @@ endif; ?>
         Yes &mdash; get it done &rarr;
       </button>
     </form>
+    <div class="fd-guarantee">💯 Don&rsquo;t love it? Full refund &mdash; you risk nothing.</div>
     <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
     <div class="fd-phone-fallback">Questions first? <a href="tel:<?= ADAM_TEL ?>">Call me: <?= ADAM_PHONE ?></a></div>
     <?php endif; ?>

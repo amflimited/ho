@@ -1765,6 +1765,9 @@ body.front-door-preview-page{
   .fd-audit-label{font-size:11px;padding-top:9px}
 }
 
+/* ── Inline guarantee line (enhancement CTAs) ────────────────────────────── */
+.fd-guarantee{font-size:13px;font-weight:700;color:var(--fd-green);text-align:center;margin-top:10px}
+
 /* ── Template style picker panes ─────────────────────────────────────────── */
 .fd-tpl-pane[hidden]{display:none!important}
 

@@ -210,6 +210,25 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=send&flash=' . urlencode("No-contact leads moved back to the contact-research queue."));
                 exit;
 
+            case 'save_autopilot':
+                $apToggles = ['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest'];
+                foreach ($apToggles as $tk) {
+                    ho_set_setting($pdo, $tk, isset($_POST[$tk]) ? '1' : '0');
+                }
+                $apTexts = [
+                    'ap_daily_cap'    => fn($v) => (string)max(1, min(100, (int)$v)),
+                    'ap_postal'       => fn($v) => mb_substr(trim($v), 0, 190),
+                    'ap_from_email'   => fn($v) => filter_var(trim($v), FILTER_VALIDATE_EMAIL) ? trim($v) : '',
+                    'ap_digest_email' => fn($v) => filter_var(trim($v), FILTER_VALIDATE_EMAIL) ? trim($v) : '',
+                    'ap_site_base'    => fn($v) => rtrim(trim($v), '/'),
+                    'ap_source_areas' => fn($v) => mb_substr(trim($v), 0, 400),
+                ];
+                foreach ($apTexts as $tk => $clean) {
+                    if (isset($_POST[$tk])) ho_set_setting($pdo, $tk, $clean((string)$_POST[$tk]));
+                }
+                header('Location: ?tab=send&flash=' . urlencode('Autopilot settings saved.'));
+                exit;
+
             case 'record_followup_sent':
                 $logId   = (int)($_POST['log_id'] ?? 0);
                 $bizId   = (int)($_POST['business_id'] ?? 0);
@@ -1317,6 +1336,109 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'send'): ?>
+
+  <?php
+    // ── Autopilot panel state ──────────────────────────────────────────────
+    $ap = [];
+    foreach (['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest',
+              'ap_daily_cap','ap_postal','ap_from_email','ap_digest_email','ap_site_base','ap_source_areas',
+              'ap_last_run','gpt_import_key'] as $apk) {
+        $ap[$apk] = $pdo ? ho_get_setting($pdo, $apk) : '';
+    }
+    $apOn         = $ap['ap_master'] === '1';
+    $apSentToday  = $pdo ? ho_sends_today($pdo) : -1;
+    $apTableOk    = $apSentToday >= 0;
+    $apCap        = max(1, (int)($ap['ap_daily_cap'] ?: '30'));
+    $apLlmReady   = is_file('/home1/spofnkte/llm-config.php');
+    $apCronUrl    = 'https://' . $_SERVER['HTTP_HOST'] . '/cron.php?key=' . $ap['gpt_import_key'];
+    $apGateReason = ($pdo && $apOn) ? ho_autopilot_gate($pdo) : null;
+  ?>
+  <section class="cp-section">
+    <details class="cp-ap-wrap"<?= !$apOn ? ' open' : '' ?>>
+      <summary class="cp-ap-summary">
+        <span class="cp-ap-dot <?= $apOn ? ($apGateReason === null ? 'cp-ap-dot-on' : 'cp-ap-dot-warn') : 'cp-ap-dot-off' ?>"></span>
+        🤖 Autopilot — <?= $apOn ? 'ON' : 'OFF' ?>
+        <?php if ($apOn && $apTableOk): ?>
+          <span class="cp-ap-sub"><?= $apSentToday ?>/<?= $apCap ?> sent today<?= $ap['ap_last_run'] !== '' ? ' · last run ' . ho_h($ap['ap_last_run']) : ' · cron has never run' ?></span>
+        <?php elseif ($apOn && $apGateReason !== null): ?>
+          <span class="cp-ap-sub">⚠ <?= ho_h($apGateReason) ?></span>
+        <?php endif; ?>
+      </summary>
+      <div class="cp-ap-body">
+
+        <?php if (!$apTableOk): ?>
+        <div class="cp-ap-alert">
+          <strong>One-time setup — run this in phpMyAdmin (SQL tab) first:</strong>
+          <pre class="cp-ap-sql">CREATE TABLE IF NOT EXISTS email_log (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL DEFAULT 0,
+  kind VARCHAR(20) NOT NULL DEFAULT 'pitch',
+  touch TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  sent_to VARCHAR(190) NOT NULL DEFAULT '',
+  subject VARCHAR(255) NOT NULL DEFAULT '',
+  ok TINYINT(1) NOT NULL DEFAULT 1,
+  sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_el_biz (business_id),
+  INDEX idx_el_sent (sent_at)
+) ENGINE=InnoDB;</pre>
+        </div>
+        <?php endif; ?>
+
+        <form method="POST" class="cp-ap-form">
+          <input type="hidden" name="action" value="save_autopilot">
+          <input type="hidden" name="tab" value="send">
+
+          <label class="cp-ap-toggle cp-ap-toggle-master">
+            <input type="checkbox" name="ap_master"<?= $ap['ap_master'] === '1' ? ' checked' : '' ?>>
+            <strong>Master switch</strong> — nothing sends while this is off
+          </label>
+
+          <div class="cp-ap-toggle-grid">
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_drip"<?= $ap['ap_drip'] === '1' ? ' checked' : '' ?>> <span><strong>Auto follow-ups</strong> — touches 2–4 send themselves when due</span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_hotstrike"<?= $ap['ap_hotstrike'] === '1' ? ' checked' : '' ?>> <span><strong>Hot-lead auto-reply</strong> — “saw you took a look” within hours of a visit</span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_autopitch"<?= $ap['ap_autopitch'] === '1' ? ' checked' : '' ?>> <span><strong>Auto-pitch</strong> — first touch to ready leads with email, no tap needed</span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_research"<?= $ap['ap_research'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-research</strong> — Claude researches the queue around the clock<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_source"<?= $ap['ap_source'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-source</strong> — one fresh sourcing run a day, least-covered category<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_digest"<?= $ap['ap_digest'] === '1' ? ' checked' : '' ?>> <span><strong>Morning digest</strong> — one email: hot leads, counts, what sent yesterday</span></label>
+          </div>
+
+          <div class="cp-ap-fields">
+            <label>Daily send cap
+              <input class="cp-input" type="number" name="ap_daily_cap" min="1" max="100" value="<?= ho_h($ap['ap_daily_cap'] ?: '30') ?>">
+            </label>
+            <label>Mailing address — required by law (CAN-SPAM) on every outreach email
+              <input class="cp-input" type="text" name="ap_postal" placeholder="123 Main St, Lafayette, IN 47901" value="<?= ho_h($ap['ap_postal']) ?>">
+            </label>
+            <label>Send from
+              <input class="cp-input" type="email" name="ap_from_email" placeholder="adam@hoosieronline.com" value="<?= ho_h($ap['ap_from_email'] ?: 'adam@hoosieronline.com') ?>">
+            </label>
+            <label>Digest to
+              <input class="cp-input" type="email" name="ap_digest_email" placeholder="adam.ferree@gmail.com" value="<?= ho_h($ap['ap_digest_email'] ?: 'adam.ferree@gmail.com') ?>">
+            </label>
+            <label>Site base URL (used in cron-sent links)
+              <input class="cp-input" type="text" name="ap_site_base" value="<?= ho_h($ap['ap_site_base'] ?: 'https://' . $_SERVER['HTTP_HOST']) ?>">
+            </label>
+            <label>Auto-source areas (comma-separated, rotates daily)
+              <input class="cp-input" type="text" name="ap_source_areas" placeholder="Lafayette, Kokomo, Muncie, Anderson" value="<?= ho_h($ap['ap_source_areas']) ?>">
+            </label>
+          </div>
+
+          <button type="submit" class="cp-btn-primary">Save autopilot settings</button>
+        </form>
+
+        <div class="cp-ap-cron">
+          <strong>One-time setup — the heartbeat:</strong>
+          <?php if ($ap['gpt_import_key'] !== ''): ?>
+          <p class="cp-hint">In cPanel → Cron Jobs, add a job running <em>every 15 minutes</em> with this command:</p>
+          <pre class="cp-ap-sql">/usr/bin/curl -s "<?= ho_h($apCronUrl) ?>" &gt;/dev/null 2&gt;&amp;1</pre>
+          <p class="cp-hint">Also one-time, in cPanel → Email Deliverability: make sure SPF and DKIM show “valid” for the domain — that keeps automated mail out of spam.</p>
+          <?php else: ?>
+          <p class="cp-hint">Generate an import key first (Research tab → settings) — the cron URL is protected by it.</p>
+          <?php endif; ?>
+        </div>
+      </div>
+    </details>
+  </section>
 
   <?php if (!empty($followupDue)): ?>
     <section class="cp-section">

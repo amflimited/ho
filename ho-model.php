@@ -1801,8 +1801,8 @@ function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
     $credEnhance = "I\u{2019}ve improved sites for Indiana trades and seen a clean, well-positioned online presence help close a \$15k job for an operator with no experience.{$trackLine2}";
 
     $closingLine = $bundleTotal > 0
-        ? "Everything I\u{2019}d fix, done for a flat \$" . number_format($bundleTotal) . " \u{2014} one time, no contract. Want just one piece? That works too. {$credEnhance} Reply and I\u{2019}ll get started the same day."
-        : "{$credEnhance} Reply here and I\u{2019}ll have a quote to you the same day. One flat fee, no contract, no surprises.";
+        ? "Everything I\u{2019}d fix, done for a flat \$" . number_format($bundleTotal) . " \u{2014} one time, no contract, and if you\u{2019}re not happy with the work, full refund. Want just one piece? That works too. {$credEnhance} Reply and I\u{2019}ll get started the same day."
+        : "{$credEnhance} Reply here and I\u{2019}ll have a quote to you the same day. One flat fee, no contract, no surprises \u{2014} and if you\u{2019}re not happy with the work, full refund.";
 
     // P.S. — use the strongest remaining signal
     $psLine = '';
@@ -2125,10 +2125,10 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
     $trackLine = $hasRecord ? " Imagine what it does for someone with your track record." : "";
     $cred = "I\u{2019}ve built sites for Indiana trades \u{2014} one client, brand new to the industry with no track record, used a clean site and logo to close a \$15k job.{$trackLine}";
 
-    // Specific closing with deliverables, timeline, and credibility
+    // Specific closing with deliverables, timeline, credibility, and risk reversal
     $closing = $ageBand === '55plus'
-        ? "No charge to view. {$cred} If it looks right, just reply \u{2014} I handle everything technical, nothing for you to figure out. Flat \$199 to go live."
-        : "No charge to view. {$cred} If it looks right: \$199 flat, live in 48 hours \u{2014} domain, hosting, everything. Reply here and I\u{2019}ll take it from there.";
+        ? "No charge to view. {$cred} If it looks right, just reply \u{2014} I handle everything technical, nothing for you to figure out. Flat \$199 to go live, and if you don\u{2019}t love it, full refund \u{2014} you risk nothing."
+        : "No charge to view. {$cred} If it looks right: \$199 flat, live in 48 hours \u{2014} domain, hosting, everything. Don\u{2019}t love it? Full refund, no questions \u{2014} you risk nothing. Reply here and I\u{2019}ll take it from there.";
 
     // P.S. — most-read part of an email; use the strongest fact NOT already in the hook
     $psLine = '';
@@ -3558,9 +3558,11 @@ function ho_record_followup_sent(PDO $pdo, int $logId, int $bizId, string $sentV
 
     if ($touch >= 4) return;
 
-    $nextTouch = $touch + 1;
-    $days = [2 => 3, 3 => 7, 4 => 11];
-    $interval = $days[$nextTouch] ?? 7;
+    // $touch is the touch just sent; the new row carries that number so the
+    // queue computes the NEXT touch correctly. Gap before each touch is due:
+    // touch 2 → +3d after 1, touch 3 → +7d after 2, touch 4 → +11d after 3.
+    $gapDays  = [2 => 3, 3 => 7, 4 => 11];
+    $interval = $gapDays[$touch + 1] ?? 7;
 
     $previewId = null;
     $p = $pdo->prepare("SELECT id FROM previews WHERE business_id = ?");
@@ -3572,7 +3574,7 @@ function ho_record_followup_sent(PDO $pdo, int $logId, int $bizId, string $sentV
         $pdo->prepare("
             INSERT INTO outreach_log (business_id, preview_id, sent_via, sent_to, outcome, follow_up_at, touch_number)
             VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL {$interval} DAY), ?)
-        ")->execute([$bizId, $previewId, $sentVia, $sentTo, $nextTouch]);
+        ")->execute([$bizId, $previewId, $sentVia, $sentTo, $touch]);
     } catch (PDOException) {
         // touch_number column not yet migrated
         $pdo->prepare("
@@ -3580,4 +3582,400 @@ function ho_record_followup_sent(PDO $pdo, int $logId, int $bizId, string $sentV
             VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL {$interval} DAY))
         ")->execute([$bizId, $previewId, $sentVia, $sentTo]);
     }
+}
+
+// ═══ AUTOPILOT ════════════════════════════════════════════════════════════════
+// Server-side outreach engine. cron.php calls the ho_run_* tasks on a schedule;
+// every email goes through ho_send_email() which enforces the CAN-SPAM footer
+// and logs to email_log. The daily cap + send window live in ho_autopilot_gate().
+// All features are toggled via app_settings keys (ap_*) from the Autopilot panel.
+
+function ho_site_base(?PDO $pdo = null): string {
+    if (!empty($_SERVER['HTTP_HOST'])) return 'https://' . $_SERVER['HTTP_HOST'];
+    if ($pdo !== null) {
+        $v = trim(ho_get_setting($pdo, 'ap_site_base'));
+        if ($v !== '') return rtrim($v, '/');
+    }
+    return 'https://hoosieronline.com';
+}
+
+function ho_autopilot_on(PDO $pdo, string $feature): bool {
+    if (ho_get_setting($pdo, 'ap_master') !== '1') return false;
+    return ho_get_setting($pdo, 'ap_' . $feature) === '1';
+}
+
+/** Sends counted against the daily cap (digest excluded). -1 = email_log missing. */
+function ho_sends_today(PDO $pdo): int {
+    try {
+        return (int)$pdo->query("
+            SELECT COUNT(*) FROM email_log
+            WHERE kind != 'digest' AND ok = 1 AND sent_at >= CURDATE()
+        ")->fetchColumn();
+    } catch (PDOException) {
+        return -1;
+    }
+}
+
+/**
+ * Returns null when outreach email may be sent right now, otherwise the reason
+ * it may not. Checked before EVERY automated outreach send.
+ */
+function ho_autopilot_gate(PDO $pdo): ?string {
+    if (ho_get_setting($pdo, 'ap_master') !== '1') return 'Autopilot is off.';
+    if (trim(ho_get_setting($pdo, 'ap_postal')) === '') return 'Postal address not set (required for CAN-SPAM).';
+    $hour = (int)(new DateTime('now', new DateTimeZone('America/Indiana/Indianapolis')))->format('G');
+    if ($hour < 8 || $hour >= 18) return 'Outside the 8am-6pm send window.';
+    $sent = ho_sends_today($pdo);
+    if ($sent < 0) return 'email_log table missing - run the Autopilot migration.';
+    $cap = max(1, (int)(ho_get_setting($pdo, 'ap_daily_cap') ?: '30'));
+    if ($sent >= $cap) return "Daily send cap reached ({$sent}/{$cap}).";
+    return null;
+}
+
+/**
+ * Send a plain-text email from Adam's domain address and log it.
+ * Outreach kinds (pitch/followup/hotstrike) get the CAN-SPAM footer appended;
+ * 'digest' (internal mail to Adam) does not and never counts against the cap.
+ */
+function ho_send_email(PDO $pdo, int $bizId, string $to, string $subject, string $body, string $kind = 'pitch', int $touch = 1): bool {
+    $to = trim($to);
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+    $from = trim(ho_get_setting($pdo, 'ap_from_email')) ?: 'adam@hoosieronline.com';
+
+    if ($kind !== 'digest') {
+        $postal = trim(ho_get_setting($pdo, 'ap_postal'));
+        if ($postal === '') return false; // never send outreach without the compliance footer
+        $body .= "\n\n--\nHoosier Online \u{00B7} {$postal}\n"
+               . "Rather not hear from me? Reply \u{201C}unsubscribe\u{201D} and I\u{2019}ll take you off my list immediately.";
+    }
+
+    $headers = "From: Adam Ferree <{$from}>\r\n"
+             . "Reply-To: {$from}\r\n"
+             . "MIME-Version: 1.0\r\n"
+             . "Content-Type: text/plain; charset=UTF-8\r\n"
+             . "Content-Transfer-Encoding: 8bit";
+    $encSubject = mb_encode_mimeheader($subject, 'UTF-8', 'B', "\r\n");
+
+    $ok = @mail($to, $encSubject, $body, $headers, '-f' . $from);
+
+    try {
+        $pdo->prepare("
+            INSERT INTO email_log (business_id, kind, touch, sent_to, subject, ok)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ")->execute([$bizId, $kind, $touch, $to, mb_substr($subject, 0, 255), $ok ? 1 : 0]);
+    } catch (PDOException) {
+        // table missing — the gate blocks automated sends in this state anyway
+    }
+    return $ok;
+}
+
+/** Settings-backed daily counter (used to cap API-spend tasks). True = still under cap. */
+function ho_bump_daily_counter(PDO $pdo, string $key, int $cap): bool {
+    $today = date('Y-m-d');
+    $raw   = ho_get_setting($pdo, $key);
+    $count = 0;
+    if (preg_match('/^(\d{4}-\d{2}-\d{2}):(\d+)$/', $raw, $m) && $m[1] === $today) $count = (int)$m[2];
+    if ($count >= $cap) return false;
+    ho_set_setting($pdo, $key, $today . ':' . ($count + 1));
+    return true;
+}
+
+// ─── Hot strike — automatic "saw you took a look" reply to a fresh visit ─────
+
+function ho_hot_strike_message(array $biz, string $previewUrl): array {
+    $first    = trim((string)($biz['owner_first_name'] ?? ''));
+    $greeting = $first !== '' ? "Hi {$first}," : 'Hi,';
+    $name     = (string)$biz['business_name'];
+    $subject  = "Anything you\u{2019}d change on it?";
+    $body = "{$greeting}\n\n"
+          . "Saw the preview page for {$name} got a look today. If anything on it isn\u{2019}t right \u{2014} services missing, wording off, wrong feel \u{2014} tell me and I\u{2019}ll change it. Takes me minutes.\n\n"
+          . "It\u{2019}s still up here:\n\n{$previewUrl}\n\n"
+          . "No pressure either way \u{2014} I just want it to be right if you\u{2019}re considering it.\n\n"
+          . "\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    return ['subject' => $subject, 'body' => $body];
+}
+
+/**
+ * Email every pitched lead whose preview was visited in the last 6 hours.
+ * Guards: max 1 hot strike per lead per 7 days, and never within 24h of any
+ * other email to that lead (so a touch email that drove the visit doesn't
+ * immediately stack a second message on top).
+ */
+function ho_run_hot_strikes(PDO $pdo, int $max = 5): array {
+    $sent = 0; $errors = [];
+    try {
+        $rows = $pdo->query("
+            SELECT b.id, b.business_name, b.owner_first_name, b.email_address, p.preview_slug
+            FROM preview_visits pv
+            JOIN businesses b ON b.id = pv.business_id
+            JOIN previews p   ON p.business_id = b.id
+            WHERE pv.visited_at >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+              AND b.pipeline_status = 'pitched'
+              AND b.email_address != ''
+              AND NOT EXISTS (
+                  SELECT 1 FROM email_log el
+                  WHERE el.business_id = b.id
+                    AND (el.sent_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                         OR (el.kind = 'hotstrike' AND el.sent_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)))
+              )
+            GROUP BY b.id
+            LIMIT 20
+        ")->fetchAll();
+    } catch (PDOException $e) {
+        return ['sent' => 0, 'errors' => ['query failed: ' . $e->getMessage()]];
+    }
+    foreach ($rows as $b) {
+        if ($sent >= $max) break;
+        if (($gate = ho_autopilot_gate($pdo)) !== null) { $errors[] = $gate; break; }
+        $previewUrl = ho_site_base($pdo) . '/go/' . $b['preview_slug'];
+        $msg = ho_hot_strike_message($b, $previewUrl);
+        if (ho_send_email($pdo, (int)$b['id'], (string)$b['email_address'], $msg['subject'], $msg['body'], 'hotstrike')) {
+            $sent++;
+        }
+    }
+    return ['sent' => $sent, 'errors' => $errors];
+}
+
+// ─── Follow-up drip — touches 2-4 sent automatically when due ────────────────
+
+function ho_run_followup_drip(PDO $pdo, int $max = 10): array {
+    $sent = 0; $skipped = 0; $errors = [];
+    $due = ho_get_followup_due_full($pdo, $max * 3);
+    if (empty($due)) return ['sent' => 0, 'skipped' => 0, 'errors' => []];
+    $heat = ho_visit_stats_for_businesses($pdo, array_map(fn($r) => (int)$r['business_id'], $due));
+
+    foreach ($due as $fu) {
+        if ($sent >= $max) break;
+        if (($gate = ho_autopilot_gate($pdo)) !== null) { $errors[] = $gate; break; }
+        $email = trim((string)($fu['email_address'] ?? ''));
+        $slug  = (string)($fu['preview_slug'] ?? '');
+        if ($email === '' || $slug === '') { $skipped++; continue; }
+        $touch      = min((int)$fu['touch_number'] + 1, 4);
+        $previewUrl = ho_site_base($pdo) . '/go/' . $slug;
+        $msg        = ho_followup_message($fu, $previewUrl, $touch, $heat);
+        if (ho_send_email($pdo, (int)$fu['business_id'], $email, $msg['subject'], $msg['body'], 'followup', $touch)) {
+            ho_record_followup_sent($pdo, (int)$fu['log_id'], (int)$fu['business_id'], 'email', $email, $touch);
+            $sent++;
+        } else {
+            $skipped++;
+        }
+    }
+    return ['sent' => $sent, 'skipped' => $skipped, 'errors' => $errors];
+}
+
+// ─── Auto-pitch — first touch to ready leads with an email address ───────────
+
+function ho_run_auto_pitch(PDO $pdo, int $max = 0): array {
+    $sent = 0; $errors = [];
+    if ($max <= 0) $max = max(1, (int)(ho_get_setting($pdo, 'ap_pitch_per_run') ?: '3'));
+    $queues = [
+        ['rows' => ho_get_preview_ready($pdo),     'enh' => false],
+        ['rows' => ho_get_enhancement_ready($pdo), 'enh' => true],
+    ];
+    foreach ($queues as $q) {
+        foreach ($q['rows'] as $b) {
+            if ($sent >= $max) break 2;
+            if (($gate = ho_autopilot_gate($pdo)) !== null) { $errors[] = $gate; break 2; }
+            $email = trim((string)($b['email_address'] ?? ''));
+            if ($email === '') continue;
+            $previewUrl = ho_site_base($pdo) . '/go/' . $b['business_slug'];
+            $msg = $q['enh'] ? ho_pitch_message_enhancement($b, $previewUrl) : ho_pitch_message($b, $previewUrl);
+            if (ho_send_email($pdo, (int)$b['id'], $email, $msg['subject'], $msg['body'], 'pitch', 1)) {
+                ho_mark_sent($pdo, (int)$b['id'], 'email', $email);
+                $sent++;
+            }
+        }
+    }
+    return ['sent' => $sent, 'errors' => $errors];
+}
+
+// ─── Claude API plumbing (shared by auto-research + auto-source) ─────────────
+
+/** Requires LLM_API_KEY to be defined (cron.php loads llm-config.php). */
+function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000): array {
+    if (!defined('LLM_API_KEY') || LLM_API_KEY === '') {
+        return ['ok' => false, 'text' => '', 'error' => 'LLM config not loaded.'];
+    }
+    $model   = defined('LLM_MODEL') ? LLM_MODEL : 'claude-sonnet-4-6';
+    $payload = json_encode([
+        'model'      => $model,
+        'max_tokens' => $maxTokens,
+        'system'     => $system,
+        'tools'      => [['type' => 'web_search_20250305', 'name' => 'web_search']],
+        'messages'   => [['role' => 'user', 'content' => $prompt]],
+    ]);
+    $ch = curl_init('https://api.anthropic.com/v1/messages');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'x-api-key: ' . LLM_API_KEY,
+            'anthropic-version: 2023-06-01',
+            'anthropic-beta: web-search-2025-03-05',
+        ],
+        CURLOPT_TIMEOUT        => 150,
+        CURLOPT_CONNECTTIMEOUT => 15,
+    ]);
+    $resp     = curl_exec($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr  = curl_error($ch);
+    curl_close($ch);
+
+    if ($resp === false || $resp === '') return ['ok' => false, 'text' => '', 'error' => 'cURL: ' . $curlErr];
+    if ($httpCode !== 200) {
+        $apiErr = json_decode((string)$resp, true);
+        return ['ok' => false, 'text' => '', 'error' => 'API ' . $httpCode . ': ' . ($apiErr['error']['message'] ?? substr((string)$resp, 0, 200))];
+    }
+    $api = json_decode((string)$resp, true);
+    $text = '';
+    foreach ((array)($api['content'] ?? []) as $block) {
+        if (($block['type'] ?? '') === 'text' && isset($block['text'])) $text .= $block['text'];
+    }
+    return $text !== '' ? ['ok' => true, 'text' => $text, 'error' => '']
+                        : ['ok' => false, 'text' => '', 'error' => 'No text in API response.'];
+}
+
+/** Pull the outermost JSON object out of a model reply. */
+function ho_llm_extract_json(string $text): ?string {
+    $start = strpos($text, '{');
+    $end   = strrpos($text, '}');
+    if ($start === false || $end === false || $end <= $start) return null;
+    return substr($text, $start, $end - $start + 1);
+}
+
+// ─── Auto-research — drain the research queue via the Claude API ─────────────
+
+function ho_run_auto_research(PDO $pdo, int $max = 1): array {
+    $done = 0; $errors = [];
+    $cap = max(1, (int)(ho_get_setting($pdo, 'ap_research_daily_cap') ?: '25'));
+    $batch = ho_get_unresearched_businesses($pdo, $max);
+    foreach ($batch as $biz) {
+        if (!ho_bump_daily_counter($pdo, 'ap_research_counter', $cap)) {
+            $errors[] = "Research daily cap ({$cap}) reached.";
+            break;
+        }
+        $prompt = ho_generate_research_prompt([$biz]);
+        $prompt = preg_replace(
+            '/DELIVERY:.*$/s',
+            'Return the complete JSON object starting with { "research_results": [...] } as your response text. No explanation, no markdown fences — just the raw JSON.',
+            $prompt
+        ) ?? $prompt;
+        $r = ho_llm_call($prompt, 'You are a business research assistant. Use web search to find accurate, current data. Return ONLY the JSON object requested — no explanation, no markdown, no preamble.');
+        if (!$r['ok']) { $errors[] = $biz['business_name'] . ': ' . $r['error']; continue; }
+        $json = ho_llm_extract_json($r['text']);
+        if ($json === null) { $errors[] = $biz['business_name'] . ': no JSON in reply.'; continue; }
+        try {
+            $res = ho_import_research_json($pdo, $json);
+            if (($res['updated'] ?? 0) > 0) $done++;
+            foreach ((array)($res['errors'] ?? []) as $e) $errors[] = $biz['business_name'] . ': ' . $e;
+        } catch (Throwable $e) {
+            $errors[] = $biz['business_name'] . ': import failed: ' . $e->getMessage();
+        }
+    }
+    return ['researched' => $done, 'errors' => $errors];
+}
+
+// ─── Auto-source — one evidence-gated sourcing run per day ───────────────────
+
+function ho_run_auto_source(PDO $pdo): array {
+    $areasRaw = trim(ho_get_setting($pdo, 'ap_source_areas'));
+    if ($areasRaw === '') return ['sourced' => 0, 'errors' => ['No source areas configured.']];
+    if (ho_get_setting($pdo, 'ap_last_source_date') === date('Y-m-d')) {
+        return ['sourced' => 0, 'errors' => [], 'note' => 'Already sourced today.'];
+    }
+    $areas = array_values(array_filter(array_map('trim', explode(',', $areasRaw))));
+    if (empty($areas)) return ['sourced' => 0, 'errors' => ['No source areas configured.']];
+    $area = $areas[(int)date('z') % count($areas)];
+
+    // Least-covered category gets today's run
+    $cat = $pdo->query("
+        SELECT c.*, COUNT(b.id) AS n
+        FROM categories c
+        LEFT JOIN businesses b ON b.category_id = c.id
+             AND b.pipeline_status NOT IN ('excluded','not_a_fit')
+        GROUP BY c.id
+        ORDER BY n ASC, c.id ASC
+        LIMIT 1
+    ")->fetch();
+    if (!$cat) return ['sourced' => 0, 'errors' => ['No categories found.']];
+
+    ho_set_setting($pdo, 'ap_last_source_date', date('Y-m-d')); // claim the slot before the slow API call
+
+    $runId      = ho_create_source_run($pdo, (int)$cat['id'], $area, 10);
+    $exclusions = ho_get_known_business_names($pdo, (int)$cat['id'], $area);
+    $prompt     = ho_generate_sourcing_prompt(
+        ['name' => $cat['name'], 'typical_services' => $cat['typical_services'] ?? ''],
+        $area, 10, $exclusions, $runId
+    );
+    $r = ho_llm_call($prompt, 'You are a lead sourcing assistant. Use web search to verify every candidate. Return ONLY the JSON object requested — no explanation, no markdown, no preamble.');
+    if (!$r['ok']) return ['sourced' => 0, 'errors' => ["{$cat['name']} / {$area}: " . $r['error']]];
+    $json = ho_llm_extract_json($r['text']);
+    if ($json === null) return ['sourced' => 0, 'errors' => ["{$cat['name']} / {$area}: no JSON in reply."]];
+    try {
+        $res = ho_import_sourcing_json($pdo, $runId, $json);
+        return [
+            'sourced' => (int)($res['imported'] ?? $res['added'] ?? 0),
+            'area'    => $area,
+            'category'=> (string)$cat['name'],
+            'errors'  => (array)($res['errors'] ?? []),
+        ];
+    } catch (Throwable $e) {
+        return ['sourced' => 0, 'errors' => ['Import failed: ' . $e->getMessage()]];
+    }
+}
+
+// ─── Daily digest — Adam's morning command center, one email ─────────────────
+
+function ho_send_daily_digest(PDO $pdo): array {
+    $today = date('Y-m-d');
+    if (ho_get_setting($pdo, 'ap_last_digest_date') === $today) return ['sent' => false, 'note' => 'Already sent today.'];
+    $hour = (int)(new DateTime('now', new DateTimeZone('America/Indiana/Indianapolis')))->format('G');
+    if ($hour < 7) return ['sent' => false, 'note' => 'Before 7am.'];
+
+    $to = trim(ho_get_setting($pdo, 'ap_digest_email')) ?: 'adam.ferree@gmail.com';
+    $counts = ho_pipeline_counts($pdo);
+
+    $hotNames = [];
+    try {
+        $hotNames = $pdo->query("
+            SELECT DISTINCT b.business_name
+            FROM preview_visits pv JOIN businesses b ON b.id = pv.business_id
+            WHERE pv.visited_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            LIMIT 10
+        ")->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException) {}
+
+    $dueCount = count(ho_get_followup_due_full($pdo, 50));
+    $sentYesterday = 0;
+    try {
+        $sentYesterday = (int)$pdo->query("
+            SELECT COUNT(*) FROM email_log
+            WHERE kind != 'digest' AND ok = 1
+              AND sent_at >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND sent_at < CURDATE()
+        ")->fetchColumn();
+    } catch (PDOException) {}
+    $triageWaiting = count(ho_get_triage_batch($pdo));
+
+    $lines = ["Morning. Here's where Hoosier Online stands:\n"];
+    if (!empty($hotNames)) {
+        $lines[] = "🔥 VISITED THEIR PAGE IN THE LAST 24H (\u{2192} hottest leads you have):";
+        foreach ($hotNames as $n) $lines[] = "   \u{2022} {$n}";
+        $lines[] = '';
+    }
+    $lines[] = "PIPELINE";
+    $lines[] = "   Ready to send: " . (($counts['preview_ready'] ?? 0) + ($counts['enhancement_ready'] ?? 0));
+    $lines[] = "   Awaiting triage: {$triageWaiting}";
+    $lines[] = "   Follow-ups due: {$dueCount}";
+    $lines[] = "   Pitched: " . ($counts['pitched'] ?? 0) . "   Converted: " . ($counts['converted'] ?? 0);
+    $lines[] = '';
+    $lines[] = "YESTERDAY: {$sentYesterday} outreach email" . ($sentYesterday === 1 ? '' : 's') . " sent automatically.";
+    $lines[] = '';
+    $lines[] = "Your job today: triage new leads, answer replies. The machine handles the rest.";
+    $lines[] = "\u{2192} " . ho_site_base($pdo) . "/app.php?tab=send";
+
+    $ok = ho_send_email($pdo, 0, $to, "\u{2600} Hoosier Online \u{2014} " . date('D M j') . " digest", implode("\n", $lines), 'digest');
+    if ($ok) ho_set_setting($pdo, 'ap_last_digest_date', $today);
+    return ['sent' => $ok];
 }
