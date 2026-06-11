@@ -1,0 +1,130 @@
+/* THE MONEY FLOOR — dark execution mode. Cockpit stays light; this is night-vision. */
+:root{
+  --mf-bg:#0c1410;
+  --mf-card:#13201a;
+  --mf-card2:#0f1a14;
+  --mf-line:rgba(151,222,168,.14);
+  --mf-ink:#eef5ee;
+  --mf-muted:#8fa898;
+  --mf-green:#3ddc6a;
+  --mf-green-dim:#1f7a3d;
+  --mf-gold:#f2b01e;
+  --mf-red:#ff5a5a;
+  --fn:'Barlow Condensed',sans-serif;
+  --fb:'Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body.mf{
+  font-family:var(--fb);
+  background:
+    radial-gradient(ellipse at top, rgba(61,220,106,.07), transparent 55%),
+    var(--mf-bg);
+  color:var(--mf-ink);
+  min-height:100vh;
+  padding-bottom:60px;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+.mf-top{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;
+  background:rgba(12,20,16,.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--mf-line);
+}
+.mf-brand{font-family:var(--fn);font-size:20px;font-weight:900;letter-spacing:.08em;color:var(--mf-green)}
+.mf-cockpit-link{font-size:12px;color:var(--mf-muted);text-decoration:none}
+
+/* ── Scoreboard ──────────────────────────────────────────────────────────── */
+.mf-score{padding:26px 18px 18px;text-align:center}
+.mf-score-num{
+  display:block;
+  font-family:var(--fn);font-size:54px;font-weight:900;line-height:1;
+  color:var(--mf-green);
+  text-shadow:0 0 28px rgba(61,220,106,.35);
+  letter-spacing:-.01em;
+}
+.mf-score-lbl{font-size:12px;color:var(--mf-muted);display:block;margin-top:4px}
+.mf-score-row{display:flex;justify-content:center;gap:22px;margin-top:16px}
+.mf-stat{font-size:11px;color:var(--mf-muted);text-transform:uppercase;letter-spacing:.06em}
+.mf-stat em{font-style:normal;font-family:var(--fn);font-size:22px;font-weight:900;color:var(--mf-ink);display:block;line-height:1.1}
+.mf-goal{margin:18px auto 0;max-width:340px}
+.mf-goal-bar{height:8px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
+.mf-goal-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--mf-green-dim),var(--mf-green));transition:width .5s ease;box-shadow:0 0 12px rgba(61,220,106,.4)}
+.mf-goal-lbl{font-size:11px;color:var(--mf-muted);display:block;margin-top:6px}
+
+/* ── Card deck ───────────────────────────────────────────────────────────── */
+.mf-shell{width:min(560px,100%);margin:0 auto;padding:6px 14px}
+.mf-card{
+  background:linear-gradient(180deg,var(--mf-card),var(--mf-card2));
+  border:1px solid var(--mf-line);
+  border-radius:20px;
+  padding:18px 18px 16px;
+  margin-bottom:14px;
+  transition:transform .4s ease,opacity .4s ease;
+}
+.mf-card.mf-first{
+  border-color:rgba(61,220,106,.4);
+  box-shadow:0 8px 40px rgba(61,220,106,.10), 0 2px 10px rgba(0,0,0,.4);
+}
+.mf-card.mf-out{transform:translateX(110%) rotate(4deg);opacity:0}
+.mf-card-tag-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.mf-tag{
+  font-family:var(--fn);font-size:12px;font-weight:900;letter-spacing:.1em;
+  padding:4px 10px;border-radius:14px;
+}
+.mf-tag-close   {background:rgba(61,220,106,.18);color:var(--mf-green)}
+.mf-tag-hot     {background:rgba(255,90,90,.16);color:#ff8a7a}
+.mf-tag-followup{background:rgba(242,176,30,.15);color:var(--mf-gold)}
+.mf-tag-pitch   {background:rgba(151,222,168,.12);color:#a5d8b2}
+.mf-tag-triage  {background:rgba(143,168,152,.15);color:var(--mf-muted)}
+.mf-value{font-family:var(--fn);font-size:20px;font-weight:900;color:var(--mf-green)}
+.mf-card-name{font-family:var(--fn);font-size:26px;font-weight:900;line-height:1.05;letter-spacing:-.01em}
+.mf-card-sub{font-size:12px;color:var(--mf-muted);margin-top:3px}
+.mf-card-why{font-size:13.5px;line-height:1.5;margin-top:10px;color:#cfe2d2}
+
+/* message peek */
+.mf-msg-peek{margin-top:10px}
+.mf-msg-peek summary{font-size:12px;color:var(--mf-muted);cursor:pointer;list-style:none}
+.mf-msg-peek summary::-webkit-details-marker{display:none}
+.mf-msg-subject{font-size:11px;color:var(--mf-gold);margin:8px 0 6px}
+.mf-msg-body{
+  font-family:inherit;font-size:12px;line-height:1.55;color:#cfe2d2;
+  background:rgba(0,0,0,.25);border:1px solid var(--mf-line);border-radius:10px;
+  padding:10px 12px;white-space:pre-wrap;word-break:break-word;
+  max-height:180px;overflow-y:auto;
+}
+
+/* actions */
+.mf-actions{display:flex;gap:10px;margin-top:14px}
+.mf-btn{
+  font-family:var(--fn);font-size:17px;font-weight:900;letter-spacing:.03em;
+  border:none;border-radius:14px;padding:13px 18px;cursor:pointer;
+  text-decoration:none;text-align:center;display:inline-block;
+}
+.mf-btn-go{
+  flex:1;
+  background:linear-gradient(135deg,#2a9d4a,var(--mf-green-dim));
+  color:#fff;
+  box-shadow:0 4px 18px rgba(61,220,106,.25);
+}
+.mf-btn-go:active{transform:scale(.98)}
+.mf-btn-skip{background:transparent;border:1px solid var(--mf-line);color:var(--mf-muted);padding:13px 14px}
+.mf-btn-ghost{background:transparent;border:1px solid var(--mf-line);color:var(--mf-muted);font-size:14px;margin-top:12px}
+.mf-no-channel{font-size:12px;color:var(--mf-red);margin-top:12px}
+.mf-triage-verify{font-size:12px;color:var(--mf-gold);display:inline-block;margin-top:8px}
+
+/* empty + footer */
+.mf-empty{text-align:center;padding:46px 22px}
+.mf-empty-icon{font-size:40px;margin-bottom:10px}
+.mf-empty h2{font-family:var(--fn);font-size:30px;font-weight:900}
+.mf-empty p{font-size:14px;color:var(--mf-muted);line-height:1.6;margin-top:8px}
+.mf-overflow{font-size:12px;color:var(--mf-muted);text-align:center;margin:8px 0}
+.mf-footer{font-size:11px;color:rgba(143,168,152,.6);text-align:center;margin:26px 0 10px;font-style:italic}
+
+@media (prefers-reduced-motion: reduce){
+  .mf-card{transition:none}
+  .mf-goal-fill{transition:none}
+}

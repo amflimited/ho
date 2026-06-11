@@ -574,3 +574,26 @@ offer already had the 30-day `.fd-guarantee-box`).
 3. **Before/After audit card** — `.fd-audit` section between quotes and track
    fork; site-build = 5 standard rows from real signals; enhancement = up to 5
    rows from `ho_enhancement_gaps()` with per-gap before/after copy (all 16 defined).
+
+## 💵 THE MONEY FLOOR (2026-06-11) — money.php, the daily execution UI
+
+app.php is now the back office; **money.php** is the screen Adam lives in.
+Dark command-center theme (`assets/css/money.css`), one feed of "moves"
+sorted by expected dollars, each card = one decision with the message
+prewritten and ONE primary tap. Fetch-first POST handlers (JSON, no
+redirects) reuse model functions: mark_sent, record_followup, log_strike
+(manual hot-strike → email_log for the 7-day suppressor), triage_keep/reject,
+mark_outcome.
+
+**Move priority:** close (interested leads, 900) → hot (pitched + visited
+<48h, 800+recency, suppressed if struck <7d) → followup (due touches,
+500+overdue) → pitch (fresh ready leads, fit/bundle-weighted, top 12 shown)
+→ triage (single rapid-fire card, leads embedded as JSON, Real ✓/Reject ✗
+advance client-side).
+
+**Scoreboard:** pipeline $ (199×buildReady + Σbundles), sent today
+(outreach_log+email_log), hot count, in-play count, daily-goal progress bar
+(10 moves = "Daily print complete"). Cards slide out on action; `.mf-first`
+glow marks the top card. Channel fallback per card: email mailto → website
+form (copy+open) → FB (copy+open) → SMS (copy + sms:). Gold "💵 The Floor"
+chip in the cockpit topbar links over; "cockpit →" links back.

@@ -499,6 +499,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
 <header class="cp-topbar">
   <div class="cp-brand">HO</div>
+  <a class="cp-floor-link" href="/money.php">💵 The Floor</a>
   <div class="cp-telemetry" onclick="openDash()" title="View dashboard">
     <span class="cp-stat<?= $counts['identified']    > 0 ? ' cp-hi' : '' ?>"><em><?= $counts['identified']    ?></em>LEADS</span>
     <span class="cp-stat<?= $counts['preview_ready'] > 0 ? ' cp-hot' : '' ?>"><em><?= $counts['preview_ready'] ?></em>READY</span>
