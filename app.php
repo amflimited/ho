@@ -2356,12 +2356,12 @@ function orderStatusChange(sel) {
   }
   sel.form.submit();
 }
-// Source tab: fill form with a cat+region and scroll to it.
+// Source tab: fill form with a cat+region and submit immediately.
 function srcFillRec(catId, region) {
   var catSel = document.getElementById('srcCatSel');
   var regSel = document.getElementById('srcRegSel');
-  var form   = document.getElementById('srcForm');
-  if (!catSel || !regSel) return;
+  var formEl = document.getElementById('srcFormEl');
+  if (!catSel || !regSel || !formEl) return;
   // Set category
   for (var i = 0; i < catSel.options.length; i++) {
     if (parseInt(catSel.options[i].value, 10) === catId) { catSel.selectedIndex = i; break; }
@@ -2370,7 +2370,7 @@ function srcFillRec(catId, region) {
   for (var j = 0; j < regSel.options.length; j++) {
     if (regSel.options[j].value === region) { regSel.selectedIndex = j; break; }
   }
-  if (form) { form.scrollIntoView({behavior:'smooth', block:'start'}); }
+  formEl.submit();
 }
 // Review-queue actions (triage Real/Reject, domain Keep/Clear).
 function queueAction(rowId, nextId, action, bizId) {
