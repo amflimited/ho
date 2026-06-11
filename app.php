@@ -721,7 +721,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
     <h2 class="cp-sh" style="font-size:14px">Confirm new leads are real <span style="font-weight:400;font-size:12px;color:var(--ink2)" data-queue-count="<?= count($triageBatch) ?>"><?= count($triageBatch) ?> waiting</span></h2>
     <p class="cp-hint">Sourced leads wait here until confirmed — research only runs on real businesses. Tap Check to verify on Google, then Real or Reject.</p>
     <div class="cp-domain-table">
-      <?php foreach ($triageBatch as $t):
+      <?php foreach ($triageBatch as $tidx => $t):
         $tChips = [];
         if ((string)$t['website_url']         !== '') $tChips[] = 'web';
         if ((string)$t['facebook_url']        !== '') $tChips[] = 'fb';
@@ -731,8 +731,9 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
         $tSearch   = 'https://www.google.com/search?q=' . rawurlencode('"' . $t['business_name'] . '" ' . $t['location_city'] . ' Indiana');
         $tFoundVia = (string)($t['found_via']  ?? '');
         $tConf     = (string)($t['confidence'] ?? '');
+        $tNext     = isset($triageBatch[$tidx + 1]) ? 'tr-' . (int)$triageBatch[$tidx + 1]['id'] : '';
       ?>
-      <div class="cp-domain-row" id="tr-<?= (int)$t['id'] ?>">
+      <div class="cp-domain-row" id="tr-<?= (int)$t['id'] ?>"<?= $tidx > 0 ? ' style="display:none"' : '' ?>>
         <div class="cp-domain-info">
           <strong class="cp-domain-biz"><?= ho_h((string)$t['business_name']) ?></strong>
           <span class="cp-domain-meta"><?= ho_h((string)$t['category_name']) ?> &middot; <?= ho_h((string)$t['location_city']) ?><?= $tChips !== [] ? ' &middot; ' . implode(' / ', $tChips) : '' ?></span>
@@ -744,8 +745,8 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           <a class="cp-domain-url" href="<?= ho_h($tSearch) ?>" target="_blank" rel="noopener">Check on Google ↗</a>
         </div>
         <div class="cp-domain-actions">
-          <button type="button" class="cp-btn-domain-keep" onclick="queueAction(this,'triage_keep',<?= (int)$t['id'] ?>)">Real ✓</button>
-          <button type="button" class="cp-btn-domain-clear" onclick="queueAction(this,'triage_reject',<?= (int)$t['id'] ?>)">Reject ✗</button>
+          <button type="button" class="cp-btn-domain-keep" onclick="queueAction('tr-<?= (int)$t['id'] ?>','<?= $tNext ?>','triage_keep',<?= (int)$t['id'] ?>)">Real ✓</button>
+          <button type="button" class="cp-btn-domain-clear" onclick="queueAction('tr-<?= (int)$t['id'] ?>','<?= $tNext ?>','triage_reject',<?= (int)$t['id'] ?>)">Reject ✗</button>
         </div>
       </div>
       <?php endforeach; ?>
@@ -1059,16 +1060,18 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
     <h2 class="cp-sh" style="font-size:14px">Review website domains <span style="font-weight:400;font-size:12px;color:var(--ink2)" data-queue-count="<?= count($websiteReviewBatch) ?>"><?= count($websiteReviewBatch) ?> unverified</span></h2>
     <p class="cp-hint">Each domain below came from AI research. Tap the URL to check it, then Keep or Clear.</p>
     <div class="cp-domain-table">
-      <?php foreach ($websiteReviewBatch as $d): ?>
-      <div class="cp-domain-row" id="dr-<?= (int)$d['id'] ?>">
+      <?php foreach ($websiteReviewBatch as $didx => $d):
+        $dNext = isset($websiteReviewBatch[$didx + 1]) ? 'dr-' . (int)$websiteReviewBatch[$didx + 1]['id'] : '';
+      ?>
+      <div class="cp-domain-row" id="dr-<?= (int)$d['id'] ?>"<?= $didx > 0 ? ' style="display:none"' : '' ?>>
         <div class="cp-domain-info">
           <strong class="cp-domain-biz"><?= ho_h((string)$d['business_name']) ?></strong>
           <span class="cp-domain-meta"><?= ho_h((string)($d['category_name'] ?? '')) ?> &middot; <?= ho_h((string)$d['location_city']) ?></span>
           <a class="cp-domain-url" href="<?= ho_h((string)$d['website_url']) ?>" target="_blank" rel="noopener"><?= ho_h((string)$d['website_url']) ?></a>
         </div>
         <div class="cp-domain-actions">
-          <button type="button" class="cp-btn-domain-keep" onclick="queueAction(this,'verify_website',<?= (int)$d['id'] ?>)">Keep ✓</button>
-          <button type="button" class="cp-btn-domain-clear" onclick="queueAction(this,'clear_website',<?= (int)$d['id'] ?>)">Clear ✗</button>
+          <button type="button" class="cp-btn-domain-keep" onclick="queueAction('dr-<?= (int)$d['id'] ?>','<?= $dNext ?>','verify_website',<?= (int)$d['id'] ?>)">Keep ✓</button>
+          <button type="button" class="cp-btn-domain-clear" onclick="queueAction('dr-<?= (int)$d['id'] ?>','<?= $dNext ?>','clear_website',<?= (int)$d['id'] ?>)">Clear ✗</button>
         </div>
       </div>
       <?php endforeach; ?>
@@ -2115,39 +2118,20 @@ function markSent(el, via) {
   if (flag) flag.hidden = false;
 }
 // Review-queue actions (triage Real/Reject, domain Keep/Clear).
-// type="button" + onclick means no form submission ever happens.
-function queueAction(btn, action, bizId) {
-  var fd = new FormData();
-  fd.append('action', action);
-  fd.append('business_id', bizId);
-  fd.append('tab', 'research');
-  fd.append('_ajax', '1');
-  try {
-    fetch(window.location.pathname, {
-      method: 'POST', body: fd, redirect: 'manual', keepalive: true
-    }).catch(function(){});
-  } catch(e) {}
-  var row = btn.closest('.cp-domain-row');
-  if (!row) return;
-  var next = row.nextElementSibling;
-  row.style.opacity = '0';
-  row.style.transform = 'translateY(-6px)';
-  row.style.pointerEvents = 'none';
-  var section = row.closest('.cp-section');
-  var counter = section ? section.querySelector('[data-queue-count]') : null;
-  if (counter) {
-    var n = Math.max(0, parseInt(counter.getAttribute('data-queue-count'), 10) - 1);
-    counter.setAttribute('data-queue-count', n);
-    counter.textContent = counter.textContent.replace(/\d+/, n);
+function queueAction(rowId, nextId, action, bizId) {
+  var row  = document.getElementById(rowId);
+  var next = nextId ? document.getElementById(nextId) : null;
+  if (row) row.style.display = 'none';
+  if (next) {
+    next.style.display = 'flex';
+  } else if (row) {
+    var section = row.parentNode && row.parentNode.parentNode;
+    if (section) section.style.display = 'none';
   }
-  setTimeout(function() {
-    row.remove();
-    if (next) {
-      next.style.display = 'flex';
-    } else if (section) {
-      section.style.display = 'none';
-    }
-  }, 230);
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', window.location.pathname, true);
+  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  xhr.send('action=' + encodeURIComponent(action) + '&business_id=' + encodeURIComponent(bizId) + '&tab=research&_ajax=1');
 }
 
 function openDash() {
