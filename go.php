@@ -188,8 +188,11 @@ if ($opp !== '') {
 
 $ogUrl = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 
-// ── Your contact info ─────────────────────────────────────────────────────
-$adamPhone  = '(765) 443-4321';
+// ── Contact constants — change once, updates everywhere ───────────────────
+define('ADAM_TEL',   '7654434321');
+define('ADAM_PHONE', '<?= ADAM_PHONE ?>');
+define('ADAM_EMAIL', 'adam@hoosieronline.com');
+$adamPhone  = ADAM_PHONE;
 $paid       = isset($_GET['paid']);
 $errCode    = trim((string)($_GET['err'] ?? ''));
 $stripeErr  = $errCode !== '';
@@ -240,6 +243,18 @@ if ($paid && $row && $pdo !== null) {
   <meta name="twitter:title"      content="<?= ho_h($ogTitle) ?>">
   <meta name="twitter:description" content="<?= ho_h($ogDesc) ?>">
   <script>document.documentElement.classList.add('fd-js')</script>
+<?php if ($row): // Schema.org structured data — only when real business data available
+$ldType = 'LocalBusiness'; // narrow subtype not reliably determined from category_slug
+$ld = ['@context' => 'https://schema.org', '@type' => $ldType, 'name' => $name];
+if ($city !== '') $ld['address'] = ['@type' => 'PostalAddress', 'addressLocality' => $city, 'addressRegion' => 'IN', 'addressCountry' => 'US'];
+if ($phone !== '') $ld['telephone'] = $phone;
+if ($email !== '') $ld['email'] = $email;
+if ($websiteUrl !== '') $ld['url'] = $websiteUrl;
+if ($catName !== '') $ld['description'] = $catName . ' serving ' . ($city ?: 'Indiana');
+if ($googleRating > 0 && $googleCount > 0) $ld['aggregateRating'] = ['@type' => 'AggregateRating', 'ratingValue' => round($googleRating, 1), 'reviewCount' => $googleCount, 'bestRating' => 5, 'worstRating' => 1];
+echo '  <script type="application/ld+json">' . json_encode($ld, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>' . "\n";
+unset($ld, $ldType);
+endif; ?>
 </head>
 <body class="front-door-preview-page">
 
@@ -261,13 +276,22 @@ if ($paid && $row && $pdo !== null) {
 <?php else: ?>
 
   <?php if ($stripeErr): ?>
-  <section class="fd-card" style="border-left:4px solid var(--fd-red);margin-bottom:12px">
-    <p class="fd-kicker" style="color:var(--fd-red)">Checkout error</p>
-    <?php if ($errCode === 'stripe'): ?>
-      <p style="margin:0;font-size:15px">Online checkout isn&rsquo;t configured yet &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
-    <?php else: ?>
-      <p style="margin:0;font-size:15px">Something went wrong<?= ($errCode !== 'checkout_failed' && $errCode !== '1') ? ': <strong>' . ho_h(urldecode($errCode)) . '</strong>' : '' ?> &mdash; reach out directly: <a href="tel:7654434321">(765) 443-4321</a> or <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
-    <?php endif; ?>
+  <section class="fd-stripe-err-card fd-reveal">
+    <div class="fd-stripe-err-icon" aria-hidden="true">⚠</div>
+    <div class="fd-stripe-err-body">
+      <p class="fd-stripe-err-head">Payment didn&rsquo;t go through</p>
+      <?php if ($errCode === 'stripe'): ?>
+        <p class="fd-stripe-err-msg">Online checkout isn&rsquo;t ready on my end yet. Call or email me and I&rsquo;ll take care of it manually.</p>
+      <?php elseif (str_contains(strtolower(urldecode($errCode)), 'card')): ?>
+        <p class="fd-stripe-err-msg">The card was declined. Try a different card, or reach me directly and we&rsquo;ll sort it out.</p>
+      <?php else: ?>
+        <p class="fd-stripe-err-msg">Something went wrong on the checkout. No charge was made. Try again or reach me directly below.</p>
+      <?php endif; ?>
+      <div class="fd-stripe-err-actions">
+        <a class="fd-btn fd-btn-primary" href="tel:<?= ADAM_TEL ?>">📞 Call me &mdash; <?= ADAM_PHONE ?></a>
+        <a class="fd-btn fd-btn-secondary" href="mailto:<?= ADAM_EMAIL ?>">Email me instead</a>
+      </div>
+    </div>
   </section>
   <?php endif; ?>
 
@@ -289,7 +313,7 @@ if ($paid && $row && $pdo !== null) {
       <p class="fd-muted">This link stays active for 30 days. Bookmark it to check progress.</p>
     </div>
     <?php endif; ?>
-    <p class="fd-muted">Questions? <a href="tel:7654434321">(765) 443-4321</a> &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></p>
+    <p class="fd-muted">Questions? <a href="tel:<?= ADAM_TEL ?>"><?= ADAM_PHONE ?></a> &middot; <a href="mailto:<?= ADAM_EMAIL ?>"><?= ADAM_EMAIL ?></a></p>
   </section>
   <?php endif; ?>
 
@@ -297,21 +321,56 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-turn">
     <p class="fd-turn-eyebrow"><?= ho_h($catName) ?> &middot; <?= ho_h($city) ?>, IN</p>
     <h1 class="fd-turn-name"><?= ho_h($name) ?></h1>
-    <?php if ($isEnhancement): ?>
-    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I looked over your site and found a few things worth fixing.' : 'I looked over your site and found a few things worth fixing.' ?></p>
+    <?php if ($isEnhancement):
+      // Enhancement hero personalisation — pick the sharpest opening line from research data
+      $enhHero = '';
+      if ($notMobile && $noSsl) {
+          $enhHero = 'Your site isn\'t mobile-friendly and shows "Not Secure" in every browser. That\'s two strikes before a customer reads your first word.';
+      } elseif ($notMobile) {
+          $enhHero = 'Your site isn\'t mobile-friendly &mdash; and over 70% of local searches happen on phones. That\'s costing you calls every single week.';
+      } elseif ($noSsl) {
+          $enhHero = 'Every major browser flags your site as "Not Secure." Customers see that warning before they see anything you wrote.';
+      } elseif ($reviewAgeMonths !== null && $reviewAgeMonths >= 9) {
+          $enhHero = 'Your last Google review was ' . ($reviewAgeMonths >= 12 ? 'over a year' : $reviewAgeMonths . ' months') . ' ago. Customers check that before they call.';
+      } elseif ($gbpPhotos !== null && $gbpPhotos < 5) {
+          $enhHero = ($gbpPhotos === 0 ? 'No photos' : 'Only ' . $gbpPhotos . ' photo' . ($gbpPhotos !== 1 ? 's' : '')) . ' on your Google listing &mdash; the place customers decide whether to call.';
+      } elseif ($hasAngi || $hasThumbtak) {
+          $p = $hasAngi ? 'Angi' : 'Thumbtack';
+          $enhHero = 'You\'re listed on ' . $p . '. That means ' . $p . ' gets paid every time a customer should be calling you directly.';
+      } elseif ($yearsInBiz >= 5 && $googleCount >= 10) {
+          $enhHero = $yearsInBiz . ' years and ' . number_format($googleCount) . ' reviews &mdash; and a few fixable gaps quietly costing you work.';
+      }
+    ?>
+    <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I looked over your online presence and spotted a few fixable gaps.' : 'I looked over your online presence and found a few specific things worth fixing.' ?></p>
+    <?php if ($enhHero !== ''): ?>
+    <p class="fd-turn-detail"><?= ho_h($enhHero) ?></p>
+    <?php endif; ?>
     <?php else: ?>
     <p class="fd-turn-tag"><?= $ownerFirst !== '' ? 'Hey ' . ho_h($ownerFirst) . ' &mdash; I built you a website.' : 'I built you a website.' ?><?= ($ownerAgeBand === '55plus') ? ' I handle everything &mdash; you don&rsquo;t touch a thing.' : '' ?></p>
     <?php
-    // Personalization hook — use specific research data to make the hero feel earned
+    // Personalization hook — use specific research data to make the hero feel earned.
+    // Priority: most specific/surprising data point wins.
     $heroDetail = '';
-    if ($yearsInBiz >= 5 && $googleCount >= 10) {
-        $heroDetail = $yearsInBiz . ' years of work and ' . number_format($googleCount) . ' reviews — completely invisible online. That\'s what this fixes.';
+    if ($yearsInBiz >= 10 && $googleCount >= 20) {
+        $heroDetail = $yearsInBiz . ' years in business, ' . number_format($googleCount) . ' reviews &mdash; and still not showing up where customers search first. That\'s the gap this fixes.';
+    } elseif ($yearsInBiz >= 5 && $googleCount >= 10) {
+        $heroDetail = $yearsInBiz . ' years of work and ' . number_format($googleCount) . ' reviews &mdash; completely invisible online. That\'s what this fixes.';
     } elseif ($yearsInBiz >= 5 && !$hasWebsite) {
         $heroDetail = $yearsInBiz . ' years in business with nothing to show online. Time to change that.';
     } elseif ($googleCount >= 15 && !$hasWebsite) {
-        $heroDetail = number_format($googleCount) . ' Google reviews and no website. Every one of those reviews is a customer you almost lost before they found you.';
+        $heroDetail = number_format($googleCount) . ' Google reviews and no website. Every one of those is a customer who almost chose someone else &mdash; they just got lucky enough to find you anyway.';
     } elseif ($compHasSite && $compName !== '' && !$hasWebsite) {
         $heroDetail = ho_h($compName) . ' already has a site. You don\'t. That\'s the gap this fixes.';
+    } elseif ($hasAngi && !$hasWebsite) {
+        $heroDetail = 'You\'re paying Angi for leads you could be capturing yourself &mdash; for free &mdash; with your own site.';
+    } elseif ($hasThumbtak && !$hasWebsite) {
+        $heroDetail = 'Thumbtack charges you per lead. A site means that same search finds you directly &mdash; no middleman, no cost per job.';
+    } elseif ($reviewAgeMonths !== null && $reviewAgeMonths >= 12 && $googleCount >= 5 && !$hasWebsite) {
+        $heroDetail = 'Your last review was over a year ago and you have no site. Customers can\'t tell if you\'re still in business.';
+    } elseif ($googleCount >= 5 && $googleRating >= 4.5 && !$hasWebsite) {
+        $heroDetail = number_format($googleRating, 1) . ' stars from ' . number_format($googleCount) . ' customers &mdash; and nowhere online to show it. That\'s the problem I built this to solve.';
+    } elseif ($yearsInBiz >= 3 && !$hasWebsite) {
+        $heroDetail = $yearsInBiz . ' years building a reputation &mdash; none of it visible until someone already knows your name.';
     }
     ?>
     <?php if ($heroDetail !== ''): ?>
@@ -329,7 +388,7 @@ if ($paid && $row && $pdo !== null) {
       <?php endif; ?>
     </div>
     <div class="fd-trust-strip">
-      <a href="tel:7654434321" class="fd-ts-item">📞 (765) 443-4321</a>
+      <a href="tel:<?= ADAM_TEL ?>" class="fd-ts-item">📞 <?= ADAM_PHONE ?></a>
       <?php if (!$isEnhancement): ?>
       <span class="fd-ts-item">⚡ Live in 24 hours — guaranteed</span>
       <span class="fd-ts-item">No monthly fees &middot; you own it forever</span>
@@ -370,7 +429,20 @@ if ($paid && $row && $pdo !== null) {
     <?php endif; ?>
 
     <?php if ($isEnhancement): ?>
-      <p class="fd-why" style="color:var(--fd-ink);font-weight:500;margin-bottom:14px"><?= $ownerFirst !== '' ? ho_h($ownerFirst) . ', you' : 'You' ?> already have a website &mdash; I looked it over. Here&rsquo;s what I noticed.</p>
+      <?php
+      // Build a specific "I noticed…" sentence from structured data
+      $noticeItems = [];
+      if ($notMobile) $noticeItems[] = 'not mobile-friendly';
+      if ($noSsl)     $noticeItems[] = 'no SSL';
+      if ($gbpPhotos !== null && $gbpPhotos < 10) $noticeItems[] = ($gbpPhotos === 0 ? 'no GBP photos' : $gbpPhotos . ' GBP photo' . ($gbpPhotos !== 1 ? 's' : ''));
+      if ($reviewAgeMonths !== null && $reviewAgeMonths >= 6) $noticeItems[] = 'last review ' . ($reviewAgeMonths >= 12 ? 'over a year' : $reviewAgeMonths . ' months') . ' ago';
+      $noticeStr = count($noticeItems) >= 2
+          ? implode(', ', array_slice($noticeItems, 0, -1)) . ', and ' . end($noticeItems)
+          : ($noticeItems[0] ?? '');
+      ?>
+      <p class="fd-why" style="color:var(--fd-ink);font-weight:500;margin-bottom:14px">
+        <?= $ownerFirst !== '' ? ho_h($ownerFirst) . ', you' : 'You' ?> already have a website &mdash;<?= $noticeStr !== '' ? ' I looked it over and noticed it\'s ' . $noticeStr . '. Here\'s what I\'d fix.' : ' I looked it over. Here\'s what I noticed.' ?>
+      </p>
     <?php endif; ?>
 
     <?php if ($googleCount > 0): ?>
@@ -774,7 +846,7 @@ if ($paid && $row && $pdo !== null) {
       </button>
     </form>
     <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
-    <div class="fd-phone-fallback">Questions first? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
+    <div class="fd-phone-fallback">Questions first? <a href="tel:<?= ADAM_TEL ?>">Call me: <?= ADAM_PHONE ?></a></div>
     <?php else: ?>
     <p class="fd-kicker">Get it done</p>
     <h2>Let me fix what&rsquo;s holding you back.</h2>
@@ -787,7 +859,7 @@ if ($paid && $row && $pdo !== null) {
       </button>
     </form>
     <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
-    <div class="fd-phone-fallback">Questions first? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
+    <div class="fd-phone-fallback">Questions first? <a href="tel:<?= ADAM_TEL ?>">Call me: <?= ADAM_PHONE ?></a></div>
     <?php endif; ?>
   </section>
 
@@ -949,7 +1021,7 @@ if ($paid && $row && $pdo !== null) {
       <li>Every site researched and worked on personally — not outsourced</li>
     </ul>
     <div class="fd-trust-contact">
-      <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a>
+      <a href="mailto:<?= ADAM_EMAIL ?>"><?= ADAM_EMAIL ?></a>
       <?php if ($adamPhone !== ''): ?>
         <span class="fd-trust-sep">&middot;</span>
         <a href="tel:<?= ho_h(preg_replace('/\D/', '', $adamPhone)) ?>"><?= ho_h($adamPhone) ?></a>
@@ -1123,23 +1195,31 @@ if ($paid && $row && $pdo !== null) {
       </button>
     </form>
     <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
-    <div class="fd-phone-fallback">Not ready to pay online? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
+    <div class="fd-phone-fallback">Not ready to pay online? <a href="tel:<?= ADAM_TEL ?>">Call me: <?= ADAM_PHONE ?></a></div>
   </section>
 
   <script>
+  var _fdChecking = false;
   function fdCheckDomain() {
+    if (_fdChecking) return;
     var input     = document.getElementById('fd-domain-input');
     var badge     = document.getElementById('fd-com-avail-badge');
     var display   = document.getElementById('fd-com-display');
     var hint      = document.getElementById('fd-domain-hint');
     var chosenHid = document.getElementById('fd-h-chosen-com');
+    var checkBtn  = document.querySelector('.fd-domain-check-btn');
     if (!input) return;
-    var raw = input.value.trim().toLowerCase().replace(/\.com$/i,'').replace(/[^a-z0-9\-]/g,'');
+    // Normalize: strip TLD, non-alphanumeric-hyphen, lowercase
+    var raw = input.value.trim().toLowerCase().replace(/\.com.*$/i,'').replace(/[^a-z0-9\-]/g,'').replace(/^-+|-+$/g,'');
+    input.value = raw; // write clean value back
     if (raw.length < 2) { if (hint) hint.textContent = 'Enter at least 2 characters.'; return; }
+    if (raw.length > 63) { raw = raw.slice(0, 63); input.value = raw; }
     var domain = raw + '.com';
     if (display) display.textContent = domain;
     if (badge)   { badge.className = 'fd-avail-badge fd-avail-checking'; badge.textContent = 'Checking…'; badge.hidden = false; }
     if (hint)    hint.textContent = '';
+    if (checkBtn) { checkBtn.disabled = true; checkBtn.textContent = '…'; }
+    _fdChecking = true;
     var fd = new FormData();
     fd.append('domain', raw);
     fetch('/domain-check.php', {method:'POST', body:fd})
@@ -1153,10 +1233,30 @@ if ($paid && $row && $pdo !== null) {
         } else {
           if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = '✗ Taken'; }
           if (hint)  hint.textContent = 'That name is taken — try a variation above.';
+          if (chosenHid) chosenHid.value = '';
         }
       })
-      .catch(function(){ if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = 'Check failed — try again'; } });
+      .catch(function(){ if (badge) { badge.className = 'fd-avail-badge fd-avail-no'; badge.textContent = 'Check failed — try again'; } })
+      .finally(function(){
+        _fdChecking = false;
+        if (checkBtn) { checkBtn.disabled = false; checkBtn.textContent = 'Check'; }
+      });
   }
+  // Validate domain before checkout — normalize and warn if blank
+  (function(){
+    var form = document.querySelector('.fd-checkout-form');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+      var chosen = document.getElementById('fd-h-chosen-com');
+      var input  = document.getElementById('fd-domain-input');
+      if (!chosen || !input) return;
+      // Auto-normalize on submit so sloppy input still works
+      var raw = input.value.trim().toLowerCase().replace(/\.com.*$/i,'').replace(/[^a-z0-9\-]/g,'').replace(/^-+|-+$/g,'');
+      if (raw.length >= 2 && chosen.value === '') {
+        chosen.value = raw + '.com';
+      }
+    });
+  })();
   </script>
 
   <?php endif; // !$isEnhancement ?>
@@ -1168,7 +1268,7 @@ if ($paid && $row && $pdo !== null) {
     <?php else: ?>
     Front doors for Indiana&rsquo;s hardest-working businesses.<br>
     <?php endif; ?>
-    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></span>
+    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:<?= ADAM_EMAIL ?>"><?= ADAM_EMAIL ?></a></span>
   </footer>
 
   <!-- ── STICKY BOTTOM CTA ──────────────────────────────────────────────── -->

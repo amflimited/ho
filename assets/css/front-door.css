@@ -1023,6 +1023,25 @@ body.front-door-preview-page{
   padding:10px 14px;background:rgba(181,18,34,.06);border-radius:10px;
 }
 
+/* ── Stripe error card (replaces inline error text) ─────────────────────── */
+.fd-stripe-err-card{
+  display:flex;gap:14px;align-items:flex-start;
+  background:#fff5f5;border:1.5px solid #feb2b2;border-radius:14px;
+  padding:18px 16px;margin:16px 0;
+}
+.fd-stripe-err-icon{
+  font-size:26px;flex-shrink:0;line-height:1;margin-top:2px;
+}
+.fd-stripe-err-body{ flex:1;min-width:0; }
+.fd-stripe-err-head{
+  font-size:16px;font-weight:800;color:#c53030;margin:0 0 6px;
+}
+.fd-stripe-err-msg{
+  font-size:14px;color:#742a2a;line-height:1.45;margin:0 0 14px;
+}
+.fd-stripe-err-actions{ display:flex;flex-direction:column;gap:8px; }
+.fd-stripe-err-actions .fd-btn{ text-align:center; }
+
 /* ── Payment success banner ──────────────────────────────────────────────── */
 .fd-paid-banner{
   border-left:5px solid var(--fd-green);
@@ -1717,3 +1736,19 @@ body.front-door-preview-page{
 
 /* ── Template style picker panes ─────────────────────────────────────────── */
 .fd-tpl-pane[hidden]{display:none!important}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  /* kill all pulsing / bouncing animations */
+  .fd-turn-cta { animation: none; }
+  .fd-scroll-arrow { animation: none; }
+  /* remove keyframe motion — leave definitions so class references don't error */
+  @keyframes fd-pulse  { 0%,100%{ box-shadow:0 4px 18px rgba(47,94,54,.28); } }
+  @keyframes fd-bounce { 0%,100%{ transform:translateY(0); } }
+  @keyframes fd-price-pop { 0%,100%{ transform:scale(1); } }
+  /* collapse all transitions to instant */
+  *, *::before, *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration:  0.001ms !important;
+  }
+}
