@@ -441,6 +441,17 @@ endif; ?>
       <span class="fd-ts-item">No contracts</span>
       <?php endif; ?>
     </div>
+    <nav class="fd-chapter-nav" aria-label="Jump to section">
+      <?php if ($isEnhancement): ?>
+      <a href="#what-i-can-add" class="fd-chapter-link">What I&rsquo;d fix</a>
+      <?php else: ?>
+      <a href="#preview" class="fd-chapter-link">Design styles</a>
+      <a href="#services" class="fd-chapter-link">What you get</a>
+      <?php endif; ?>
+      <a href="#about" class="fd-chapter-link">Who built this</a>
+      <a href="#pricing" class="fd-chapter-link">Pricing</a>
+      <a href="#quote" class="fd-chapter-link">Free quote</a>
+    </nav>
   </section>
 
   <!-- ── WHY I REACHED OUT ─────────────────────────────────────────────────── -->
@@ -941,6 +952,7 @@ endif; ?>
   </section>
   <?php endif; ?>
 
+  <div class="fd-bridge" aria-hidden="true"><span class="fd-bridge-dot"></span></div>
   <!-- ── CHECKOUT CTA (enhancement) ───────────────────────────────────── -->
   <section class="fd-card fd-offer fd-reveal" id="pricing">
     <?php if ($fixItemsTotal > 0): ?>
@@ -1211,6 +1223,7 @@ endif; ?>
   </section>
   <?php endif; ?>
 
+  <div class="fd-bridge" aria-hidden="true"><span class="fd-bridge-dot"></span></div>
   <!-- ── THE OFFER ────────────────────────────────────────────────────────── -->
   <?php
   $initAvailClass = '';
