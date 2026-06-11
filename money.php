@@ -59,6 +59,13 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 ho_mark_excluded($pdo, $bizId, 'failed_triage');
                 echo json_encode(['ok' => true]); exit;
 
+            case 'mark_forwarded': // customer lead delivered to the owner by hand
+                try {
+                    $pdo->prepare("UPDATE captured_leads SET forwarded_at = NOW() WHERE id = ?")
+                        ->execute([(int)($_POST['capture_id'] ?? 0)]);
+                } catch (PDOException) {}
+                echo json_encode(['ok' => true]); exit;
+
             case 'mark_outcome':
                 ho_mark_outcome($pdo, (int)($_POST['log_id'] ?? 0), trim((string)($_POST['outcome'] ?? '')));
                 echo json_encode(['ok' => true]); exit;
@@ -77,13 +84,14 @@ $hotCount = 0;
 $siteBase = 'https://' . ($_SERVER['HTTP_HOST'] ?? 'hoosieronline.com');
 
 $buildReady = []; $enhReady = []; $followups = []; $hotLeads = []; $interested = []; $triage = [];
-$struckRecently = [];
+$struckRecently = []; $captures = [];
 
 if ($pdo !== null) {
     try { $buildReady = ho_get_preview_ready($pdo); }     catch (Throwable) {}
     try { $enhReady   = ho_get_enhancement_ready($pdo); } catch (Throwable) {}
     try { $followups  = ho_get_followup_due_full($pdo, 20); } catch (Throwable) {}
     try { $triage     = ho_get_triage_batch($pdo, 40); }  catch (Throwable) {}
+    try { $captures   = ho_get_unforwarded_captures($pdo, 10); } catch (Throwable) {}
 
     // Hot: pitched leads who visited in the last 48h
     try {
@@ -144,6 +152,27 @@ if ($pdo !== null) {
     try { $sentToday += (int)$pdo->query("SELECT COUNT(*) FROM email_log WHERE kind != 'digest' AND ok=1 AND sent_at >= CURDATE()")->fetchColumn(); } catch (PDOException) {}
 }
 $dailyGoal = 10;
+
+// ── CUSTOMER CAUGHT (priority 2000) — the near-guaranteed close ──────────────
+// A real customer tried to reach this business through the page. Deliver the
+// lead, free — then the keep-the-site ask rides on loss aversion, not hope.
+foreach ($captures as $c) {
+    $slug    = (string)($c['preview_slug'] ?? '');
+    $pageUrl = $slug !== '' ? $siteBase . '/go/' . $slug : $siteBase;
+    $ageHrs  = max(0, (int)floor((time() - strtotime((string)$c['created_at'])) / 3600));
+    $body    = ho_capture_delivery_message($c, $pageUrl);
+    $moves[] = [
+        'prio' => 2000 - min(500, $ageHrs), 'type' => 'capture', 'biz' => $c,
+        'tag' => "\u{1F4B0} CUSTOMER CAUGHT", 'value' => '',
+        'why' => 'Their page caught a real inquiry from ' . ho_h((string)($c['customer_name'] ?: 'a customer'))
+               . ($ageHrs < 1 ? ' within the hour' : ' ' . $ageHrs . 'h ago')
+               . (trim((string)$c['job_description']) !== '' ? ' — “' . ho_h(mb_substr(trim((string)$c['job_description']), 0, 90)) . '”' : '')
+               . '. Deliver it free. The keep-the-site ask closes itself.',
+        'subject' => 'A customer came through your new site',
+        'body' => $body,
+        'capture_id' => (int)$c['capture_id'],
+    ];
+}
 
 // ── CLOSE moves (priority 900) ───────────────────────────────────────────────
 foreach ($interested as $b) {
@@ -353,6 +382,7 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
             'followup' => "data-action=\"record_followup\" data-extra='" . json_encode(['log_id' => $m['log_id'], 'touch' => $m['touch']]) . "'",
             'hot'      => 'data-action="log_strike"',
             'close'    => 'data-action="none"',
+            'capture'  => "data-action=\"mark_forwarded\" data-extra='" . json_encode(['capture_id' => $m['capture_id'] ?? 0]) . "'",
             default    => 'data-action="mark_sent"',
         };
         $via = ['email' => 'email', 'site' => 'website_form', 'fb' => 'facebook_dm', 'sms' => 'sms'][$chKind];

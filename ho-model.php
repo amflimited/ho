@@ -2076,8 +2076,8 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
 
     $sig = "\u{2014} Adam Ferree\nHoosier Online \u{00B7} New Castle, Indiana\n(765) 443-4321";
 
-    // One universal P.S. — kills the #1 fear about replying (a sales call)
-    $ps = "P.S. Everything\u{2019}s on the page \u{2014} price, timeline, all of it. No call, no quote, no back-and-forth.";
+    // One universal P.S. — the economics inversion: the page already works
+    $ps = "P.S. That page isn\u{2019}t a mockup \u{2014} it\u{2019}s live. If a customer finds it and asks for a quote, the lead goes straight to you, free, whether you ever pay me or not.";
 
     $body = "{$greeting}\n\n{$opener}\n\n{$bridge}\n\n{$previewUrl}\n\n{$closer}\n\n{$sig}\n\n{$ps}";
 
@@ -3546,7 +3546,7 @@ function ho_sends_today(PDO $pdo): int {
     try {
         return (int)$pdo->query("
             SELECT COUNT(*) FROM email_log
-            WHERE kind != 'digest' AND ok = 1 AND sent_at >= CURDATE()
+            WHERE kind NOT IN ('digest','capture') AND ok = 1 AND sent_at >= CURDATE()
         ")->fetchColumn();
     } catch (PDOException) {
         return -1;
@@ -3581,9 +3581,13 @@ function ho_send_email(PDO $pdo, int $bizId, string $to, string $subject, string
 
     if ($kind !== 'digest') {
         $postal = trim(ho_get_setting($pdo, 'ap_postal'));
-        if ($postal === '') return false; // never send outreach without the compliance footer
-        $body .= "\n\n--\nHoosier Online \u{00B7} {$postal}\n"
-               . "Rather not hear from me? Reply \u{201C}unsubscribe\u{201D} and I\u{2019}ll take you off my list immediately.";
+        // 'capture' = forwarding a real customer to the business — transactional,
+        // never blocked; footer attached when available.
+        if ($postal === '' && $kind !== 'capture') return false;
+        if ($postal !== '') {
+            $body .= "\n\n--\nHoosier Online \u{00B7} {$postal}\n"
+                   . "Rather not hear from me? Reply \u{201C}unsubscribe\u{201D} and I\u{2019}ll take you off my list immediately.";
+        }
     }
 
     $headers = "From: Adam Ferree <{$from}>\r\n"
@@ -3898,7 +3902,17 @@ function ho_send_daily_digest(PDO $pdo): array {
     } catch (PDOException) {}
     $triageWaiting = count(ho_get_triage_batch($pdo));
 
+    $captures24 = 0;
+    try {
+        $captures24 = (int)$pdo->query("SELECT COUNT(*) FROM captured_leads WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)")->fetchColumn();
+    } catch (PDOException) {}
+
     $lines = ["Morning. Here's where Hoosier Online stands:\n"];
+    if ($captures24 > 0) {
+        $lines[] = "\u{1F4B0} {$captures24} REAL CUSTOMER INQUIR" . ($captures24 === 1 ? 'Y' : 'IES') . " caught by preview pages in the last 24h.";
+        $lines[] = "   Each one was forwarded (or is waiting on the Money Floor) \u{2014} these are your closes.";
+        $lines[] = '';
+    }
     if (!empty($hotNames)) {
         $lines[] = "🔥 VISITED THEIR PAGE IN THE LAST 24H (\u{2192} hottest leads you have):";
         foreach ($hotNames as $n) $lines[] = "   \u{2022} {$n}";
@@ -4108,4 +4122,149 @@ function ho_run_auto_verify(PDO $pdo, int $max = 2): array {
         }
     }
     return ['verified' => $done, 'fixes' => $allFixes, 'errors' => $errors];
+}
+
+// ═══ LIVE CAPTURE — the economics inversion ═══════════════════════════════════
+// Preview pages are not brochures; they are WORKING sites. A visitor can
+// request a quote from the business right on the page. Every capture is a
+// real customer delivered to the lead for free, before they've paid a cent —
+// and the "keep the site" ask that follows is the closest thing to a
+// guaranteed sale that exists. Loss aversion does the closing.
+//
+// Migration:
+//   CREATE TABLE IF NOT EXISTS captured_leads (
+//     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+//     business_id INT NOT NULL,
+//     preview_id INT NOT NULL DEFAULT 0,
+//     customer_name VARCHAR(120) NOT NULL DEFAULT '',
+//     customer_phone VARCHAR(40) NOT NULL DEFAULT '',
+//     customer_email VARCHAR(190) NOT NULL DEFAULT '',
+//     job_description TEXT,
+//     forwarded_at DATETIME NULL,
+//     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//     INDEX idx_cl_biz (business_id)
+//   ) ENGINE=InnoDB;
+
+function ho_capture_lead(PDO $pdo, int $bizId, int $previewId, string $cName, string $cPhone, string $cEmail, string $job): ?int {
+    try {
+        $pdo->prepare("
+            INSERT INTO captured_leads (business_id, preview_id, customer_name, customer_phone, customer_email, job_description)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ")->execute([$bizId, $previewId, mb_substr($cName, 0, 120), mb_substr($cPhone, 0, 40), mb_substr($cEmail, 0, 190), mb_substr($job, 0, 2000)]);
+        return (int)$pdo->lastInsertId();
+    } catch (PDOException) {
+        return null; // table not migrated — capture lost, form still thanks the visitor
+    }
+}
+
+/** How many real customer inquiries this page has caught. 0 if unmigrated. */
+function ho_captured_count(PDO $pdo, int $bizId): int {
+    try {
+        $s = $pdo->prepare("SELECT COUNT(*) FROM captured_leads WHERE business_id = ?");
+        $s->execute([$bizId]);
+        return (int)$s->fetchColumn();
+    } catch (PDOException) {
+        return 0;
+    }
+}
+
+/**
+ * Forward a captured customer to the business owner immediately, free,
+ * no strings — and tell them plainly that this is the site working.
+ * Returns true when the forward email went out.
+ */
+function ho_forward_captured_lead(PDO $pdo, int $captureId): bool {
+    try {
+        $s = $pdo->prepare("
+            SELECT cl.*, b.business_name, b.email_address, b.owner_first_name, b.pipeline_status,
+                   p.preview_slug
+            FROM captured_leads cl
+            JOIN businesses b ON b.id = cl.business_id
+            LEFT JOIN previews p ON p.business_id = b.id
+            WHERE cl.id = ? AND cl.forwarded_at IS NULL
+        ");
+        $s->execute([$captureId]);
+        $c = $s->fetch();
+    } catch (PDOException) {
+        return false;
+    }
+    if (!$c) return false;
+
+    $ownerEmail = trim((string)$c['email_address']);
+    $first      = trim((string)$c['owner_first_name']);
+    $greeting   = $first !== '' ? "Hi {$first}," : 'Hi,';
+    $name       = (string)$c['business_name'];
+    $converted  = (string)$c['pipeline_status'] === 'converted';
+    $pageUrl    = (string)($c['preview_slug'] ?? '') !== '' ? ho_site_base($pdo) . '/go/' . $c['preview_slug'] : '';
+
+    $custLines = "Name:  " . ((string)$c['customer_name'] ?: '(not given)')
+        . ((string)$c['customer_phone'] !== '' ? "\nPhone: " . $c['customer_phone'] : '')
+        . ((string)$c['customer_email'] !== '' ? "\nEmail: " . $c['customer_email'] : '')
+        . ((string)$c['job_description'] !== '' ? "\nJob:   " . $c['job_description'] : '');
+
+    $keepLine = $converted ? '' :
+        "\n\nThat website is live and working right now, free, no strings \u{2014} this lead is yours either way. If you want it to keep catching customers like this:\n{$pageUrl}\n\nIf not, no hard feelings \u{2014} go win this job first.";
+
+    $body = "{$greeting}\n\n"
+        . "A customer just tried to reach {$name} through the website I built for you. Here they are \u{2014} don\u{2019}t let it go cold:\n\n"
+        . "{$custLines}"
+        . $keepLine
+        . "\n\n\u{2014} Adam Ferree\nHoosier Online \u{00B7} New Castle, Indiana\n(765) 443-4321";
+
+    $sent = false;
+    if ($ownerEmail !== '') {
+        $sent = ho_send_email($pdo, (int)$c['business_id'], $ownerEmail,
+            "A customer for {$name} \u{2014} came through your new site", $body, 'capture');
+    }
+
+    // Adam always hears about a catch the moment it happens
+    $adamTo = trim(ho_get_setting($pdo, 'ap_digest_email')) ?: 'adam.ferree@gmail.com';
+    @ho_send_email($pdo, (int)$c['business_id'], $adamTo,
+        "\u{1F4B0} CUSTOMER CAUGHT \u{2014} {$name}",
+        "The preview page for {$name} just caught a real customer inquiry:\n\n{$custLines}\n\n"
+        . ($sent ? "Forwarded to {$ownerEmail} automatically with the keep-the-site ask."
+                 : "No owner email on file \u{2014} deliver it by text from the Money Floor. This is the closing moment.")
+        . ($pageUrl !== '' ? "\n\nPage: {$pageUrl}" : ''),
+        'digest');
+
+    if ($sent) {
+        try {
+            $pdo->prepare("UPDATE captured_leads SET forwarded_at = NOW() WHERE id = ?")->execute([$captureId]);
+        } catch (PDOException) {}
+    }
+    return $sent;
+}
+
+/** Captures not yet delivered to the owner — the Money Floor's top cards. */
+function ho_get_unforwarded_captures(PDO $pdo, int $limit = 10): array {
+    try {
+        return $pdo->query("
+            SELECT cl.id AS capture_id, cl.customer_name, cl.customer_phone, cl.customer_email,
+                   cl.job_description, cl.created_at,
+                   b.id, b.business_name, b.owner_first_name, b.email_address, b.phone_number,
+                   b.location_city, b.pipeline_status,
+                   c.name AS category_name, p.preview_slug
+            FROM captured_leads cl
+            JOIN businesses b ON b.id = cl.business_id
+            JOIN categories c ON c.id = b.category_id
+            LEFT JOIN previews p ON p.business_id = b.id
+            WHERE cl.forwarded_at IS NULL
+            ORDER BY cl.created_at ASC
+            LIMIT " . (int)$limit . "
+        ")->fetchAll();
+    } catch (PDOException) {
+        return [];
+    }
+}
+
+/** The deliver-a-customer message — works as SMS or email, owner phone path. */
+function ho_capture_delivery_message(array $c, string $pageUrl): string {
+    $first = trim((string)($c['owner_first_name'] ?? ''));
+    $hi    = $first !== '' ? $first : (string)$c['business_name'];
+    $cust  = (string)($c['customer_name'] ?: 'A customer');
+    $phone = (string)($c['customer_phone'] ?? '');
+    $job   = trim((string)($c['job_description'] ?? ''));
+    $jobBit = $job !== '' ? " \u{2014} \u{201C}" . mb_substr($job, 0, 80) . "\u{201D}" : '';
+    return "Hi {$hi} \u{2014} Adam Ferree, Hoosier Online. {$cust} just tried to reach you through the website I built for your business"
+        . ($phone !== '' ? " ({$phone})" : '') . "{$jobBit}. The lead is yours free \u{2014} go win it. The site that caught it: {$pageUrl}";
 }

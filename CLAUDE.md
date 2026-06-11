@@ -694,3 +694,43 @@ ALTER TABLE research_records
 ```
 Pre-migration: fixes still apply but rows can't be stamped, so autopitch
 (with ap_verify on) sends nothing — fail-safe direction.
+
+## 💰 LIVE CAPTURE (2026-06-11) — deliver the result first, charge to keep it
+
+The economics inversion: preview pages are now WORKING sites. Every go.php
+page carries a real "Request a free quote from {name}" form (`#quote`,
+`.fd-capture`). A visitor inquiry is stored in `captured_leads` and
+**forwarded to the business owner instantly, free** (`ho_forward_captured_lead`,
+kind='capture' — exempt from the daily cap AND from the postal hard-fail) with
+the keep-the-site ask attached. Adam gets a 💰 CUSTOMER CAUGHT email the
+moment it happens. The sale rides loss aversion: refusing $199 now means
+giving back a channel that already delivered a paying customer.
+
+- `ho_capture_lead()` / `ho_captured_count()` / `ho_get_unforwarded_captures()`
+  / `ho_capture_delivery_message()` (SMS-able)
+- go.php POST `action=request_quote` (honeypot, name + phone-or-email
+  required); success state + "N customer inquiries have already come through
+  this page" social-proof line
+- Money Floor: 💰 CUSTOMER CAUGHT moves at priority 2000 (above everything);
+  `mark_forwarded` POST action stamps delivery
+- Site-build pitch P.S. is now the inversion itself: "the page isn't a
+  mockup — it's live; leads go to you free whether you ever pay me or not"
+- Daily digest leads with captures in the last 24h
+
+**⚠ REQUIRED MIGRATION:**
+```sql
+CREATE TABLE IF NOT EXISTS captured_leads (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  preview_id INT NOT NULL DEFAULT 0,
+  customer_name VARCHAR(120) NOT NULL DEFAULT '',
+  customer_phone VARCHAR(40) NOT NULL DEFAULT '',
+  customer_email VARCHAR(190) NOT NULL DEFAULT '',
+  job_description TEXT,
+  forwarded_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_cl_biz (business_id)
+) ENGINE=InnoDB;
+```
+Pre-migration the form still renders and thanks the visitor (capture lost) —
+run the migration before sharing pages broadly.

@@ -1815,6 +1815,22 @@ body.front-door-preview-page{
 .fd-start-bar{height:10px;border-radius:8px;background:rgba(34,23,19,.08);overflow:hidden;max-width:380px;margin:0 auto 14px}
 .fd-start-bar-fill{height:100%;width:4%;border-radius:8px;background:linear-gradient(90deg,#3b7a45,var(--fd-green));transition:width .8s ease}
 
+/* ── Live capture form — the page is a working site ──────────────────────── */
+.fd-capture-form{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.fd-capture-form label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--fd-ink)}
+.fd-capture-form input,.fd-capture-form textarea{
+  font-family:inherit;font-size:16px;color:var(--fd-ink);
+  background:#fff;border:1.5px solid var(--fd-line);border-radius:10px;padding:11px 12px;
+}
+.fd-capture-form input:focus,.fd-capture-form textarea:focus{outline:none;border-color:var(--fd-green)}
+.fd-capture-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:460px){.fd-capture-row{grid-template-columns:1fr}}
+.fd-capture-done{
+  background:rgba(47,94,54,.08);border:1.5px solid rgba(47,94,54,.3);
+  border-radius:12px;padding:16px;font-size:15px;line-height:1.5;margin-top:12px;
+}
+.fd-capture-proof{font-size:13px;font-weight:700;color:var(--fd-green);margin:6px 0 2px}
+
 /* ── Viral footer line on preview pages ──────────────────────────────────── */
 .fd-footer-viral{display:block;margin-top:10px;font-size:12.5px}
 .fd-footer-viral a{color:var(--fd-green);font-weight:700}

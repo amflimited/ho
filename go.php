@@ -19,6 +19,30 @@ try {
     $err = $e->getMessage();
 }
 
+// ── LIVE CAPTURE — this page is a working site, not a brochure. A visitor
+// can request a quote from the business right here; the inquiry is forwarded
+// to the owner immediately, free. The site earns its keep before it's bought.
+$captureState = '';
+if ($row && isset($pdo) && ($_POST['action'] ?? '') === 'request_quote') {
+    $cTrap = trim((string)($_POST['company'] ?? '')); // honeypot
+    $cName  = trim((string)($_POST['c_name']  ?? ''));
+    $cPhone = trim((string)($_POST['c_phone'] ?? ''));
+    $cEmail = trim((string)($_POST['c_email'] ?? ''));
+    $cJob   = trim((string)($_POST['c_job']   ?? ''));
+    if (!filter_var($cEmail, FILTER_VALIDATE_EMAIL)) $cEmail = '';
+    if ($cTrap !== '') {
+        $captureState = 'ok'; // swallow bots politely
+    } elseif ($cName === '' || ($cPhone === '' && $cEmail === '')) {
+        $captureState = 'err';
+    } else {
+        $capId = ho_capture_lead($pdo, (int)$row['id'], (int)$row['preview_id'], $cName, $cPhone, $cEmail, $cJob);
+        if ($capId !== null) {
+            try { ho_forward_captured_lead($pdo, $capId); } catch (Throwable) {}
+        }
+        $captureState = 'ok';
+    }
+}
+
 // ─── Data ───────────────────────────────────────────────────────────────────
 $name       = $row ? (string)$row['business_name']          : '';
 $city       = $row ? (string)$row['location_city']          : '';
@@ -1377,6 +1401,47 @@ endif; ?>
   </script>
 
   <?php endif; // !$isEnhancement ?>
+
+  <?php if ($row): $capCount = isset($pdo) ? ho_captured_count($pdo, (int)$row['id']) : 0; ?>
+  <!-- ── LIVE QUOTE FORM — this page is a working site, not a brochure.
+       A real customer can reach the business right here; the inquiry is
+       forwarded to the owner free, instantly. The site earns its keep
+       before it's bought. ──────────────────────────────────────────────── -->
+  <section class="fd-card fd-capture fd-reveal" id="quote">
+    <p class="fd-kicker">Need <?= ho_h(strtolower($catName)) ?> work<?= $city !== '' ? ' in ' . ho_h($city) : '' ?>?</p>
+    <h2>Request a free quote from <?= ho_h($name) ?>.</h2>
+    <?php if ($capCount > 0): ?>
+    <p class="fd-capture-proof">✅ <?= $capCount ?> customer inquir<?= $capCount === 1 ? 'y has' : 'ies have' ?> already come through this page.</p>
+    <?php endif; ?>
+    <?php if ($captureState === 'ok'): ?>
+    <div class="fd-capture-done">
+      <strong>Sent.</strong> Your request went straight to <?= ho_h($name) ?> &mdash; expect to hear back soon.
+    </div>
+    <?php else: ?>
+    <?php if ($captureState === 'err'): ?><p class="fd-start-err">Your name plus a phone number or email is all that&rsquo;s needed.</p><?php endif; ?>
+    <form method="POST" class="fd-capture-form">
+      <input type="hidden" name="action" value="request_quote">
+      <input type="text" name="company" value="" class="fd-start-trap" tabindex="-1" aria-hidden="true">
+      <label>Your name
+        <input type="text" name="c_name" required maxlength="120">
+      </label>
+      <div class="fd-capture-row">
+        <label>Phone
+          <input type="tel" name="c_phone" maxlength="40">
+        </label>
+        <label>Email
+          <input type="email" name="c_email" maxlength="190">
+        </label>
+      </div>
+      <label>What do you need done?
+        <textarea name="c_job" rows="3" maxlength="2000" placeholder="A sentence or two is plenty"></textarea>
+      </label>
+      <button type="submit" class="fd-btn fd-btn-primary">Send my request &rarr;</button>
+      <p class="fd-muted" style="text-align:center;margin-top:8px">Goes directly to <?= ho_h($name) ?>. No middleman, no fee.</p>
+    </form>
+    <?php endif; ?>
+  </section>
+  <?php endif; ?>
 
   <footer class="fd-footer">
     <strong><a href="/">Hoosier Online</a></strong><br>
