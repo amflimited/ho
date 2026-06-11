@@ -2131,8 +2131,8 @@ function markSent(el, via) {
   if (flag) flag.hidden = false;
 }
 // Review-queue actions (triage Real/Reject, domain Keep/Clear) post in the
-// background — no page reload, no scroll loss. The row fades out and the
-// section counter ticks down, so bulk cleanup is tap-tap-tap.
+// background — no page reload. The row fades out and is removed; the next
+// card in the queue auto-appears. Section hides when the queue is empty.
 function queueAjax(form) {
   try {
     fetch(window.location.pathname, {
@@ -2141,10 +2141,11 @@ function queueAjax(form) {
       redirect: 'manual',
       keepalive: true
     }).catch(function(){});
-  } catch (e) { return true; } // fetch unavailable — fall back to normal submit
+  } catch (e) { return true; }
   var row = form.closest('.cp-domain-row');
   if (row) {
-    row.style.opacity = '.35';
+    row.style.opacity = '0';
+    row.style.transform = 'translateY(-6px)';
     row.style.pointerEvents = 'none';
     var section = row.closest('.cp-section');
     var counter = section ? section.querySelector('[data-queue-count]') : null;
@@ -2153,6 +2154,13 @@ function queueAjax(form) {
       counter.setAttribute('data-queue-count', n);
       counter.textContent = counter.textContent.replace(/\d+/, n);
     }
+    setTimeout(function() {
+      var table = row.parentNode;
+      row.remove();
+      if (table && table.children.length === 0 && section) {
+        section.style.display = 'none';
+      }
+    }, 230);
   }
   return false;
 }

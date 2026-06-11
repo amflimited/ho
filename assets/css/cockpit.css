@@ -848,33 +848,34 @@ a { color: inherit; }
 }
 
 /* ── Domain review queue ─────────────────────────────────────────────────── */
-.cp-domain-table { display: flex; flex-direction: column; gap: 1px; }
+.cp-domain-table { }
 .cp-domain-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: var(--r);
+  display: flex; flex-direction: column;
+  padding: 16px 14px; border-radius: var(--r);
   background: var(--white); border: 1.5px solid var(--border);
-  transition: opacity .2s;
+  transition: opacity .22s, transform .22s;
 }
-.cp-domain-info {
-  display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;
-}
-.cp-domain-biz { font-size: 14px; font-weight: 700; line-height: 1.2; }
-.cp-domain-meta { font-size: 11px; color: var(--ink2); }
+.cp-domain-row + .cp-domain-row { display: none; }
+.cp-domain-info { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.cp-domain-biz { font-size: 17px; font-weight: 700; line-height: 1.2; }
+.cp-domain-meta { font-size: 12px; color: var(--ink2); }
 .cp-domain-url {
-  font-size: 12px; font-family: monospace; color: #1a56db;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  max-width: 100%; display: block;
+  font-size: 13px; font-family: monospace; color: #1a56db;
+  word-break: break-all; display: block;
+  padding: 8px 10px; background: #f0f4ff; border-radius: 6px;
 }
-.cp-domain-actions { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+.cp-domain-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cp-btn-domain-keep {
-  font-family: var(--fn); font-size: 12px; font-weight: 900; letter-spacing: .04em;
-  padding: 6px 10px; border-radius: 6px; cursor: pointer;
-  background: #D4EDDA; color: #155724; border: 1.5px solid #a3cfb4;
+  font-family: var(--fn); font-size: 17px; font-weight: 900;
+  padding: 16px 10px; border-radius: 10px; cursor: pointer;
+  background: #D4EDDA; color: #155724; border: 2px solid #a3cfb4;
+  width: 100%;
 }
 .cp-btn-domain-clear {
-  font-family: var(--fn); font-size: 12px; font-weight: 900; letter-spacing: .04em;
-  padding: 6px 10px; border-radius: 6px; cursor: pointer;
-  background: #F8D7DA; color: #721c24; border: 1.5px solid #f1aeb5;
+  font-family: var(--fn); font-size: 17px; font-weight: 900;
+  padding: 16px 10px; border-radius: 10px; cursor: pointer;
+  background: #F8D7DA; color: #721c24; border: 2px solid #f1aeb5;
+  width: 100%;
 }
 
 /* ── Global lead search ──────────────────────────────────────────────────── */
