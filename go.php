@@ -266,7 +266,11 @@ if ($paid && $row && $pdo !== null) {
   <section class="fd-card fd-paid-banner">
     <p class="fd-kicker">Payment received</p>
     <h2>You&rsquo;re in.</h2>
+    <?php if ($isEnhancement): ?>
+    <p>I&rsquo;ll reach out within a few hours to go over the details and get started. Check your email for a Stripe receipt.</p>
+    <?php else: ?>
     <p>Your site will be live within 24 hours. I&rsquo;ll send you the link when it&rsquo;s ready. Check your Stripe receipt for a payment confirmation.</p>
+    <?php endif; ?>
     <?php if ($statusToken !== ''): ?>
     <div class="fd-status-link-box">
       <p class="fd-status-link-label">Track your build progress:</p>
@@ -729,21 +733,31 @@ if ($paid && $row && $pdo !== null) {
   </section>
   <?php endif; ?>
 
-  <!-- ── CONTACT CTA (enhancement only) ────────────────────────────────── -->
+  <!-- ── CHECKOUT CTA (enhancement) ───────────────────────────────────── -->
   <section class="fd-card fd-offer fd-reveal" id="pricing">
-    <p class="fd-kicker">Let&rsquo;s talk it through</p>
     <?php if ($fixItemsTotal > 0): ?>
+    <p class="fd-kicker">Get it done</p>
     <h2><?= count($fixItems) > 1 ? 'All of it' : 'This' ?> for $<?= number_format($fixItemsTotal) ?> &mdash; flat, one-time.</h2>
-    <p style="font-size:16px;line-height:1.6">No obligation, no pressure, no monthly anything. Want just one piece? That&rsquo;s fine too &mdash; each line above stands on its own. Call or send a note and I&rsquo;ll get started.</p>
+    <p style="font-size:16px;line-height:1.6">No monthly fees, no contract. Pay online now &mdash; I start today. Want just one piece? That&rsquo;s fine too, each line above stands on its own.</p>
+    <form method="POST" action="/checkout.php" class="fd-checkout-form">
+      <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
+      <input type="hidden" name="pkg"  value="enhancement">
+      <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
+        Yes &mdash; fix it &rarr; $<?= number_format($fixItemsTotal) ?>
+      </button>
+    </form>
+    <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
+    <div class="fd-phone-fallback">Questions first? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
     <?php else: ?>
+    <p class="fd-kicker">Let&rsquo;s talk it through</p>
     <h2>Tell me what you want fixed &mdash; I&rsquo;ll quote it same day.</h2>
-    <p style="font-size:16px;line-height:1.6">No obligation, no pressure. Most of these are a flat one-time fix &mdash; no monthly anything. Call me or send a note and I&rsquo;ll tell you exactly what it takes and what it costs.</p>
-    <?php endif; ?>
+    <p style="font-size:16px;line-height:1.6">No obligation, no pressure. Most of these are a flat one-time fix &mdash; no monthly anything.</p>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
       <a class="fd-btn fd-btn-primary fd-checkout-main-btn" href="tel:7654434321">📞 Call me &mdash; (765) 443-4321</a>
       <a class="fd-btn fd-btn-secondary" href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Website help for ' . $name) ?>&body=<?= rawurlencode("Hi Adam — I saw the page you put together for " . $name . ". I'd like to talk about:") ?>">Email me instead &rarr;</a>
     </div>
-    <p class="fd-muted" style="margin-top:16px">Adam Ferree &middot; Hoosier Online &middot; New Castle, Indiana &mdash; you talk to me, not a call centre.</p>
+    <p class="fd-muted" style="margin-top:16px">Adam Ferree &middot; Hoosier Online &middot; New Castle, Indiana</p>
+    <?php endif; ?>
   </section>
 
   <?php endif; ?>
@@ -1131,7 +1145,15 @@ if ($paid && $row && $pdo !== null) {
   <div class="fd-sticky-bar" id="fd-sticky-bar" hidden>
     <div class="fd-sticky-inner">
       <span class="fd-sticky-biz"><?= ho_h($name) ?></span>
+      <?php if ($fixItemsTotal > 0): ?>
+      <form method="POST" action="/checkout.php" style="margin:0;display:contents">
+        <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
+        <input type="hidden" name="pkg"  value="enhancement">
+        <button type="submit" class="fd-btn fd-btn-primary fd-sticky-btn">Fix it &rarr; $<?= number_format($fixItemsTotal) ?></button>
+      </form>
+      <?php else: ?>
       <a href="tel:7654434321" class="fd-btn fd-btn-primary fd-sticky-btn">📞 Call Adam</a>
+      <?php endif; ?>
     </div>
   </div>
   <script>
