@@ -523,7 +523,11 @@ endif; ?>
             <span class="fd-gsim-nf-x" aria-hidden="true">✗</span>
             <div>
               <strong><?= ho_h($name) ?></strong>
+              <?php if ($websiteQ === 'none'): ?>
               <span>No website &mdash; doesn&rsquo;t appear in search results</span>
+              <?php else: ?>
+              <span>No findable web presence &mdash; customers searching can&rsquo;t reach you</span>
+              <?php endif; ?>
             </div>
           </div>
         </div>
@@ -611,9 +615,13 @@ endif; ?>
     </div>
     <?php endif; ?>
 
-    <?php // ── Competitor scoreboard — only render a board they're winning ──── ?>
+    <?php // ── Competitor scoreboard — only render when the lead is genuinely ahead.
+          // Rating win alone isn't enough if the competitor has 3× the reviews —
+          // that's a losing position in practice, not a winning one. ──────────── ?>
     <?php if ($googleRating > 0 && $googleCount > 0 && $compName !== ''
-              && $compRating !== null && $compReviews !== null && $googleRating >= $compRating):
+              && $compRating !== null && $compReviews !== null
+              && $googleRating >= $compRating
+              && ($compReviews === 0 || $googleCount >= $compReviews * 0.5)):
       $scoreNote = ($googleCount < $compReviews)
           ? 'You&rsquo;re winning on quality and losing on visibility. ' . ho_h($compName) . ' isn&rsquo;t better &mdash; they just show up in more places. That&rsquo;s the part I can fix.'
           : 'You&rsquo;re ahead on both. The job now is making sure every single search shows it &mdash; before ' . ho_h($compName) . ' catches up.';

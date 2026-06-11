@@ -2493,10 +2493,12 @@ function ho_get_preview_by_slug(PDO $pdo, string $slug): ?array {
                r.gbp_photo_count, r.owner_age_band, r.mobile_friendly, r.has_ssl,
                r.competitor_google_rating, r.competitor_review_count,
                r.has_yelp, r.yelp_rating, r.yelp_review_count, r.logo_quality,
-               r.researched_at, r.verified_at";
+               r.researched_at";
+    // These columns land in later migrations — never block the public page if absent.
     $quoteCols = ",
                r.review_quote_1, r.review_quote_1_author, r.review_quote_1_date,
-               r.review_quote_2, r.review_quote_2_author, r.review_quote_2_date";
+               r.review_quote_2, r.review_quote_2_author, r.review_quote_2_date,
+               r.verified_at, r.verification_json";
     $rest = "
         FROM previews p
         JOIN businesses b ON b.id = p.business_id
