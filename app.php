@@ -1969,18 +1969,28 @@ function hoIngest(txt, btn) {
   }
 
   if (n !== null && detectedAction) {
-    document.getElementById('hoImportAction').value = detectedAction;
-    note.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' found — importing…';
-    note.style.color = '#2a7a35'; note.hidden = false;
+    document.getElementById(‘hoImportAction’).value = detectedAction;
+    note.textContent = ‘✓ ‘ + n + ‘ ‘ + noun + (n !== 1 ? ‘s’ : ‘’) + ‘ found — importing…’;
+    note.style.color = ‘#2a7a35’; note.hidden = false;
     btn.disabled = true;
-    btn.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' — importing…';
+    btn.textContent = ‘✓ ‘ + n + ‘ ‘ + noun + (n !== 1 ? ‘s’ : ‘’) + ‘ — importing…’;
     setTimeout(function() { form.submit(); }, 900);
   } else if (parsed) {
-    note.textContent = 'JSON found, but no recognized data key — review below, then tap Import.';
-    note.style.color = '#a33327'; note.hidden = false;
+    note.textContent = ‘Key not detected — submitting for server validation…’;
+    note.style.color = ‘#c49000’; note.hidden = false;
+    btn.disabled = true;
+    setTimeout(function() { form.submit(); }, 1200);
   } else {
-    note.textContent = 'Loaded — couldn’t parse JSON automatically. If it looks right, tap Import.';
-    note.style.color = '#c49000'; note.hidden = false;
+    var hasBraces = clean.indexOf(‘{‘) !== -1 && clean.lastIndexOf(‘}’) !== -1;
+    if (hasBraces) {
+      note.textContent = ‘Couldn\’t parse — submitting anyway…’;
+      note.style.color = ‘#c49000’; note.hidden = false;
+      btn.disabled = true;
+      setTimeout(function() { form.submit(); }, 1500);
+    } else {
+      note.textContent = ‘No JSON found in pasted text — copy the full ChatGPT reply and try again.’;
+      note.style.color = ‘#a33327’; note.hidden = false;
+    }
   }
 }
 
