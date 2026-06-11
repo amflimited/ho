@@ -349,10 +349,78 @@ if (isset($_GET['demo']) && empty($pendingOrders)) {
 
 $coverage = $pdo ? ho_source_coverage($pdo) : [];
 
+// Source tab extra data
+$recentRuns     = $pdo ? ho_recent_source_runs($pdo, 8) : [];
+$sourceTotalFound = 0;
+foreach ($coverage as $_cov) $sourceTotalFound += (int)$_cov['total_found'];
+
+// Last completed run leads (for after-import preview)
+$lastRunLeads = [];
+$lastRunMeta  = null;
+if ($pdo) {
+    try {
+        $lastRunMeta = $pdo->query("
+            SELECT sr.id, sr.businesses_found, sr.area_query, c.name AS cat_name
+            FROM source_runs sr
+            JOIN categories c ON c.id = sr.category_id
+            WHERE sr.status IN ('sourced','imported')
+            ORDER BY sr.created_at DESC LIMIT 1
+        ")->fetch() ?: null;
+        if ($lastRunMeta) {
+            $lrStmt = $pdo->prepare("
+                SELECT b.business_name, b.location_city, b.best_contact_method, b.pipeline_status
+                FROM source_candidates sc
+                JOIN businesses b ON b.id = sc.promoted_business_id
+                WHERE sc.source_run_id = ?
+                ORDER BY b.business_name
+                LIMIT 20
+            ");
+            $lrStmt->execute([(int)$lastRunMeta['id']]);
+            $lastRunLeads = $lrStmt->fetchAll();
+        }
+    } catch (Throwable) {}
+}
+
 $templatedCategories = array_values(array_filter($categories, function($cat) {
     $dir = ho_template_dir_for_slug((string)($cat['slug'] ?? ''));
     return $dir !== '';
 }));
+
+// Smart recommendation: untouched cat+region pair with best opportunity
+$smartNextCat    = '';
+$smartNextRegion = '';
+$smartNextCatId  = 0;
+$covLookup       = [];
+if ($pdo && !empty($templatedCategories)) {
+    $allRegionNames2 = array_keys(ho_indiana_regions());
+    foreach ($coverage as $_c) $covLookup[(string)$_c['category_name']][(string)$_c['area_query']] = (int)$_c['run_count'];
+    // Find first untouched pair (cat with template, region never run)
+    foreach ($templatedCategories as $_tcat) {
+        foreach ($allRegionNames2 as $_reg) {
+            if (!isset($covLookup[(string)$_tcat['name']][$_reg])) {
+                $smartNextCat    = (string)$_tcat['name'];
+                $smartNextCatId  = (int)$_tcat['id'];
+                $smartNextRegion = $_reg;
+                break 2;
+            }
+        }
+    }
+    // If all touched, pick the region+cat with fewest runs
+    if ($smartNextCat === '') {
+        $minRuns = PHP_INT_MAX;
+        foreach ($templatedCategories as $_tcat) {
+            foreach ($allRegionNames2 as $_reg) {
+                $rc = $covLookup[(string)$_tcat['name']][$_reg] ?? 0;
+                if ($rc < $minRuns) {
+                    $minRuns = $rc;
+                    $smartNextCat    = (string)$_tcat['name'];
+                    $smartNextCatId  = (int)$_tcat['id'];
+                    $smartNextRegion = $_reg;
+                }
+            }
+        }
+    }
+}
 
 $cityToRegion = [];
 foreach (ho_indiana_regions() as $region => $cities) {
@@ -509,6 +577,77 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 <!-- ═══ SOURCE ═══════════════════════════════════════════════════════════════ -->
 <?php if ($tab === 'source'): ?>
 
+  <?php
+  // ── Build region lookup data ─────────────────────────────────────────────
+  $regionRunCount = [];
+  foreach ($coverage as $row) {
+      $r = (string)$row['area_query'];
+      $regionRunCount[$r] = ($regionRunCount[$r] ?? 0) + (int)$row['run_count'];
+  }
+  $allRegionNames = array_keys(ho_indiana_regions());
+  usort($allRegionNames, fn($a,$b) => ($regionRunCount[$a] ?? 0) <=> ($regionRunCount[$b] ?? 0));
+
+  $covMap = [];
+  foreach ($coverage as $row) { $covMap[(string)$row['category_name']][(string)$row['area_query']] = $row; }
+  $allRegions  = array_keys(ho_indiana_regions());
+  $regionAbbr  = [
+      'Indianapolis Metro'         => 'Indianapolis',
+      'Fort Wayne Area'            => 'Fort Wayne',
+      'South Bend / Mishawaka'     => 'South Bend',
+      'Northwest Indiana'          => 'NW Indiana',
+      'Evansville Area'            => 'Evansville',
+      'Lafayette / West Lafayette' => 'Lafayette',
+      'Bloomington Area'           => 'Bloomington',
+      'Muncie / Anderson'          => 'Muncie',
+      'Terre Haute Area'           => 'Terre Haute',
+      'Kokomo / Logansport'        => 'Kokomo',
+      'Columbus / Bartholomew'     => 'Columbus',
+      'Richmond / East Central'    => 'Richmond',
+      'Southern Indiana'           => 'Southern IN',
+  ];
+  $tplCatNames = array_column($templatedCategories, 'name');
+  $showCats    = array_unique(array_merge(array_keys($covMap), $tplCatNames));
+  sort($showCats);
+  ?>
+
+  <!-- ── 1. SOURCE FUNNEL STRIP ──────────────────────────────────────────── -->
+  <?php
+  $fPitched   = $counts['pitched']   + $counts['converted'];
+  $fConverted = $counts['converted'];
+  $fInPipe    = $counts['total'];
+  $fBase      = max($sourceTotalFound, $fInPipe, 1);
+  $fPct       = fn(int $n): int => (int)round($n / $fBase * 100);
+  ?>
+  <section class="cp-section cp-src-funnel-wrap">
+    <div class="cp-src-funnel">
+      <div class="cp-src-funnel-stat">
+        <span class="cp-src-funnel-num"><?= number_format($sourceTotalFound) ?></span>
+        <span class="cp-src-funnel-lbl">Sourced</span>
+      </div>
+      <div class="cp-src-funnel-arrow">→</div>
+      <div class="cp-src-funnel-stat">
+        <span class="cp-src-funnel-num"><?= number_format($fInPipe) ?></span>
+        <span class="cp-src-funnel-lbl">In pipeline</span>
+      </div>
+      <div class="cp-src-funnel-arrow">→</div>
+      <div class="cp-src-funnel-stat">
+        <span class="cp-src-funnel-num"><?= number_format($fPitched) ?></span>
+        <span class="cp-src-funnel-lbl">Pitched</span>
+      </div>
+      <div class="cp-src-funnel-arrow">→</div>
+      <div class="cp-src-funnel-stat cp-src-funnel-win">
+        <span class="cp-src-funnel-num"><?= number_format($fConverted) ?></span>
+        <span class="cp-src-funnel-lbl">Won</span>
+      </div>
+    </div>
+    <?php if ($sourceTotalFound > 0 && $fConverted > 0): ?>
+    <div class="cp-src-funnel-rate">
+      <?= round($fConverted / $sourceTotalFound * 100, 1) ?>% lead-to-close
+      &middot; <?= round($fPitched / max($sourceTotalFound,1) * 100, 1) ?>% pitched
+    </div>
+    <?php endif; ?>
+  </section>
+
   <?php if ($activeRun && $sourcePrompt !== ''): ?>
 
     <section class="cp-section">
@@ -539,34 +678,41 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
   <?php else: ?>
 
-    <section class="cp-section">
+    <!-- ── 2. SMART NEXT RECOMMENDATION ──────────────────────────────────── -->
+    <?php if ($smartNextCat !== ''): ?>
+    <section class="cp-section cp-src-rec-wrap">
+      <div class="cp-src-rec">
+        <div class="cp-src-rec-badge">Best next run</div>
+        <div class="cp-src-rec-target">
+          <strong><?= ho_h($smartNextCat) ?></strong>
+          <span>in <?= ho_h($smartNextRegion) ?></span>
+        </div>
+        <div class="cp-src-rec-reason">
+          <?= isset($covLookup[$smartNextCat][$smartNextRegion]) ? 'Fewest runs in your coverage map' : 'Never sourced — fresh territory' ?>
+        </div>
+        <button type="button" class="cp-btn-primary cp-src-rec-btn" onclick="srcFillRec(<?= $smartNextCatId ?>, <?= json_encode($smartNextRegion) ?>)">
+          Source this →
+        </button>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <!-- ── FIND NEW LEADS FORM ────────────────────────────────────────────── -->
+    <section class="cp-section" id="srcForm">
       <h2 class="cp-sh">Find new leads</h2>
-      <form method="POST">
+      <form method="POST" id="srcFormEl">
         <input type="hidden" name="action" value="create_run">
         <input type="hidden" name="tab" value="source">
         <label class="cp-label">Category
-          <select class="cp-select" name="category_id" required>
+          <select class="cp-select" name="category_id" id="srcCatSel" required>
             <option value="">Choose…</option>
             <?php foreach ($templatedCategories as $cat): ?>
               <option value="<?= (int)$cat['id'] ?>"><?= ho_h((string)$cat['name']) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
-        <?php
-          // Build region run-count across all categories so dropdown shows which are fresh
-          $regionRunCount = [];
-          foreach ($coverage as $row) {
-              $r = (string)$row['area_query'];
-              $regionRunCount[$r] = ($regionRunCount[$r] ?? 0) + (int)$row['run_count'];
-          }
-          $allRegionNames = array_keys(ho_indiana_regions());
-          // Sort: unsourced first, then by run count ascending
-          usort($allRegionNames, fn($a,$b) =>
-              ($regionRunCount[$a] ?? 0) <=> ($regionRunCount[$b] ?? 0)
-          );
-        ?>
         <label class="cp-label">Region
-          <select class="cp-select" name="area" required>
+          <select class="cp-select" name="area" id="srcRegSel" required>
             <?php foreach ($allRegionNames as $region):
               $runs = $regionRunCount[$region] ?? 0;
               $label = $region . ($runs === 0 ? ' — NEW' : ' (' . $runs . ' run' . ($runs !== 1 ? 's' : '') . ')');
@@ -582,54 +728,93 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       </form>
     </section>
 
+    <!-- ── 3. RECENT RUNS ─────────────────────────────────────────────────── -->
+    <?php if (!empty($recentRuns)): ?>
+    <section class="cp-section">
+      <h2 class="cp-sh" style="font-size:13px;margin-bottom:10px;letter-spacing:.08em;">Recent runs</h2>
+      <div class="cp-src-runs">
+        <?php foreach ($recentRuns as $rr):
+          $rrDate  = $rr['created_at'] ? date('M j', strtotime((string)$rr['created_at'])) : '';
+          $rrYield = (int)($rr['businesses_found'] ?? 0);
+          $rrCat   = (string)($rr['category_name'] ?? '');
+          $rrArea  = (string)($rr['area_query'] ?? '');
+          $rrCatId = (int)($rr['category_id'] ?? 0);
+          $rrSt    = $rrYield >= 10 ? 'active' : ($rrYield >= 5 ? 'slowing' : ($rrYield >= 1 ? 'low' : 'dry'));
+        ?>
+        <div class="cp-src-run-row">
+          <div class="cp-src-run-info">
+            <span class="cp-src-run-cat"><?= ho_h($rrCat) ?></span>
+            <span class="cp-src-run-area"><?= ho_h($rrArea) ?></span>
+          </div>
+          <div class="cp-src-run-meta">
+            <span class="cp-cov-pill cp-cov-<?= $rrSt ?>"><?= $rrYield ?> leads</span>
+            <span class="cp-src-run-date"><?= ho_h($rrDate) ?></span>
+            <button type="button" class="cp-src-run-again" onclick="srcFillRec(<?= $rrCatId ?>, <?= json_encode($rrArea) ?>)">Run again</button>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
+    <!-- ── 5. LAST RUN LEADS PREVIEW ─────────────────────────────────────── -->
+    <?php if ($lastRunMeta && !empty($lastRunLeads)): ?>
+    <section class="cp-section">
+      <h2 class="cp-sh" style="font-size:13px;margin-bottom:4px;letter-spacing:.08em;">From last run &mdash; <?= ho_h((string)$lastRunMeta['cat_name']) ?> / <?= ho_h((string)$lastRunMeta['area_query']) ?></h2>
+      <p class="cp-hint" style="margin-bottom:10px"><?= count($lastRunLeads) ?> of <?= (int)$lastRunMeta['businesses_found'] ?> leads promoted to pipeline</p>
+      <div class="cp-src-leads">
+        <?php
+        $contactIcons = ['email'=>'✉','website_form'=>'🌐','facebook'=>'📘','phone'=>'📞','unknown'=>'?'];
+        foreach ($lastRunLeads as $ll):
+          $llStatus = (string)$ll['pipeline_status'];
+          $llContact = (string)($ll['best_contact_method'] ?? 'unknown');
+          $llIcon = $contactIcons[$llContact] ?? '?';
+          $statusColors = [
+              'identified'=>'#6aad7a','researched'=>'#4a90d9','preview_ready'=>'var(--gold)',
+              'enhancement_ready'=>'#c49000','pitched'=>'#2a7a35','converted'=>'var(--green)',
+              'needs_contact'=>'#c06010','excluded'=>'#bbb',
+          ];
+          $stColor = $statusColors[$llStatus] ?? '#bbb';
+        ?>
+        <div class="cp-src-lead-row">
+          <span class="cp-src-lead-icon"><?= $llIcon ?></span>
+          <div class="cp-src-lead-info">
+            <span class="cp-src-lead-name"><?= ho_h((string)$ll['business_name']) ?></span>
+            <span class="cp-src-lead-city"><?= ho_h((string)$ll['location_city']) ?></span>
+          </div>
+          <span class="cp-src-lead-status" style="background:<?= $stColor ?>"><?= ho_h(str_replace('_',' ',$llStatus)) ?></span>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </section>
+    <?php endif; ?>
+
   <?php endif; ?>
 
-  <?php
-  // ── Coverage map ────────────────────────────────────────────────────────
-  $covMap = [];
-  foreach ($coverage as $row) {
-      $covMap[(string)$row['category_name']][(string)$row['area_query']] = $row;
-  }
-  $allRegions  = array_keys(ho_indiana_regions());
-  $regionAbbr  = [
-      'Indianapolis Metro'         => 'Indianapolis',
-      'Fort Wayne Area'            => 'Fort Wayne',
-      'South Bend / Mishawaka'     => 'South Bend',
-      'Northwest Indiana'          => 'NW Indiana',
-      'Evansville Area'            => 'Evansville',
-      'Lafayette / West Lafayette' => 'Lafayette',
-      'Bloomington Area'           => 'Bloomington',
-      'Muncie / Anderson'          => 'Muncie',
-      'Terre Haute Area'           => 'Terre Haute',
-      'Kokomo / Logansport'        => 'Kokomo',
-      'Columbus / Bartholomew'     => 'Columbus',
-      'Richmond / East Central'    => 'Richmond',
-      'Southern Indiana'           => 'Southern IN',
-  ];
-  $tplCatNames = array_column($templatedCategories, 'name');
-  $showCats    = array_unique(array_merge(array_keys($covMap), $tplCatNames));
-  sort($showCats);
-  ?>
+  <!-- ── 4. INTERACTIVE COVERAGE MAP ──────────────────────────────────────── -->
   <?php if (!empty($showCats)): ?>
   <section class="cp-section">
-    <h2 class="cp-sh" style="font-size:13px;margin-bottom:10px;letter-spacing:.08em;">Region coverage</h2>
+    <h2 class="cp-sh" style="font-size:13px;margin-bottom:10px;letter-spacing:.08em;">Region coverage <span style="font-size:10px;font-weight:400;color:var(--ink2)">— tap any region to source it</span></h2>
 
     <div class="cp-cov-key">
       <span class="cp-cov-pill cp-cov-active">Active</span>
       <span class="cp-cov-pill cp-cov-slowing">Slowing</span>
       <span class="cp-cov-pill cp-cov-low">Low</span>
       <span class="cp-cov-pill cp-cov-dry">Dry</span>
-      <span class="cp-cov-key-note">= last run yield per region</span>
+      <span class="cp-cov-pill cp-cov-untapped">New</span>
+      <span class="cp-cov-key-note">= last yield &middot; tap to source</span>
     </div>
 
     <?php foreach ($showCats as $catName):
+      $catIdForMap = 0;
+      foreach ($templatedCategories as $tc) { if ($tc['name'] === $catName) { $catIdForMap = (int)$tc['id']; break; } }
       $regMap    = $covMap[$catName] ?? [];
       $totRuns   = (int)array_sum(array_column($regMap, 'run_count'));
       $totFound  = (int)array_sum(array_column($regMap, 'total_found'));
       $nRegions  = count($allRegions);
       $sourced   = count($regMap);
       $remaining = $nRegions - $sourced;
-      $stCounts  = ['active'=>0,'slowing'=>0,'low'=>0,'dry'=>0];
+      $stCounts  = ['active'=>0,'slowing'=>0,'low'=>0,'dry'=>0,'untapped'=>0];
       foreach ($regMap as $r) {
           $ly = (int)$r['last_yield'];
           if ($ly >= 10)     $stCounts['active']++;
@@ -637,6 +822,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           elseif ($ly >= 1)  $stCounts['low']++;
           else               $stCounts['dry']++;
       }
+      $stCounts['untapped'] = $remaining;
     ?>
     <div class="cp-cov-card">
       <div class="cp-cov-card-head">
@@ -649,14 +835,20 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       </div>
 
       <div class="cp-cov-bar">
-        <?php foreach (['active','slowing','low','dry'] as $st): if ($stCounts[$st] > 0): ?>
+        <?php foreach (['active','slowing','low','dry','untapped'] as $st): if ($stCounts[$st] > 0): ?>
           <div class="cp-cov-bar-fill cp-cov-bar-<?= $st ?>" style="width:<?= round($stCounts[$st]/$nRegions*100) ?>%"></div>
         <?php endif; endforeach; ?>
       </div>
 
       <div class="cp-cov-regions">
         <?php if (empty($regMap)): ?>
-          <span class="cp-cov-none"><?= $nRegions ?> regions available &mdash; no runs yet</span>
+          <?php foreach ($allRegions as $region):
+            $abbr = $regionAbbr[$region] ?? $region;
+          ?>
+          <button type="button" class="cp-cov-pill cp-cov-untapped cp-cov-tappable" onclick="srcFillRec(<?= $catIdForMap ?>, <?= json_encode($region) ?>)" title="Source <?= ho_h($catName) ?> in <?= ho_h($region) ?>">
+            <?= ho_h($abbr) ?><em>new</em>
+          </button>
+          <?php endforeach; ?>
         <?php else: ?>
           <?php foreach ($regMap as $region => $row):
             $ly   = (int)$row['last_yield'];
@@ -666,13 +858,17 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             else               $st = 'dry';
             $abbr = $regionAbbr[$region] ?? $region;
           ?>
-            <span class="cp-cov-pill cp-cov-<?= $st ?>" title="<?= ho_h($region) ?>">
+            <button type="button" class="cp-cov-pill cp-cov-<?= $st ?> cp-cov-tappable" onclick="srcFillRec(<?= $catIdForMap ?>, <?= json_encode($region) ?>)" title="<?= ho_h($region) ?>">
               <?= ho_h($abbr) ?><em><?= $ly ?></em>
-            </span>
+            </button>
           <?php endforeach; ?>
-          <?php if ($remaining > 0): ?>
-            <span class="cp-cov-more">+<?= $remaining ?> untouched</span>
-          <?php endif; ?>
+          <?php foreach ($allRegions as $region): if (!isset($regMap[$region])):
+            $abbr = $regionAbbr[$region] ?? $region;
+          ?>
+            <button type="button" class="cp-cov-pill cp-cov-untapped cp-cov-tappable" onclick="srcFillRec(<?= $catIdForMap ?>, <?= json_encode($region) ?>)" title="Source <?= ho_h($catName) ?> in <?= ho_h($region) ?>">
+              <?= ho_h($abbr) ?><em>new</em>
+            </button>
+          <?php endif; endforeach; ?>
         <?php endif; ?>
       </div>
     </div>
@@ -2116,6 +2312,22 @@ function markSent(el, via) {
   card.classList.add('is-sent');
   var flag = card.querySelector('.cp-sent-flag');
   if (flag) flag.hidden = false;
+}
+// Source tab: fill form with a cat+region and scroll to it.
+function srcFillRec(catId, region) {
+  var catSel = document.getElementById('srcCatSel');
+  var regSel = document.getElementById('srcRegSel');
+  var form   = document.getElementById('srcForm');
+  if (!catSel || !regSel) return;
+  // Set category
+  for (var i = 0; i < catSel.options.length; i++) {
+    if (parseInt(catSel.options[i].value, 10) === catId) { catSel.selectedIndex = i; break; }
+  }
+  // Set region (value matches area_query)
+  for (var j = 0; j < regSel.options.length; j++) {
+    if (regSel.options[j].value === region) { regSel.selectedIndex = j; break; }
+  }
+  if (form) { form.scrollIntoView({behavior:'smooth', block:'start'}); }
 }
 // Review-queue actions (triage Real/Reject, domain Keep/Clear).
 function queueAction(rowId, nextId, action, bizId) {

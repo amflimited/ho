@@ -402,6 +402,98 @@ a { color: inherit; }
   font-size: 14px; color: var(--ink2); line-height: 1.6;
 }
 
+/* ── SOURCE TAB IMPROVEMENTS ─────────────────────────────────────────────── */
+
+/* 1. Source Funnel Strip */
+.cp-src-funnel-wrap { padding: 12px 14px; }
+.cp-src-funnel {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 4px; flex-wrap: nowrap;
+}
+.cp-src-funnel-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  flex: 1;
+}
+.cp-src-funnel-num {
+  font-family: var(--fn); font-size: 26px; font-weight: 900;
+  line-height: 1; color: var(--ink);
+}
+.cp-src-funnel-lbl {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink2); white-space: nowrap;
+}
+.cp-src-funnel-win .cp-src-funnel-num { color: var(--green); }
+.cp-src-funnel-win .cp-src-funnel-lbl { color: var(--green); }
+.cp-src-funnel-arrow { color: var(--border); font-size: 18px; font-weight: 700; flex-shrink: 0; }
+.cp-src-funnel-rate {
+  text-align: center; font-size: 11px; color: var(--ink2); font-weight: 600;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+}
+
+/* 2. Smart Recommendation Card */
+.cp-src-rec-wrap { padding: 0 14px 14px; }
+.cp-src-rec {
+  background: #f0f7f1; border: 2px solid var(--green);
+  border-radius: var(--r); padding: 14px; display: flex;
+  flex-direction: column; gap: 6px;
+}
+.cp-src-rec-badge {
+  font-size: 10px; font-weight: 900; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--green);
+}
+.cp-src-rec-target {
+  display: flex; flex-direction: column; gap: 1px;
+}
+.cp-src-rec-target strong { font-size: 18px; font-weight: 900; line-height: 1.2; }
+.cp-src-rec-target span   { font-size: 13px; color: var(--ink2); }
+.cp-src-rec-reason { font-size: 12px; color: var(--ink2); }
+.cp-src-rec-btn   { margin-top: 4px; width: 100%; }
+
+/* 3. Recent Runs */
+.cp-src-runs { display: flex; flex-direction: column; gap: 6px; }
+.cp-src-run-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 11px; background: var(--white); border: 1.5px solid var(--border);
+  border-radius: var(--r);
+}
+.cp-src-run-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.cp-src-run-cat  { font-size: 13px; font-weight: 700; }
+.cp-src-run-area { font-size: 11px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-src-run-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.cp-src-run-date { font-size: 11px; color: var(--ink2); font-weight: 600; }
+.cp-src-run-again {
+  font-family: var(--fn); font-size: 12px; font-weight: 700;
+  padding: 4px 10px; border-radius: 6px; border: 1.5px solid var(--green);
+  color: var(--green); background: transparent; cursor: pointer;
+  white-space: nowrap;
+}
+.cp-src-run-again:active { background: #d4edda; }
+
+/* 4. Tappable coverage pills */
+.cp-cov-tappable {
+  cursor: pointer; border: none; font-family: var(--fn);
+  transition: transform .1s, filter .1s;
+}
+.cp-cov-tappable:active { transform: scale(.95); filter: brightness(.9); }
+.cp-cov-untapped { background: #e8e3d8; color: #666; }
+.cp-cov-bar-untapped { background: #ddd; }
+
+/* 5. Last Run Leads Preview */
+.cp-src-leads { display: flex; flex-direction: column; gap: 5px; }
+.cp-src-lead-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.cp-src-lead-icon { font-size: 15px; flex-shrink: 0; width: 22px; text-align: center; }
+.cp-src-lead-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.cp-src-lead-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-src-lead-city { font-size: 11px; color: var(--ink2); }
+.cp-src-lead-status {
+  font-size: 10px; font-weight: 700; color: #fff; border-radius: 999px;
+  padding: 2px 8px; white-space: nowrap; flex-shrink: 0;
+}
+
 /* ── COVERAGE MAP ────────────────────────────────────────────────────────── */
 .cp-cov-key {
   display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
