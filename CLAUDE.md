@@ -661,3 +661,36 @@ Touch 3 follow-up trimmed to ONE angle (visit-aware > stakes number >
 referral objection), subject "one number, then I'll stop". Signature unified
 everywhere: name / company · New Castle, Indiana / phone (no email in sig —
 the reply-to is the email).
+
+## 🛡 TRUTH GATE (2026-06-11) — fact-check before anything is emailed
+
+The fear: hallucinated claims (fake quotes, wrong ratings, "no website" when
+one exists) reaching real owners. Three defense layers:
+
+1. **Adversarial AI verification** — `ho_verify_research(PDO, bizId)`: a
+   SECOND independent web-search pass fact-checks every claim the research
+   made. Corrections applied in place: wrong counts/ratings updated;
+   **quotes not confirmed VERBATIM are blanked** (quote_1 + quote_2 + dates);
+   wrong competitor blanked, unverifiable competitor numbers dropped;
+   "no website" wrong → has_website/quality/url fixed + lead RE-ROUTED via
+   ho_auto_generate_preview. Stamps `verified_at` + `verification_json`.
+   Cron task `verify` (toggle `ap_verify`, cap `ap_verify_daily_cap`=25,
+   2/run) drains ready-but-unverified leads BEFORE autopitch runs.
+   **Autopitch skips unverified leads while ap_verify=1.**
+2. **Copy hedging** — both pitch generators: unverified review counts ≥15
+   are floored to "40+" (subjects + bodies) so drift can never overshoot;
+   verified rows speak precisely. Queues SELECT `r.verified_at` (nested
+   try/catch pre-migration).
+3. **Human 15-second check** — send cards show ✓ fact-checked / ⚠ unverified
+   badge + claim-specific links: Reviews ↗ (their listing), Quote ↗
+   (exact-match Google search of first 8 words — review must appear verbatim),
+   Comp ↗. Money Floor why-line carries the same marker.
+
+**⚠ REQUIRED MIGRATION:**
+```sql
+ALTER TABLE research_records
+  ADD COLUMN verified_at DATETIME NULL,
+  ADD COLUMN verification_json TEXT NULL;
+```
+Pre-migration: fixes still apply but rows can't be stamped, so autopitch
+(with ap_verify on) sends nothing — fail-safe direction.

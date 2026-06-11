@@ -1654,11 +1654,17 @@ function ho_get_enhancement_ready(PDO $pdo): array {
         ORDER BY b.updated_at DESC
         LIMIT 50
     ";
-    // Quote columns may not exist until the review_quote migration runs.
+    // Quote / verification columns may not exist until their migrations run.
+    $verCols = ",
+               r.verified_at";
     try {
-        $rows = $pdo->query($base . $quoteCols . $rest)->fetchAll();
-    } catch (PDOException $e) {
-        $rows = $pdo->query($base . $rest)->fetchAll();
+        $rows = $pdo->query($base . $quoteCols . $verCols . $rest)->fetchAll();
+    } catch (PDOException) {
+        try {
+            $rows = $pdo->query($base . $quoteCols . $rest)->fetchAll();
+        } catch (PDOException) {
+            $rows = $pdo->query($base . $rest)->fetchAll();
+        }
     }
 
     foreach ($rows as &$row) {
@@ -1727,6 +1733,9 @@ function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
 
     $topGap = $gaps[0] ?? '';
 
+    $isVerified = !empty($biz['verified_at']);
+    $revShown   = (!$isVerified && $reviews >= 15) ? (string)(int)(floor($reviews / 10) * 10) . '+' : (string)$reviews;
+
     // ── Same rule as the site-build email: one observation, one link, one
     // low-pressure ask, under 90 words. The page carries prices, the bundle
     // total, the guarantee, and the ROI math.
@@ -1749,7 +1758,7 @@ function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
             case 'contact_form':
                 $subject = "the 9pm customers {$name} can\u{2019}t catch";
                 $opener  = $reviews >= 20
-                    ? "{$reviews} Google reviews \u{2014} people clearly trust you. But your site has no way to reach you in writing, so the 9pm searcher who won\u{2019}t call just\u{2026} leaves."
+                    ? "{$revShown} Google reviews \u{2014} people clearly trust you. But your site has no way to reach you in writing, so the 9pm searcher who won\u{2019}t call just\u{2026} leaves."
                     : "Your site has no way for a customer to reach you in writing \u{2014} anyone who doesn\u{2019}t want to call simply leaves, and you never know they were there.";
                 break;
             case 'tech_issues':
@@ -1893,11 +1902,17 @@ function ho_get_preview_ready(PDO $pdo): array {
         ORDER BY b.updated_at DESC
         LIMIT 50
     ";
-    // Quote columns may not exist until the review_quote migration runs.
+    // Quote / verification columns may not exist until their migrations run.
+    $verCols = ",
+               r.verified_at";
     try {
-        $rows = $pdo->query($base . $quoteCols . $rest)->fetchAll();
-    } catch (PDOException $e) {
-        $rows = $pdo->query($base . $rest)->fetchAll();
+        $rows = $pdo->query($base . $quoteCols . $verCols . $rest)->fetchAll();
+    } catch (PDOException) {
+        try {
+            $rows = $pdo->query($base . $quoteCols . $rest)->fetchAll();
+        } catch (PDOException) {
+            $rows = $pdo->query($base . $rest)->fetchAll();
+        }
     }
 
     foreach ($rows as &$row) {
@@ -1976,6 +1991,12 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
         $reviewAgeMonths = ((int)date('Y') - (int)$lm[1]) * 12 + ((int)date('n') - (int)$lm[2]);
     }
 
+    // Unverified data gets hedged: exact review counts become a floored
+    // "40+" so a drifted number can never be wrong in the embarrassing
+    // direction. Verified rows (truth gate) speak precisely.
+    $isVerified = !empty($biz['verified_at']);
+    $revShown   = (!$isVerified && $reviews >= 15) ? (string)(int)(floor($reviews / 10) * 10) . '+' : (string)$reviews;
+
     // ── The email has ONE job: earn the click. Price, guarantee, ROI,
     // timeline, credibility — all of that lives on the page, with full
     // context. Target: under 90 words. One specific observation that proves
@@ -2005,17 +2026,17 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
         $opener   = "Saw {$name} on {$platform}. Every job through there, they take a cut \u{2014} and that customer was searching for {$catLower} in {$city} anyway.";
         $bridge   = "I built the page those searches could land on instead. Already done, free to look:";
     } elseif ($noSite && $reviews >= 21) {
-        $subject = "{$reviews} reviews, no website";
+        $subject = "{$revShown} reviews, no website";
         $ratingBit = $rating > 0 ? ' at ' . number_format($rating, 1) . "\u{2605}" : '';
-        $opener  = "{$reviews} Google reviews{$ratingBit} and no website \u{2014} honestly the most backwards thing I\u{2019}ve seen in {$city}. You\u{2019}ve already done the hard part.";
+        $opener  = "{$revShown} Google reviews{$ratingBit} and no website \u{2014} honestly the most backwards thing I\u{2019}ve seen in {$city}. You\u{2019}ve already done the hard part.";
         $bridge  = "So I did the easy part \u{2014} built you a homepage that puts those reviews where every customer sees them:";
     } elseif ($opSum !== '') {
         $subject = "a thought about {$name}";
         $opener  = $opSum;
         $bridge  = "I built you a page around exactly that:";
     } elseif ($noSite && $reviews >= 10) {
-        $subject = "your {$reviews} Google reviews";
-        $opener  = "{$reviews} Google reviews and nowhere to put them. Right now someone who hears about {$name} finds your Google listing, and then\u{2026} nothing.";
+        $subject = "your {$revShown} Google reviews";
+        $opener  = "{$revShown} Google reviews and nowhere to put them. Right now someone who hears about {$name} finds your Google listing, and then\u{2026} nothing.";
         $bridge  = "I built you a homepage that fixes that \u{2014} your reviews are already on it:";
     } elseif ($reviewAgeMonths !== null && $reviewAgeMonths >= 6 && $reviews >= 5) {
         $subject = "is {$name} still taking work?";
@@ -2030,8 +2051,8 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
         $opener  = "I found {$name}\u{2019}s website, and I think it\u{2019}s costing you jobs it should be winning.";
         $bridge  = "Instead of sending a list of complaints, I built the better version so you can compare side by side:";
     } elseif ($reviews >= 10) {
-        $subject = "your {$reviews} Google reviews";
-        $opener  = "{$reviews} Google reviews is real proof \u{2014} and it deserves a better home than a listing nobody scrolls.";
+        $subject = "your {$revShown} Google reviews";
+        $opener  = "{$revShown} Google reviews is real proof \u{2014} and it deserves a better home than a listing nobody scrolls.";
         $bridge  = "I built a page that shows what I mean:";
     } elseif ($years >= 5) {
         $subject = "{$years} years, no real web presence";
@@ -3688,10 +3709,13 @@ function ho_run_auto_pitch(PDO $pdo, int $max = 0): array {
         ['rows' => ho_get_preview_ready($pdo),     'enh' => false],
         ['rows' => ho_get_enhancement_ready($pdo), 'enh' => true],
     ];
+    $requireVerified = ho_get_setting($pdo, 'ap_verify') === '1';
     foreach ($queues as $q) {
         foreach ($q['rows'] as $b) {
             if ($sent >= $max) break 2;
             if (($gate = ho_autopilot_gate($pdo)) !== null) { $errors[] = $gate; break 2; }
+            // Truth gate: never auto-email claims that haven't survived fact-checking
+            if ($requireVerified && empty($b['verified_at'])) continue;
             $email = trim((string)($b['email_address'] ?? ''));
             if ($email === '') continue;
             $previewUrl = ho_site_base($pdo) . '/go/' . $b['business_slug'];
@@ -3894,4 +3918,194 @@ function ho_send_daily_digest(PDO $pdo): array {
     $ok = ho_send_email($pdo, 0, $to, "\u{2600} Hoosier Online \u{2014} " . date('D M j') . " digest", implode("\n", $lines), 'digest');
     if ($ok) ho_set_setting($pdo, 'ap_last_digest_date', $today);
     return ['sent' => $ok];
+}
+
+// ═══ TRUTH GATE ═══════════════════════════════════════════════════════════════
+// Every claim that reaches an email or preview page came from one LLM research
+// pass — which can hallucinate. The truth gate is an adversarial SECOND pass:
+// independently re-search each claim, correct what's wrong in the database,
+// blank what can't be confirmed (quotes especially), and stamp verified_at.
+// The autopilot refuses to auto-email unverified leads when ap_verify is on.
+//
+// Migration:
+//   ALTER TABLE research_records
+//     ADD COLUMN verified_at DATETIME NULL,
+//     ADD COLUMN verification_json TEXT NULL;
+
+/** Adversarially fact-check one lead's claims and fix the data. */
+function ho_verify_research(PDO $pdo, int $bizId): array {
+    $s = $pdo->prepare("
+        SELECT b.id, b.business_name, b.location_city, b.website_url,
+               c.name AS category_name,
+               r.google_review_count, r.google_rating, r.has_website, r.website_quality,
+               r.review_quote_1, r.review_quote_1_author,
+               r.review_quote_2, r.review_quote_2_author,
+               r.competitor_name, r.competitor_google_rating, r.competitor_review_count,
+               r.years_in_business
+        FROM businesses b
+        JOIN categories c ON c.id = b.category_id
+        JOIN research_records r ON r.business_id = b.id
+        WHERE b.id = ?
+    ");
+    $s->execute([$bizId]);
+    $row = $s->fetch();
+    if (!$row) return ['ok' => false, 'error' => "No research for business {$bizId}."];
+
+    $name = (string)$row['business_name'];
+    $city = (string)$row['location_city'];
+    $cat  = (string)$row['category_name'];
+
+    // Build the claim list from whatever the research asserted
+    $claims = [];
+    if ((int)$row['google_review_count'] > 0) {
+        $claims[] = 'review_count: "' . $name . '" in ' . $city . ', Indiana has ' . (int)$row['google_review_count'] . ' Google reviews';
+    }
+    if ((float)$row['google_rating'] > 0) {
+        $claims[] = 'rating: their Google rating is ' . number_format((float)$row['google_rating'], 1);
+    }
+    if (trim((string)$row['review_quote_1']) !== '') {
+        $claims[] = 'quote_1: a real Google review of this business'
+                  . (trim((string)$row['review_quote_1_author']) !== '' ? ' by "' . trim((string)$row['review_quote_1_author']) . '"' : '')
+                  . ' contains this text VERBATIM (not paraphrased): "' . trim((string)$row['review_quote_1']) . '"';
+    }
+    if (trim((string)$row['review_quote_2']) !== '') {
+        $claims[] = 'quote_2: a real Google review of this business'
+                  . (trim((string)$row['review_quote_2_author']) !== '' ? ' by "' . trim((string)$row['review_quote_2_author']) . '"' : '')
+                  . ' contains this text VERBATIM: "' . trim((string)$row['review_quote_2']) . '"';
+    }
+    if (trim((string)$row['competitor_name']) !== '') {
+        $claims[] = 'competitor: "' . trim((string)$row['competitor_name']) . '" is a real ' . strtolower($cat)
+                  . ' business near ' . $city . ', Indiana'
+                  . ($row['competitor_google_rating'] !== null ? ' with a Google rating of ' . number_format((float)$row['competitor_google_rating'], 1) : '');
+    }
+    $claims[] = !(bool)$row['has_website'] || (string)$row['website_quality'] === 'none'
+        ? 'website: this business has NO real website of its own (directory listings like Angi/Yelp do not count)'
+        : 'website: this business\'s website is ' . ((string)$row['website_url'] !== '' ? (string)$row['website_url'] : 'unknown URL');
+
+    $prompt = "Fact-check these claims about the business \"{$name}\" ({$cat}) in {$city}, Indiana. "
+        . "Search the web independently — Google Maps/reviews, their website, Facebook. Be SKEPTICAL: "
+        . "your job is to catch errors before they are sent to the business owner, who knows the truth. "
+        . "For quotes, the text must appear VERBATIM in a real review; paraphrases fail. "
+        . "Counts within 15% pass; report the value you actually found.\n\nCLAIMS:\n- "
+        . implode("\n- ", $claims)
+        . "\n\nReply with ONLY this JSON (no fences, no commentary):\n"
+        . '{"checks":{"review_count":{"status":"confirmed|wrong|unverifiable","found":0},'
+        . '"rating":{"status":"...","found":0.0},'
+        . '"quote_1":{"status":"..."},"quote_2":{"status":"..."},'
+        . '"competitor":{"status":"...","found_rating":0.0},'
+        . '"website":{"status":"...","found_url":"","quality":"none|poor|basic|decent"}}}'
+        . "\nOmit keys for claims not listed above. unverifiable = you could not find evidence either way.";
+
+    $r = ho_llm_call($prompt, 'You are a meticulous fact-checker. Verify independently with web search. Return ONLY the JSON object requested.', 4000);
+    if (!$r['ok']) return ['ok' => false, 'error' => $r['error']];
+    $json = ho_llm_extract_json($r['text']);
+    $data = $json !== null ? json_decode($json, true) : null;
+    if (!is_array($data) || !isset($data['checks']) || !is_array($data['checks'])) {
+        return ['ok' => false, 'error' => 'Verifier returned unparseable output.'];
+    }
+    $checks = $data['checks'];
+    $fixes  = [];
+
+    $st = fn(string $k): string => strtolower(trim((string)($checks[$k]['status'] ?? '')));
+
+    // Review count / rating — correct in place when the checker found the real value
+    if ($st('review_count') === 'wrong' && is_numeric($checks['review_count']['found'] ?? null)) {
+        $v = max(0, (int)$checks['review_count']['found']);
+        $pdo->prepare("UPDATE research_records SET google_review_count = ? WHERE business_id = ?")->execute([$v, $bizId]);
+        $fixes[] = "review_count→{$v}";
+    }
+    if ($st('rating') === 'wrong' && is_numeric($checks['rating']['found'] ?? null)) {
+        $v = (float)$checks['rating']['found'];
+        if ($v >= 1 && $v <= 5) {
+            $pdo->prepare("UPDATE research_records SET google_rating = ? WHERE business_id = ?")->execute([$v, $bizId]);
+            $fixes[] = "rating→{$v}";
+        }
+    }
+
+    // Quotes — the highest-stakes claim. Anything not CONFIRMED verbatim is blanked.
+    foreach ([1, 2] as $qn) {
+        if (trim((string)$row["review_quote_{$qn}"]) === '') continue;
+        if ($st("quote_{$qn}") !== 'confirmed') {
+            $pdo->prepare("UPDATE research_records SET review_quote_{$qn} = NULL, review_quote_{$qn}_author = NULL, review_quote_{$qn}_date = NULL WHERE business_id = ?")
+                ->execute([$bizId]);
+            $fixes[] = "quote_{$qn} blanked (" . ($st("quote_{$qn}") ?: 'unchecked') . ")";
+        }
+    }
+
+    // Competitor — wrong name kills all competitor claims; unverifiable rating drops the numbers
+    if (trim((string)$row['competitor_name']) !== '') {
+        if ($st('competitor') === 'wrong') {
+            $pdo->prepare("UPDATE research_records SET competitor_name = NULL, competitor_google_rating = NULL, competitor_review_count = NULL, competitor_has_website = 0 WHERE business_id = ?")
+                ->execute([$bizId]);
+            $fixes[] = 'competitor blanked';
+        } elseif ($st('competitor') === 'confirmed' && is_numeric($checks['competitor']['found_rating'] ?? null)) {
+            $v = (float)$checks['competitor']['found_rating'];
+            if ($v >= 1 && $v <= 5 && $row['competitor_google_rating'] !== null && abs($v - (float)$row['competitor_google_rating']) > 0.05) {
+                $pdo->prepare("UPDATE research_records SET competitor_google_rating = ? WHERE business_id = ?")->execute([$v, $bizId]);
+                $fixes[] = "competitor_rating→{$v}";
+            }
+        } elseif ($st('competitor') === 'unverifiable') {
+            $pdo->prepare("UPDATE research_records SET competitor_google_rating = NULL, competitor_review_count = NULL WHERE business_id = ?")->execute([$bizId]);
+            $fixes[] = 'competitor numbers dropped';
+        }
+    }
+
+    // "No website" claim was wrong and the checker found one — the most
+    // embarrassing email there is. Fix the data and re-route the lead.
+    $foundUrl = trim((string)($checks['website']['found_url'] ?? ''));
+    if ($st('website') === 'wrong' && $foundUrl !== '' && !ho_is_lead_platform_url($foundUrl)
+        && (!(bool)$row['has_website'] || (string)$row['website_quality'] === 'none')) {
+        $q = strtolower(trim((string)($checks['website']['quality'] ?? '')));
+        if (!in_array($q, ['poor', 'basic', 'decent'], true)) $q = 'basic';
+        $pdo->prepare("UPDATE research_records SET has_website = 1, website_quality = ? WHERE business_id = ?")->execute([$q, $bizId]);
+        if ((string)$row['website_url'] === '') {
+            $pdo->prepare("UPDATE businesses SET website_url = ?, updated_at = NOW() WHERE id = ?")->execute([mb_substr($foundUrl, 0, 255), $bizId]);
+        }
+        $fixes[] = "website found ({$q}) — re-routed";
+        try { ho_auto_generate_preview($pdo, $bizId); } catch (Throwable) {}
+    }
+
+    // Stamp the row as verified (post-correction the data is trustworthy)
+    $stamped = false;
+    try {
+        $pdo->prepare("UPDATE research_records SET verified_at = NOW(), verification_json = ? WHERE business_id = ?")
+            ->execute([mb_substr((string)$json, 0, 60000), $bizId]);
+        $stamped = true;
+    } catch (PDOException) {
+        // verified_at columns not migrated — fixes applied, stamp pending migration
+    }
+
+    return ['ok' => true, 'fixes' => $fixes, 'stamped' => $stamped];
+}
+
+/** Cron task: fact-check ready-to-send leads before autopitch can touch them. */
+function ho_run_auto_verify(PDO $pdo, int $max = 2): array {
+    if (!defined('LLM_API_KEY') || LLM_API_KEY === '') {
+        return ['verified' => 0, 'errors' => ['LLM config not loaded.']];
+    }
+    try {
+        $rows = $pdo->query("
+            SELECT b.id, b.business_name FROM businesses b
+            JOIN research_records r ON r.business_id = b.id
+            WHERE b.pipeline_status IN ('preview_ready','enhancement_ready')
+              AND r.verified_at IS NULL
+            ORDER BY b.updated_at DESC
+            LIMIT " . (int)$max . "
+        ")->fetchAll();
+    } catch (PDOException) {
+        return ['verified' => 0, 'errors' => ['Run the verified_at migration first.']];
+    }
+    $done = 0; $errors = []; $allFixes = [];
+    $cap = max(1, (int)(ho_get_setting($pdo, 'ap_verify_daily_cap') ?: '25'));
+    foreach ($rows as $b) {
+        if (!ho_bump_daily_counter($pdo, 'ap_verify_counter', $cap)) { $errors[] = "Verify daily cap ({$cap}) reached."; break; }
+        $res = ho_verify_research($pdo, (int)$b['id']);
+        if ($res['ok']) {
+            $done++;
+            if (!empty($res['fixes'])) $allFixes[] = $b['business_name'] . ': ' . implode(', ', $res['fixes']);
+        } else {
+            $errors[] = $b['business_name'] . ': ' . $res['error'];
+        }
+    }
+    return ['verified' => $done, 'fixes' => $allFixes, 'errors' => $errors];
 }

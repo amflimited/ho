@@ -1132,6 +1132,11 @@ a { color: inherit; }
 .cp-btn-sms { font-family: var(--fn); font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px; border: 1.5px solid #4a7e52; background: transparent; color: #4a7e52; cursor: pointer; transition: background .15s, color .15s; align-self: flex-start; }
 .cp-btn-sms:hover, .cp-btn-sms:active { background: #4a7e52; color: #fff; }
 
+/* ── Truth-gate badges ───────────────────────────────────────────────────── */
+.cp-verify-badge { font-family: var(--fn); font-size: 10px; font-weight: 800; letter-spacing: .05em; padding: 2px 8px; border-radius: 12px; }
+.cp-verify-ok   { background: #e3f2e5; color: #1f6b2c; border: 1px solid #9fd3a8; }
+.cp-verify-warn { background: #fdf3e0; color: #8a6200; border: 1px solid var(--gold); }
+
 /* ── Autopilot panel ─────────────────────────────────────────────────────── */
 .cp-ap-wrap { background: var(--white); border: 1.5px solid var(--border); border-radius: var(--r); }
 .cp-ap-summary { display: flex; align-items: center; gap: 8px; padding: 12px 14px; font-family: var(--fn); font-size: 16px; font-weight: 800; letter-spacing: .03em; cursor: pointer; list-style: none; flex-wrap: wrap; }

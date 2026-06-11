@@ -246,6 +246,7 @@ function ho_money_pitch_why(array $b): string {
     if ($reviews >= 10) $bits[] = $reviews . ' reviews at ' . number_format($rating, 1) . '★';
     if ($stakes !== null) $bits[] = '≈ $' . number_format($stakes['annual']) . '/yr on their table';
     if (empty($bits)) $bits[] = 'Researched, page built, message written — just send.';
+    $bits[] = !empty($b['verified_at']) ? '✓ fact-checked' : '⚠ unverified';
     return implode(' · ', $bits);
 }
 

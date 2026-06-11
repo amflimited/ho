@@ -211,7 +211,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
 
             case 'save_autopilot':
-                $apToggles = ['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest'];
+                $apToggles = ['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest','ap_verify'];
                 foreach ($apToggles as $tk) {
                     ho_set_setting($pdo, $tk, isset($_POST[$tk]) ? '1' : '0');
                 }
@@ -1341,7 +1341,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   <?php
     // ── Autopilot panel state ──────────────────────────────────────────────
     $ap = [];
-    foreach (['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest',
+    foreach (['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest','ap_verify',
               'ap_daily_cap','ap_postal','ap_from_email','ap_digest_email','ap_site_base','ap_source_areas',
               'ap_last_run','gpt_import_key'] as $apk) {
         $ap[$apk] = $pdo ? ho_get_setting($pdo, $apk) : '';
@@ -1401,6 +1401,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_research"<?= $ap['ap_research'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-research</strong> — Claude researches the queue around the clock<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_source"<?= $ap['ap_source'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-source</strong> — one fresh sourcing run a day, least-covered category<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_digest"<?= $ap['ap_digest'] === '1' ? ' checked' : '' ?>> <span><strong>Morning digest</strong> — one email: hot leads, counts, what sent yesterday</span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_verify"<?= $ap['ap_verify'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Truth gate</strong> — a second AI pass fact-checks every claim (reviews, quotes, competitor, “no website”) and fixes or blanks bad data. Auto-pitch only emails leads that passed.<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?> Needs migration: <code>ALTER TABLE research_records ADD COLUMN verified_at DATETIME NULL, ADD COLUMN verification_json TEXT NULL;</code></span></label>
           </div>
 
           <div class="cp-ap-fields">
@@ -1657,6 +1658,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
               <?php if ($bizHot): ?><span class="cp-heat-badge">🔥 HOT</span><?php endif; ?>
               <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
               <span class="cp-score cp-score-<?= $scoreCls ?>">fit&nbsp;<?= $score ?></span>
+              <?php if (!empty($b['verified_at'])): ?><span class="cp-verify-badge cp-verify-ok" title="All claims fact-checked by a second AI pass">✓ fact-checked</span><?php else: ?><span class="cp-verify-badge cp-verify-warn" title="Claims not yet fact-checked — tap the check links below before sending">⚠ unverified</span><?php endif; ?>
               <?php if ($bizHeat): ?>
                 <span class="cp-view-count">
                   <?= $bizHeat['total'] ?> preview view<?= $bizHeat['total'] !== 1 ? 's' : '' ?>
@@ -1723,7 +1725,14 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
               <?php if ($hasTextChannel): ?><button type="button" class="cp-btn-ghost" onclick="copyMessage(this)">Copy message ⧉</button><?php endif; ?>
-              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Their Google listing — check review count and rating">Reviews ↗</a>
+              <?php $ccQuote = trim((string)($b['review_quote_1'] ?? '')); if ($ccQuote !== ''):
+                $ccSnippet = implode(' ', array_slice(preg_split('/\s+/', $ccQuote), 0, 8)); ?>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $ccSnippet . '"')) ?>" target="_blank" title="Exact-match search — the review must appear word for word">Quote ↗</a>
+              <?php endif; ?>
+              <?php $ccComp = trim((string)($b['competitor_name'] ?? '')); if ($ccComp !== ''): ?>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $ccComp . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Check the competitor exists with the stated rating">Comp ↗</a>
+              <?php endif; ?>
               <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
                 <input type="hidden" name="action" value="disqualify_lead">
                 <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
@@ -1881,6 +1890,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             <?php if (!empty($eGaps) || $bizHot2 || $bizHeat2): ?>
             <div class="cp-card-badges" style="flex-wrap:wrap;gap:4px">
               <?php if ($bizHot2): ?><span class="cp-heat-badge">🔥 HOT</span><?php endif; ?>
+              <?php if (!empty($b['verified_at'])): ?><span class="cp-verify-badge cp-verify-ok" title="All claims fact-checked by a second AI pass">✓ fact-checked</span><?php else: ?><span class="cp-verify-badge cp-verify-warn" title="Claims not yet fact-checked — tap the check links below before sending">⚠ unverified</span><?php endif; ?>
               <?php if ($bizHeat2 && !$bizHot2): ?>
                 <span class="cp-view-count"><?= $bizHeat2['total'] ?> view<?= $bizHeat2['total'] !== 1 ? 's' : '' ?></span>
               <?php endif; ?>
@@ -1936,7 +1946,14 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
               <?php if ($hasTextChannel): ?><button type="button" class="cp-btn-ghost" onclick="copyMessage(this)">Copy message ⧉</button><?php endif; ?>
-              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Verify on Google">Verify ↗</a>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Their Google listing — check review count and rating">Reviews ↗</a>
+              <?php $ccQuote = trim((string)($b['review_quote_1'] ?? '')); if ($ccQuote !== ''):
+                $ccSnippet = implode(' ', array_slice(preg_split('/\s+/', $ccQuote), 0, 8)); ?>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $ccSnippet . '"')) ?>" target="_blank" title="Exact-match search — the review must appear word for word">Quote ↗</a>
+              <?php endif; ?>
+              <?php $ccComp = trim((string)($b['competitor_name'] ?? '')); if ($ccComp !== ''): ?>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $ccComp . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Check the competitor exists with the stated rating">Comp ↗</a>
+              <?php endif; ?>
               <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
                 <input type="hidden" name="action" value="disqualify_lead">
                 <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">

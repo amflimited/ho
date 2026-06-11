@@ -58,6 +58,7 @@ $tasks = [
     'digest'    => fn() => ho_send_daily_digest($pdo),
     'drip'      => fn() => ho_run_followup_drip($pdo, 10),
     'hotstrike' => fn() => ho_run_hot_strikes($pdo, 5),
+    'verify'    => fn() => ho_run_auto_verify($pdo, 2),   // truth gate before autopitch
     'autopitch' => fn() => ho_run_auto_pitch($pdo),
     'research'  => fn() => ho_run_auto_research($pdo, 1),
     'source'    => fn() => ho_run_auto_source($pdo),
