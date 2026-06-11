@@ -2090,6 +2090,18 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
 
 function ho_get_website_review_batch(PDO $pdo, int $limit = 60): array {
     try {
+        // Auto-clear lead-platform URLs before surfacing the review queue
+        $candidates = $pdo->query("
+            SELECT id, website_url FROM businesses
+            WHERE website_url != '' AND website_verified = 0
+        ")->fetchAll();
+        foreach ($candidates as $row) {
+            if (ho_is_lead_platform_url((string)$row['website_url'])) {
+                $pdo->prepare("UPDATE businesses SET website_url='', website_verified=0, updated_at=NOW() WHERE id=?")->execute([$row['id']]);
+                $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$row['id']]);
+            }
+        }
+
         $s = $pdo->prepare("
             SELECT b.id, b.business_name, b.location_city, b.website_url,
                    c.name AS category_name,
