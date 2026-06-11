@@ -73,6 +73,12 @@ $orderToken = '';
 try {
     $pdo        = ho_db();
     $previewRow = ho_get_preview_by_slug($pdo, $slug);
+    if (!$previewRow) {
+        // Reputation orders have no previews row — key on the business itself
+        $bq = $pdo->prepare("SELECT id, owner_first_name FROM businesses WHERE business_slug = ? LIMIT 1");
+        $bq->execute([$slug]);
+        $previewRow = $bq->fetch() ?: null;
+    }
     $businessId = $previewRow ? (int)$previewRow['id'] : 0;
     $previewId  = $previewRow ? (int)($previewRow['preview_id'] ?? 0) : null;
     $ownerFirst = $previewRow ? trim((string)($previewRow['owner_first_name'] ?? '')) : '';
@@ -92,7 +98,7 @@ try {
 
 // ── 2. Domain check ───────────────────────────────────────────────────────────
 $pkgCatalog  = ho_package_catalog();
-$pkgLabel    = $pkgCatalog[$pkg]['label'] ?? $pkg;
+$pkgLabel    = $pkg === 'reputation' ? 'Review Catch-Up ($99)' : ($pkgCatalog[$pkg]['label'] ?? $pkg);
 $amountFmt   = '$' . number_format($amountPaid / 100, 2);
 $domainLine  = '';
 $needsDomain = in_array($pkg, ['launch', 'managed'], true) || $ownDomain !== '';
@@ -138,7 +144,24 @@ if ($statusUrl !== '') $adminLines[] = "Status pg:  {$statusUrl}";
 // ── 4. Email customer ─────────────────────────────────────────────────────────
 if ($custEmail !== '' && $statusUrl !== '') {
     $greeting = $ownerFirst !== '' ? "Hey {$ownerFirst}" : 'Hey there';
-    $custBody = implode("\n", [
+    $custBody = $pkg === 'reputation' ? implode("\n", [
+        "{$greeting},",
+        "",
+        "Payment received — your review replies are getting posted.",
+        "",
+        "Within a few hours I'll email you two options: add me as a manager on your",
+        "Google Business Profile (two taps, I send exact instructions) and I post",
+        "every reply for you — or I send the full copy-paste pack. Either way,",
+        "every unanswered review has a thoughtful reply this week.",
+        "",
+        "Questions? Reply to this email or call (765) 443-4321.",
+        "",
+        "— Adam",
+        "Hoosier Online · New Castle, Indiana",
+        "",
+        "P.S. Know another business drowning in unanswered reviews? For every",
+        "referral that signs up, I send you \$50.",
+    ]) : implode("\n", [
         "{$greeting},",
         "",
         "Payment received — I'm building your site now.",

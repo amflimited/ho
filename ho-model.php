@@ -3710,20 +3710,26 @@ function ho_run_auto_pitch(PDO $pdo, int $max = 0): array {
     $sent = 0; $errors = [];
     if ($max <= 0) $max = max(1, (int)(ho_get_setting($pdo, 'ap_pitch_per_run') ?: '3'));
     $queues = [
-        ['rows' => ho_get_preview_ready($pdo),     'enh' => false],
-        ['rows' => ho_get_enhancement_ready($pdo), 'enh' => true],
+        ['rows' => ho_get_preview_ready($pdo),     'kind' => 'site'],
+        ['rows' => ho_get_enhancement_ready($pdo), 'kind' => 'enh'],
+        ['rows' => ho_get_reputation_ready($pdo),  'kind' => 'rep'],
     ];
     $requireVerified = ho_get_setting($pdo, 'ap_verify') === '1';
     foreach ($queues as $q) {
         foreach ($q['rows'] as $b) {
             if ($sent >= $max) break 2;
             if (($gate = ho_autopilot_gate($pdo)) !== null) { $errors[] = $gate; break 2; }
-            // Truth gate: never auto-email claims that haven't survived fact-checking
-            if ($requireVerified && empty($b['verified_at'])) continue;
+            // Truth gate: never auto-email claims that haven't survived fact-checking.
+            // Rep drafts are exempt — their content IS the verbatim public record.
+            if ($requireVerified && $q['kind'] !== 'rep' && empty($b['verified_at'])) continue;
             $email = trim((string)($b['email_address'] ?? ''));
             if ($email === '') continue;
-            $previewUrl = ho_site_base($pdo) . '/go/' . $b['business_slug'];
-            $msg = $q['enh'] ? ho_pitch_message_enhancement($b, $previewUrl) : ho_pitch_message($b, $previewUrl);
+            $previewUrl = ho_site_base($pdo) . ($q['kind'] === 'rep' ? '/rep.php?slug=' : '/go/') . $b['business_slug'];
+            $msg = match ($q['kind']) {
+                'enh'   => ho_pitch_message_enhancement($b, $previewUrl),
+                'rep'   => ho_pitch_message_reputation($b, $previewUrl),
+                default => ho_pitch_message($b, $previewUrl),
+            };
             if (ho_send_email($pdo, (int)$b['id'], $email, $msg['subject'], $msg['body'], 'pitch', 1)) {
                 ho_mark_sent($pdo, (int)$b['id'], 'email', $email);
                 $sent++;
@@ -3847,12 +3853,23 @@ function ho_run_auto_source(PDO $pdo): array {
 
     ho_set_setting($pdo, 'ap_last_source_date', date('Y-m-d')); // claim the slot before the slow API call
 
+    // Source mode: 'site' (default) hunts weak-web-presence trades; 'rep' hunts
+    // ANY business with ignored reviews; 'mix' alternates daily.
+    $mode  = ho_get_setting($pdo, 'ap_source_mode') ?: 'site';
+    $isRep = $mode === 'rep' || ($mode === 'mix' && (int)date('z') % 2 === 1);
+    if ($isRep) {
+        $genCat = $pdo->query("SELECT * FROM categories WHERE slug IN ('general-local','general') LIMIT 1")->fetch();
+        if ($genCat) $cat = $genCat; // else fall back to the least-covered trade
+    }
+
     $runId      = ho_create_source_run($pdo, (int)$cat['id'], $area, 10);
     $exclusions = ho_get_known_business_names($pdo, (int)$cat['id'], $area);
-    $prompt     = ho_generate_sourcing_prompt(
-        ['name' => $cat['name'], 'typical_services' => $cat['typical_services'] ?? ''],
-        $area, 10, $exclusions, $runId
-    );
+    $prompt     = $isRep
+        ? ho_generate_rep_sourcing_prompt($area, 10, $exclusions, $runId)
+        : ho_generate_sourcing_prompt(
+            ['name' => $cat['name'], 'typical_services' => $cat['typical_services'] ?? ''],
+            $area, 10, $exclusions, $runId
+        );
     $r = ho_llm_call($prompt, 'You are a lead sourcing assistant. Use web search to verify every candidate. Return ONLY the JSON object requested — no explanation, no markdown, no preamble.');
     if (!$r['ok']) return ['sourced' => 0, 'errors' => ["{$cat['name']} / {$area}: " . $r['error']]];
     $json = ho_llm_extract_json($r['text']);
@@ -4267,4 +4284,220 @@ function ho_capture_delivery_message(array $c, string $pageUrl): string {
     $jobBit = $job !== '' ? " \u{2014} \u{201C}" . mb_substr($job, 0, 80) . "\u{201D}" : '';
     return "Hi {$hi} \u{2014} Adam Ferree, Hoosier Online. {$cust} just tried to reach you through the website I built for your business"
         . ($phone !== '' ? " ({$phone})" : '') . "{$jobBit}. The lead is yours free \u{2014} go win it. The site that caught it: {$pageUrl}";
+}
+
+// ═══ REVIEW CONCIERGE — the second product line ═══════════════════════════════
+// Done-for-you Google review responses. The deliverable is FINISHED at
+// research time: an LLM pass reads the business's real unanswered reviews and
+// drafts an owner reply for each. The rep page shows the work; $99 buys the
+// catch-up, $29/mo keeps every future review answered within 24h (rides the
+// existing subscription checkout). Works for ANY business with reviews —
+// including the excluded/has_good_website graveyard.
+//
+// Migration:
+//   CREATE TABLE IF NOT EXISTS review_replies (
+//     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+//     business_id INT NOT NULL,
+//     review_author VARCHAR(80) NOT NULL DEFAULT '',
+//     review_rating TINYINT NOT NULL DEFAULT 5,
+//     review_date VARCHAR(20) NOT NULL DEFAULT '',
+//     review_text TEXT,
+//     drafted_reply TEXT,
+//     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+//     INDEX idx_rr_biz (business_id)
+//   ) ENGINE=InnoDB;
+
+function ho_rep_get_drafts(PDO $pdo, int $bizId): array {
+    try {
+        $s = $pdo->prepare("
+            SELECT * FROM review_replies WHERE business_id = ?
+            ORDER BY review_rating ASC, id ASC
+        ");
+        $s->execute([$bizId]);
+        return $s->fetchAll();
+    } catch (PDOException) {
+        return [];
+    }
+}
+
+/**
+ * Draft replies for one business's real unanswered Google reviews.
+ * The prompt is strict about verbatim truth: inventing a review is worse
+ * than finding none. Replaces any previous draft set.
+ */
+function ho_rep_draft(PDO $pdo, int $bizId): array {
+    $s = $pdo->prepare("
+        SELECT b.id, b.business_name, b.location_city, c.name AS category_name
+        FROM businesses b JOIN categories c ON c.id = b.category_id
+        WHERE b.id = ?
+    ");
+    $s->execute([$bizId]);
+    $b = $s->fetch();
+    if (!$b) return ['ok' => false, 'error' => "Business {$bizId} not found."];
+
+    $prompt = "Find the Google reviews for \"{$b['business_name']}\" ({$b['category_name']}) in {$b['location_city']}, Indiana.\n\n"
+        . "List up to 12 reviews that have NO owner response, prioritising: lowest ratings first, then most recent, then most detailed. "
+        . "STRICT RULES: only include reviews you can actually see — text VERBATIM, never invented, never paraphrased. "
+        . "If you cannot verify the business's reviews, return an empty list. Fewer real reviews beats more guessed ones.\n\n"
+        . "For each, draft the reply the owner should post. Reply style: warm, specific to what the reviewer said, plain Indiana voice, no corporate filler, under 75 words. "
+        . "Thank by first name, reference one concrete detail from their review, invite them back. "
+        . "For 1-3 star reviews: acknowledge directly, no excuses, no arguing, offer to make it right with a direct contact, stay calm and classy.\n\n"
+        . "Reply with ONLY this JSON (no fences):\n"
+        . '{"google_rating":0.0,"google_review_count":0,"reviews":[{"author":"","rating":5,"date":"YYYY-MM","text":"","reply":""}]}';
+
+    $r = ho_llm_call($prompt, 'You are a meticulous research assistant and a gifted writer of owner review responses. Verbatim accuracy is sacred: never invent or alter review text. Return ONLY the JSON requested.', 8000);
+    if (!$r['ok']) return ['ok' => false, 'error' => $r['error']];
+    $json = ho_llm_extract_json($r['text']);
+    $data = $json !== null ? json_decode($json, true) : null;
+    if (!is_array($data) || !isset($data['reviews']) || !is_array($data['reviews'])) {
+        return ['ok' => false, 'error' => 'Drafting pass returned unparseable output.'];
+    }
+
+    $rows = [];
+    foreach ($data['reviews'] as $rv) {
+        $text  = trim((string)($rv['text']  ?? ''));
+        $reply = trim((string)($rv['reply'] ?? ''));
+        if ($text === '' || $reply === '') continue;
+        $rows[] = [
+            mb_substr(trim((string)($rv['author'] ?? '')), 0, 80),
+            max(1, min(5, (int)($rv['rating'] ?? 5))),
+            mb_substr(trim((string)($rv['date'] ?? '')), 0, 20),
+            mb_substr($text, 0, 2000),
+            mb_substr($reply, 0, 1200),
+        ];
+    }
+    if (empty($rows)) return ['ok' => false, 'error' => 'No verifiable unanswered reviews found.'];
+
+    try {
+        $pdo->prepare("DELETE FROM review_replies WHERE business_id = ?")->execute([$bizId]);
+        $ins = $pdo->prepare("
+            INSERT INTO review_replies (business_id, review_author, review_rating, review_date, review_text, drafted_reply)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        foreach ($rows as $row) $ins->execute([$bizId, ...$row]);
+    } catch (PDOException $e) {
+        return ['ok' => false, 'error' => 'review_replies table missing — run the migration. (' . $e->getMessage() . ')'];
+    }
+
+    // Refresh headline numbers when the drafting pass found them
+    if (is_numeric($data['google_rating'] ?? null) && (float)$data['google_rating'] > 0) {
+        try {
+            $pdo->prepare("UPDATE research_records SET google_rating = ?, google_review_count = ? WHERE business_id = ?")
+                ->execute([(float)$data['google_rating'], max(0, (int)($data['google_review_count'] ?? 0)), $bizId]);
+        } catch (PDOException) {}
+    }
+    return ['ok' => true, 'drafted' => count($rows)];
+}
+
+/** Businesses worth drafting for: real reviews, silence from the owner — the graveyard included. */
+function ho_rep_candidates(PDO $pdo, int $limit = 10): array {
+    try {
+        return $pdo->query("
+            SELECT b.id, b.business_name, b.location_city
+            FROM businesses b
+            JOIN research_records r ON r.business_id = b.id
+            LEFT JOIN review_replies rr ON rr.business_id = b.id
+            WHERE r.google_review_count >= 5
+              AND (r.responds_to_reviews = 0 OR r.responds_to_reviews IS NULL)
+              AND b.pipeline_status NOT IN ('pitched','converted','not_a_fit')
+              AND (b.email_address != '' OR b.phone_number != '' OR b.website_url != '' OR b.facebook_url != '')
+              AND rr.id IS NULL
+            GROUP BY b.id
+            ORDER BY r.google_review_count DESC
+            LIMIT " . (int)$limit . "
+        ")->fetchAll();
+    } catch (PDOException) {
+        return [];
+    }
+}
+
+/** Cron task: draft reply sets, capped. Toggle ap_repdraft. */
+function ho_run_rep_draft(PDO $pdo, int $max = 2): array {
+    if (!defined('LLM_API_KEY') || LLM_API_KEY === '') {
+        return ['drafted' => 0, 'errors' => ['LLM config not loaded.']];
+    }
+    $cap = max(1, (int)(ho_get_setting($pdo, 'ap_repdraft_daily_cap') ?: '20'));
+    $done = 0; $errors = [];
+    foreach (ho_rep_candidates($pdo, $max) as $b) {
+        if (!ho_bump_daily_counter($pdo, 'ap_repdraft_counter', $cap)) { $errors[] = "Draft daily cap ({$cap}) reached."; break; }
+        $res = ho_rep_draft($pdo, (int)$b['id']);
+        $res['ok'] ? $done++ : $errors[] = $b['business_name'] . ': ' . $res['error'];
+    }
+    return ['drafted' => $done, 'errors' => $errors];
+}
+
+/** The rep send queue: drafts ready, lead contactable, not already in a sales conversation. */
+function ho_get_reputation_ready(PDO $pdo): array {
+    try {
+        $rows = $pdo->query("
+            SELECT b.id, b.business_name, b.business_slug, b.location_city,
+                   b.email_address, b.facebook_url, b.website_url, b.phone_number,
+                   b.best_contact_method, b.owner_first_name,
+                   c.name AS category_name, c.slug AS category_slug,
+                   r.google_review_count, r.google_rating,
+                   COUNT(rr.id) AS draft_count, MIN(rr.review_rating) AS worst_rating
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            JOIN review_replies rr ON rr.business_id = b.id
+            LEFT JOIN research_records r ON r.business_id = b.id
+            WHERE b.pipeline_status NOT IN ('pitched','converted','not_a_fit')
+            GROUP BY b.id
+            ORDER BY worst_rating ASC, draft_count DESC
+            LIMIT 50
+        ")->fetchAll();
+    } catch (PDOException) {
+        return [];
+    }
+    foreach ($rows as &$row) {
+        // The showpiece: the worst (then most recent) unanswered review
+        $w = $pdo->prepare("SELECT review_author, review_rating, review_date, review_text FROM review_replies WHERE business_id = ? ORDER BY review_rating ASC, id ASC LIMIT 1");
+        $w->execute([(int)$row['id']]);
+        $worst = $w->fetch() ?: null;
+        $row['worst_author'] = $worst ? (string)$worst['review_author'] : '';
+        $row['worst_rating'] = $worst ? (int)$worst['review_rating']    : 0;
+        $row['worst_date']   = $worst ? (string)$worst['review_date']   : '';
+    }
+    unset($row);
+    return $rows;
+}
+
+/** The reputation pitch — same rules: one observation, one link, one ask. */
+function ho_pitch_message_reputation(array $biz, string $repUrl): array {
+    $name      = (string)$biz['business_name'];
+    $firstName = trim((string)($biz['owner_first_name'] ?? ''));
+    $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
+    $n         = (int)($biz['draft_count'] ?? 0);
+    $worstA    = trim((string)($biz['worst_author'] ?? ''));
+    $worstR    = (int)($biz['worst_rating'] ?? 0);
+
+    if ($worstA !== '' && $worstR > 0 && $worstR <= 3) {
+        $subject = "{$worstA}\u{2019}s review of {$name} is still waiting";
+        $opener  = "{$worstA} left {$name} a {$worstR}-star review and it\u{2019}s never been answered. Every customer who checks you out since has read that silence \u{2014} and " . max(0, $n - 1) . " other reviews are sitting unanswered with it.";
+    } elseif ($n > 0) {
+        $subject = "{$n} reviews of {$name}, zero replies";
+        $opener  = "{$n} of your Google reviews have no response from you. Customers notice \u{2014} an answered review page reads like a business that shows up; silence reads like one that checked out.";
+    } else {
+        $subject = "your Google reviews";
+        $opener  = "Your Google reviews are doing the selling for {$name} \u{2014} but nobody from your side has ever joined the conversation.";
+    }
+
+    $bridge = "I went ahead and wrote the replies \u{2014} all of them, in your voice, ready to post. They\u{2019}re yours to read:";
+    $closer = "If it\u{2019}s not for you, ignore this and I won\u{2019}t bother you. But read the first one \u{2014} it\u{2019}s the reply your toughest review deserved.";
+    $sig    = "\u{2014} Adam Ferree\nHoosier Online \u{00B7} New Castle, Indiana\n(765) 443-4321";
+    $ps     = "P.S. Reading them is free and they\u{2019}re written either way. No call, no meeting.";
+
+    return ['subject' => $subject, 'body' => "{$greeting}\n\n{$opener}\n\n{$bridge}\n\n{$repUrl}\n\n{$closer}\n\n{$sig}\n\n{$ps}"];
+}
+
+/** Sourcing prompt for the rep funnel — ANY Indiana business with ignored reviews. */
+function ho_generate_rep_sourcing_prompt(string $area, int $count, array $exclusions, int $runId = 0): string {
+    $excl = empty($exclusions) ? 'none' : implode('; ', array_slice($exclusions, 0, 120));
+    return "Find {$count} real local businesses in or near {$area}, Indiana \u{2014} ANY type (restaurants, dentists, salons, auto shops, gyms, vets, retail, trades) \u{2014} that meet ALL of these:\n"
+        . "1. At least 10 Google reviews on a verifiable Google Maps listing.\n"
+        . "2. Several recent reviews have NO owner response (this is the whole point \u{2014} verify it).\n"
+        . "3. At least one contact path: website, Facebook page, phone, or email.\n"
+        . "Already known (exclude): {$excl}\n\n"
+        . "Verify every candidate via web search. Return fewer rather than guess. Include for each: how you found it (found_via) and your confidence (high/medium/low).\n\n"
+        . "Reply with ONLY this JSON (no fences, no commentary):\n"
+        . '{"run_id":' . $runId . ',"candidates":[{"business_name":"","city":"","state":"IN","website_url":"","facebook_url":"","google_url":"","phone":"","email":"","found_via":"","confidence":"high"}]}';
 }

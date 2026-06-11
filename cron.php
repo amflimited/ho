@@ -61,6 +61,7 @@ $tasks = [
     'verify'    => fn() => ho_run_auto_verify($pdo, 2),   // truth gate before autopitch
     'autopitch' => fn() => ho_run_auto_pitch($pdo),
     'research'  => fn() => ho_run_auto_research($pdo, 1),
+    'repdraft'  => fn() => ho_run_rep_draft($pdo, 2),     // Review Concierge drafting
     'source'    => fn() => ho_run_auto_source($pdo),
 ];
 

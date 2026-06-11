@@ -83,7 +83,7 @@ $pipelineValue = 0.0;  // dollars currently sitting on the floor
 $hotCount = 0;
 $siteBase = 'https://' . ($_SERVER['HTTP_HOST'] ?? 'hoosieronline.com');
 
-$buildReady = []; $enhReady = []; $followups = []; $hotLeads = []; $interested = []; $triage = [];
+$buildReady = []; $enhReady = []; $repReady = []; $followups = []; $hotLeads = []; $interested = []; $triage = [];
 $struckRecently = []; $captures = [];
 
 if ($pdo !== null) {
@@ -92,6 +92,7 @@ if ($pdo !== null) {
     try { $followups  = ho_get_followup_due_full($pdo, 20); } catch (Throwable) {}
     try { $triage     = ho_get_triage_batch($pdo, 40); }  catch (Throwable) {}
     try { $captures   = ho_get_unforwarded_captures($pdo, 10); } catch (Throwable) {}
+    try { $repReady    = ho_get_reputation_ready($pdo); } catch (Throwable) {}
 
     // Hot: pitched leads who visited in the last 48h
     try {
@@ -142,6 +143,7 @@ if ($pdo !== null) {
 
 // Pipeline value = what's ready to close + what's in play
 $pipelineValue += count($buildReady) * 199;
+$pipelineValue += count($repReady) * 99;
 foreach ($enhReady as $b) $pipelineValue += (float)($b['bundle_total'] ?? 0) ?: 199;
 $inPlay = count($followups) + count($hotLeads) + count($interested);
 
@@ -257,6 +259,22 @@ foreach ($enhReady as $b) {
         'type' => 'pitch', 'biz' => $b,
         'tag' => '✨ FRESH — UPGRADE', 'value' => $bundle > 0 ? '$' . number_format($bundle) : 'quote',
         'why' => ho_money_pitch_why($b),
+        'subject' => $msg['subject'], 'body' => $msg['body'],
+    ];
+}
+foreach ($repReady as $b) {
+    $url = $siteBase . '/rep.php?slug=' . $b['business_slug'];
+    $msg = ho_pitch_message_reputation($b, $url);
+    $worstBit = ((int)$b['worst_rating'] > 0 && (int)$b['worst_rating'] <= 3)
+        ? ' · worst: ' . (int)$b['worst_rating'] . '★ unanswered' . ((string)$b['worst_author'] !== '' ? ' from ' . ho_h((string)$b['worst_author']) : '')
+        : '';
+    $pitchMoves[] = [
+        'prio' => 200 + min(60, (int)$b['draft_count'] * 5)
+                + ((string)$b['email_address'] !== '' ? 50 : 0)
+                + ((int)$b['worst_rating'] > 0 && (int)$b['worst_rating'] <= 2 ? 40 : 0),
+        'type' => 'pitch', 'biz' => $b,
+        'tag' => '✍️ REVIEWS IGNORED', 'value' => '$99 + $29/mo',
+        'why' => (int)$b['draft_count'] . ' replies already written' . $worstBit . ' · the work is done — just send.',
         'subject' => $msg['subject'], 'body' => $msg['body'],
     ];
 }

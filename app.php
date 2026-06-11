@@ -211,7 +211,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
 
             case 'save_autopilot':
-                $apToggles = ['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest','ap_verify'];
+                $apToggles = ['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest','ap_verify','ap_repdraft'];
                 foreach ($apToggles as $tk) {
                     ho_set_setting($pdo, $tk, isset($_POST[$tk]) ? '1' : '0');
                 }
@@ -329,6 +329,7 @@ if ($pdo && !empty($enrichmentBatch)) {
 }
 try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e) { $sendQueue = []; $dbError = $dbError ?? $e->getMessage(); }
 try { $enhancementQueue = $pdo ? ho_get_enhancement_ready($pdo) : []; } catch (Throwable) { $enhancementQueue = []; }
+try { $reputationQueue  = $pdo ? ho_get_reputation_ready($pdo)  : []; } catch (Throwable) { $reputationQueue = []; }
 $noContactStuckCount = $pdo ? ho_count_no_contact_ready($pdo) : 0;
 try { $followupDue = $pdo ? ho_get_followup_due_full($pdo) : []; } catch (Throwable) { $followupDue = []; }
 
@@ -1341,7 +1342,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   <?php
     // ── Autopilot panel state ──────────────────────────────────────────────
     $ap = [];
-    foreach (['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest','ap_verify',
+    foreach (['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest','ap_verify','ap_repdraft',
               'ap_daily_cap','ap_postal','ap_from_email','ap_digest_email','ap_site_base','ap_source_areas',
               'ap_last_run','gpt_import_key'] as $apk) {
         $ap[$apk] = $pdo ? ho_get_setting($pdo, $apk) : '';
@@ -1401,6 +1402,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_research"<?= $ap['ap_research'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-research</strong> — Claude researches the queue around the clock<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_source"<?= $ap['ap_source'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-source</strong> — one fresh sourcing run a day, least-covered category<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_digest"<?= $ap['ap_digest'] === '1' ? ' checked' : '' ?>> <span><strong>Morning digest</strong> — one email: hot leads, counts, what sent yesterday</span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_repdraft"<?= $ap['ap_repdraft'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Review Concierge drafting</strong> — writes reply sets for businesses with ignored reviews (incl. the excluded/good-website pile); they join the send queue at $99 + $29/mo.<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?> Needs migration: <code>CREATE TABLE review_replies …</code> (see CLAUDE.md)</span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_verify"<?= $ap['ap_verify'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Truth gate</strong> — a second AI pass fact-checks every claim (reviews, quotes, competitor, “no website”) and fixes or blanks bad data. Auto-pitch only emails leads that passed.<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?> Needs migration: <code>ALTER TABLE research_records ADD COLUMN verified_at DATETIME NULL, ADD COLUMN verification_json TEXT NULL;</code></span></label>
           </div>
 
@@ -1980,6 +1982,59 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
               </details>
             </div>
 
+          </div>
+        <?php endforeach; endif; ?>
+
+        <?php if (!empty($reputationQueue)): foreach ($reputationQueue as $b):
+          $region     = $cityToRegion[(string)$b['location_city']] ?? '';
+          $repUrl     = 'https://' . $_SERVER['HTTP_HOST'] . '/rep.php?slug=' . $b['business_slug'];
+          $hasEmail   = (string)$b['email_address'] !== '';
+          $_siteUrl   = (string)$b['website_url'];
+          $hasSiteUrl = $_siteUrl !== '' && !ho_is_lead_platform_url($_siteUrl);
+          $hasFb      = (string)$b['facebook_url']  !== '';
+          $hasPhone   = (string)$b['phone_number']  !== '';
+          $repMsg     = ho_pitch_message_reputation($b, $repUrl);
+          $repMailto  = 'mailto:' . rawurlencode((string)$b['email_address'])
+                      . '?subject=' . rawurlencode($repMsg['subject']) . '&body=' . rawurlencode($repMsg['body']);
+          $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb;
+        ?>
+          <div class="cp-send-card cp-send-card-rep" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="rep" data-haswebsite="1" data-hasemail="<?= $hasEmail ? '1' : '0' ?>">
+            <div class="cp-send-head">
+              <strong><?= ho_h((string)$b['business_name']) ?></strong>
+              <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?> &middot; <strong>$99 + $29/mo</strong></span>
+              <span class="cp-sent-flag" hidden>✓ Sent</span>
+            </div>
+            <div class="cp-card-badges">
+              <span class="cp-rep-badge">✍️ <?= (int)$b['draft_count'] ?> replies drafted</span>
+              <?php if ((int)$b['worst_rating'] > 0 && (int)$b['worst_rating'] <= 3): ?>
+                <span class="cp-rep-badge cp-rep-badge-bad"><?= (int)$b['worst_rating'] ?>★ unanswered<?= $b['worst_author'] !== '' ? ' — ' . ho_h((string)$b['worst_author']) : '' ?></span>
+              <?php endif; ?>
+            </div>
+            <div class="cp-send-primary">
+              <?php if ($hasEmail): ?>
+                <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h($repMailto) ?>" data-to="<?= ho_h((string)$b['email_address']) ?>" onclick="markSent(this,'email')">✉&thinsp; Email <?= ho_h((string)$b['business_name']) ?></a>
+              <?php elseif ($hasFb): ?>
+                <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener" data-to="<?= ho_h((string)$b['facebook_url']) ?>" onclick="markSent(this,'facebook_dm')">Message on Facebook →</a>
+              <?php elseif ($hasSiteUrl): ?>
+                <button type="button" class="cp-btn-send cp-btn-send-copy" data-to="<?= ho_h($_siteUrl) ?>"
+                  onclick="copyAndOpen(this,<?= json_encode($_siteUrl) ?>);markSent(this,'website_form')">⧉ Copy message + open their site →</button>
+              <?php elseif ($hasPhone): ?>
+                <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>" data-to="<?= ho_h((string)$b['phone_number']) ?>" onclick="markSent(this,'phone')">Call <?= ho_h((string)$b['phone_number']) ?></a>
+              <?php else: ?>
+                <span class="cp-send-no-contact">No contact info on file</span>
+              <?php endif; ?>
+            </div>
+            <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($repMsg['body']) ?></textarea><?php endif; ?>
+            <div class="cp-send-secondary">
+              <a class="cp-btn-ghost" href="/rep.php?slug=<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Rep page ↗</a>
+              <?php if ($hasTextChannel): ?><button type="button" class="cp-btn-ghost" onclick="copyMessage(this)">Copy message ⧉</button><?php endif; ?>
+              <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana reviews')) ?>" target="_blank" title="Confirm the unanswered reviews are real before sending">Reviews ↗</a>
+              <form method="POST" style="display:inline" onsubmit="return confirm('Remove this lead as not a fit?')">
+                <input type="hidden" name="action" value="disqualify_lead">
+                <input type="hidden" name="business_id" value="<?= (int)$b['id'] ?>">
+                <button type="submit" class="cp-btn-ghost cp-btn-disqualify">Not a fit ✕</button>
+              </form>
+            </div>
           </div>
         <?php endforeach; endif; ?>
 

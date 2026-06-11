@@ -734,3 +734,74 @@ CREATE TABLE IF NOT EXISTS captured_leads (
 ```
 Pre-migration the form still renders and thanks the visitor (capture lost) —
 run the migration before sharing pages broadly.
+
+## ✍️ REVIEW CONCIERGE (2026-06-11) — second product line, full app
+
+Done-for-you Google review responses. The deliverable is FINISHED at research
+time; the rep page shows the work; loss-aversion closes. Targets ANY Indiana
+business with ignored reviews — including the excluded/has_good_website
+graveyard, which becomes inventory.
+
+**Offer:** $99 catch-up (every unanswered review replied — Adam posts via GBP
+manager invite, or hands over the copy-paste pack) + optional default-checked
+$29/mo Review Concierge (every new review answered <24h) — rides the existing
+`care=1` subscription checkout with a rep-specific line-item label.
+
+**New file `rep.php`** (`/rep.php?slug={business_slug}`): front-door styled.
+Worst review + drafted reply shown as the showpiece (2 shown, rest teased
+with count), stats strip (rating/reviews/unanswered), $99+concierge checkout
+via checkout.php `pkg=reputation`, guarantee, paid state with GBP-manager
+instructions + $50 referral, viral footer. Logs heat via
+ho_log_preview_visit(pdo, 0, bizId).
+
+**Pipeline (all in ho-model.php):**
+- `ho_rep_draft(PDO,bizId)` — Claude+web search reads REAL unanswered reviews
+  (verbatim-strict prompt: inventing > finding none = forbidden), drafts ≤75-word
+  owner replies (warm voice; 1-3★: acknowledge, no excuses, take it offline);
+  replaces the set in `review_replies`; refreshes rating/count.
+- `ho_rep_candidates()` — researched, ≥5 reviews, responds_to_reviews≠1,
+  contactable, not pitched/converted, no drafts yet (graveyard included).
+- `ho_run_rep_draft()` — cron task `repdraft` (toggle `ap_repdraft`, cap
+  `ap_repdraft_daily_cap`=20, 2/run).
+- `ho_get_reputation_ready()` — send queue w/ draft_count + worst review meta.
+- `ho_pitch_message_reputation()` — "{author}'s review of {name} is still
+  waiting" / "{n} reviews, zero replies"; same short-email rules.
+- `ho_generate_rep_sourcing_prompt()` — ANY business type, ≥10 reviews,
+  several unanswered; emits standard candidates JSON (business_name key).
+- Auto-source: setting `ap_source_mode` = site|rep|mix (mix alternates days);
+  rep runs use the `general-local` category when present.
+- Auto-pitch includes the rep queue (rep exempt from ap_verify gate — the
+  drafts ARE the verbatim public record, with strict-prompt + human Reviews ↗
+  check on cards).
+
+**checkout.php:** `pkg=reputation` → loads business directly (no previews row
+needed), $99 line item, rep success/cancel URLs, rep care label.
+**webhook.php:** falls back to business_slug lookup when no preview row; rep
+package label; rep-specific customer confirmation email (GBP manager flow).
+**app.php:** purple-accent rep cards in Send tab (badges: N replies drafted,
+worst ★ + author; Reviews ↗ pre-send check), `ap_repdraft` panel toggle.
+**money.php:** ✍️ REVIEWS IGNORED pitch moves ($99 + $29/mo value chip, prio
+boosted by draft count + 1-2★ worst review); pipeline $ includes rep queue ×99.
+
+**⚠ REQUIRED MIGRATIONS:**
+```sql
+CREATE TABLE IF NOT EXISTS review_replies (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  business_id INT NOT NULL,
+  review_author VARCHAR(80) NOT NULL DEFAULT '',
+  review_rating TINYINT NOT NULL DEFAULT 5,
+  review_date VARCHAR(20) NOT NULL DEFAULT '',
+  review_text TEXT,
+  drafted_reply TEXT,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_rr_biz (business_id)
+) ENGINE=InnoDB;
+
+-- Optional but recommended: catch-all category so rep sourcing can target
+-- ANY business type (restaurants, dentists, salons...):
+INSERT INTO categories (name, slug, typical_services)
+VALUES ('General Local Business', 'general-local', '[]');
+-- (If categories has more NOT NULL columns, add values accordingly.)
+```
+No schema change needed on previews/businesses — rep is keyed entirely on
+review_replies + business_slug.

@@ -1132,6 +1132,11 @@ a { color: inherit; }
 .cp-btn-sms { font-family: var(--fn); font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px; border: 1.5px solid #4a7e52; background: transparent; color: #4a7e52; cursor: pointer; transition: background .15s, color .15s; align-self: flex-start; }
 .cp-btn-sms:hover, .cp-btn-sms:active { background: #4a7e52; color: #fff; }
 
+/* ── Review Concierge cards ──────────────────────────────────────────────── */
+.cp-send-card-rep { border-left: 4px solid #7b5ea7; }
+.cp-rep-badge { font-family: var(--fn); font-size: 10px; font-weight: 800; letter-spacing: .05em; padding: 2px 8px; border-radius: 12px; background: #efe9f7; color: #5a4380; border: 1px solid #c9b8e0; }
+.cp-rep-badge-bad { background: #fdeaea; color: #9b2226; border-color: #e8b4b8; }
+
 /* ── Truth-gate badges ───────────────────────────────────────────────────── */
 .cp-verify-badge { font-family: var(--fn); font-size: 10px; font-weight: 800; letter-spacing: .05em; padding: 2px 8px; border-radius: 12px; }
 .cp-verify-ok   { background: #e3f2e5; color: #1f6b2c; border: 1px solid #9fd3a8; }

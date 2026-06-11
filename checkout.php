@@ -64,7 +64,15 @@ try {
 
     // ── Business + preview context for receipt and server-side pricing ─────────
     $pdo = ho_db();
-    $row = ho_get_preview_by_slug($pdo, $slug);
+    $isReputation = $pkg === 'reputation';
+    if ($isReputation) {
+        // Rep product is keyed on the business itself — no previews row needed
+        $bq = $pdo->prepare("SELECT id, business_name, business_slug FROM businesses WHERE business_slug = ? LIMIT 1");
+        $bq->execute([$slug]);
+        $row = $bq->fetch() ?: null;
+    } else {
+        $row = ho_get_preview_by_slug($pdo, $slug);
+    }
     if (!$row) {
         ob_end_clean();
         header('Location: /');
@@ -73,12 +81,17 @@ try {
 
     $bizName       = (string)$row['business_name'];
     $previewType   = (string)($row['preview_type'] ?? 'site_build');
-    $isEnhancement = $previewType === 'enhancement' || $pkg === 'enhancement';
+    $isEnhancement = !$isReputation && ($previewType === 'enhancement' || $pkg === 'enhancement');
 
     // ── Build line items — prices from server/catalog/database, never from POST ─
     $items = [];
 
-    if ($isEnhancement) {
+    if ($isReputation) {
+        $items[] = [
+            'name'   => "Review Catch-Up \u{2014} every unanswered Google review answered \u{2014} {$bizName}",
+            'amount' => 9900,
+        ];
+    } elseif ($isEnhancement) {
         $bundle = ho_current_enhancement_bundle($pdo, $row);
         $bundleItems = (array)($bundle['items'] ?? []);
         $total = (float)($bundle['total'] ?? 0);
@@ -121,11 +134,11 @@ try {
 
     // ── Stripe Checkout Session ────────────────────────────────────────────────
     $host      = 'https://' . $_SERVER['HTTP_HOST'];
-    $cancelUrl = $host . '/go.php?slug=' . rawurlencode($slug);
+    $cancelUrl = $host . ($isReputation ? '/rep.php?slug=' : '/go.php?slug=') . rawurlencode($slug);
 
     $ownDotCom  = $chosenCom;
     $hasDomain  = $chosenCom !== '';
-    $successUrl = $host . '/go.php?slug=' . rawurlencode($slug) . '&paid=1'
+    $successUrl = $host . ($isReputation ? '/rep.php?slug=' : '/go.php?slug=') . rawurlencode($slug) . '&paid=1'
         . ($templateKey !== '' ? '&tpl=' . rawurlencode($templateKey) : '')
         . ($pkg        !== '' ? '&pkg=' . rawurlencode($pkg)        : '')
         . ($ownDotCom  !== '' ? '&dom=' . rawurlencode($ownDotCom)  : '');
@@ -158,7 +171,9 @@ try {
         $params['metadata[care]']                        = '1';
         $ci = count($items);
         $params["line_items[{$ci}][price_data][currency]"]                    = 'usd';
-        $params["line_items[{$ci}][price_data][product_data][name]"]          = "Keep-It-Running Plan \u{2014} hosting, security, unlimited small edits, monthly Google post";
+        $params["line_items[{$ci}][price_data][product_data][name]"]          = $isReputation
+            ? "Review Concierge \u{2014} every new Google review answered within 24h"
+            : "Keep-It-Running Plan \u{2014} hosting, security, unlimited small edits, monthly Google post";
         $params["line_items[{$ci}][price_data][unit_amount]"]                 = '2900';
         $params["line_items[{$ci}][price_data][recurring][interval]"]         = 'month';
         $params["line_items[{$ci}][quantity]"]                                = '1';
