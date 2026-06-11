@@ -1786,11 +1786,32 @@ function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
 
     $greeting = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n"
+    // Data-driven intro
+    if ($reviews >= 10 && $rating >= 4.0) {
+        $intro = "{$reviews} reviews at " . number_format($rating, 1) . "\u{2605} \u{2014} {$name} has a solid reputation in {$city}.";
+    } elseif ($reviews >= 5) {
+        $intro = "{$reviews} Google reviews for {$name} in {$city} \u{2014} people are finding you.";
+    } else {
+        $intro = "I looked at {$catLower} businesses in {$city} and {$name} came up.";
+    }
+
+    // Stronger closing — specific offer, no fluff
+    $closingLine = $bundleTotal > 0
+        ? "Everything I\u{2019}d fix, done for a flat \$" . number_format($bundleTotal) . " \u{2014} one time, no contract. Want just one piece? That works too. Reply and I\u{2019}ll get started the same day."
+        : "Reply here and I\u{2019}ll have a quote to you the same day. One flat fee, no contract, no surprises.";
+
+    // P.S. — use the strongest remaining signal
+    $psLine = '';
+    if ($stakes !== null) {
+        $psLine = "\nP.S. The average {$catLower} job runs \$" . number_format($stakes['ticket']) . ". Even one extra job a month from fixing these gaps covers the cost inside the first week.";
+    } elseif ($quote !== '' && $quoteAuthor !== '') {
+        $psLine = "\nP.S. {$quoteAuthor} wrote: \u{201C}" . ho_quote_inline($quote, 100) . "\u{201D} \u{2014} that belongs on your homepage, not three scrolls deep in Google.";
+    }
+
+    $body = "{$greeting}\n\n{$intro}\n\n"
         . "{$hook}\n{$stakesLine}"
-        . "\nI put together a short page showing exactly what I\u{2019}d do and what each piece costs:\n\n{$previewUrl}\n"
-        . "{$offerLine}"
-        . "\nReply to this or call \u{2014} I\u{2019}ll send a quote the same day.\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+        . "\nI put together a page showing exactly what I\u{2019}d do and what each piece costs:\n\n{$previewUrl}\n\n"
+        . "{$closingLine}{$psLine}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
 
     return ['subject' => $subject, 'body' => $body];
 }
@@ -2065,15 +2086,52 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
         $seasonalLine = "\n{$seasonal}\n";
     }
 
-    // Closing line — varies by owner age band
-    $closing = $ageBand === '55plus'
-        ? "Take a look \u{2014} it\u{2019}s free, no strings. I handle all the technical side, so there\u{2019}s nothing for you to deal with. If it looks right, just reply and we\u{2019}ll take it from there."
-        : "Take a look \u{2014} it\u{2019}s free, no strings. If it resonates, I\u{2019}d love to connect.";
-
     $firstName = trim((string)($biz['owner_first_name'] ?? ''));
     $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    $body = "{$greeting}\n\nI came across {$name} while looking at {$catLower} businesses in {$city}.\n\n{$hook}{$gapLine}{$stakesLine}{$seasonalLine}\nI put together a quick mockup showing what a stronger online presence could look like for you:\n\n{$previewUrl}\n\n{$closing}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    // Data-driven intro — open with the most remarkable signal, not a template line
+    if ($reviews >= 10 && $rating >= 4.0) {
+        $intro = "{$reviews} Google reviews at " . number_format($rating, 1) . "\u{2605} \u{2014} {$name} has real credibility in {$city}.";
+    } elseif ($years >= 5 && $noSite) {
+        $intro = "{$years} years running {$name} in {$city}.";
+    } elseif ($reviews >= 5) {
+        $intro = "{$reviews} Google reviews for {$name} in {$city} \u{2014} people are finding you and liking what they get.";
+    } elseif ($noSite) {
+        $intro = "Searched {$catLower} near {$city}, found {$name} \u{2014} solid reputation, no website.";
+    } else {
+        $intro = "I looked at {$catLower} businesses in {$city} and {$name} came up.";
+    }
+
+    // Hook-matched preview framing — the CTA sentence mirrors the hook
+    if ($strongHook && $quote !== '') {
+        $ctaLine = "I put " . ($quoteAuthor !== '' ? "{$quoteAuthor}\u{2019}s words" : "that review") . " right on the front page of a site I built for you:";
+    } elseif ($strongHook && $compName !== '' && $noSite) {
+        $ctaLine = "Here\u{2019}s what closing that gap looks like:";
+    } elseif ($hasAngi || $hasThumb) {
+        $platform2 = $hasAngi ? 'Angi' : 'Thumbtack';
+        $ctaLine = "Here\u{2019}s what owning your own leads channel \u{2014} no {$platform2} cut \u{2014} looks like:";
+    } elseif ($reviews >= 10 && $noSite) {
+        $ctaLine = "Here\u{2019}s what putting those {$reviews} reviews to work looks like:";
+    } else {
+        $ctaLine = "Here\u{2019}s what I built:";
+    }
+
+    // Specific closing with deliverables and timeline — replaces soft "no strings"
+    $closing = $ageBand === '55plus'
+        ? "No charge to view. If it looks right, just reply \u{2014} I handle everything technical, nothing for you to figure out. Flat \$199 to go live."
+        : "No charge to view. If it looks right: \$199 flat, live in 24 hours \u{2014} domain, hosting, everything included. Reply here and I\u{2019}ll take it from there.";
+
+    // P.S. — most-read part of an email; use the strongest fact NOT already in the hook
+    $psLine = '';
+    if ($stakes !== null && $strongHook) {
+        $psLine = "\nP.S. The average {$catLower} job runs \$" . number_format($stakes['ticket']) . ". One new customer a month from search pays for this in the first week.";
+    } elseif ($reviews >= 20 && $noSite && !$strongHook) {
+        $psLine = "\nP.S. {$reviews} reviews and no website is actually rare \u{2014} it means you\u{2019}re already trusted, just not findable. This fixes that.";
+    } elseif ($years >= 5 && $reviews >= 5 && !$strongHook) {
+        $psLine = "\nP.S. {$years} years in business + {$reviews} reviews is a strong foundation. A website just makes it visible to people who haven\u{2019}t heard of you yet.";
+    }
+
+    $body = "{$greeting}\n\n{$intro}\n\n{$hook}{$gapLine}{$stakesLine}{$seasonalLine}\n{$ctaLine}\n\n{$previewUrl}\n\n{$closing}{$psLine}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
 
     return ['subject' => $subject, 'body' => $body];
 }
@@ -2084,6 +2142,79 @@ function ho_pitch_mailto(array $biz, string $previewUrl): string {
     return 'mailto:' . rawurlencode($email)
         . '?subject=' . rawurlencode($m['subject'])
         . '&body='    . rawurlencode($m['body']);
+}
+
+/**
+ * Short-form message for pasting into a business's website contact form.
+ * Contact forms are read fast — one punch, full sign-off, under 200 words.
+ * Returns ['subject', 'body'] matching the email subject so Adam can copy
+ * the subject into the form's Subject field too.
+ */
+function ho_contact_form_message(array $biz, string $previewUrl): array {
+    $name        = (string)$biz['business_name'];
+    $city        = (string)$biz['location_city'];
+    $catLower    = strtolower((string)$biz['category_name']);
+    $firstName   = trim((string)($biz['owner_first_name'] ?? ''));
+    $greeting    = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
+    $reviews     = (int)($biz['google_review_count'] ?? 0);
+    $rating      = (float)($biz['google_rating'] ?? 0);
+    $years       = (int)($biz['years_in_business'] ?? 0);
+    $hasSite     = (bool)($biz['has_website'] ?? false);
+    $siteQual    = (string)($biz['website_quality'] ?? 'none');
+    $noSite      = !$hasSite || $siteQual === 'none';
+    $quote       = ho_quote_inline((string)($biz['review_quote_1'] ?? ''), 110);
+    $quoteAuthor = trim((string)($biz['review_quote_1_author'] ?? ''));
+    $isEnhance   = !empty($biz['enhancement_gaps']);
+    $compName    = trim((string)($biz['competitor_name'] ?? ''));
+    $compRating  = isset($biz['competitor_google_rating']) && $biz['competitor_google_rating'] !== null
+                   ? (float)$biz['competitor_google_rating'] : null;
+
+    // Single punch — sharpest hook condensed to one sentence
+    $subject = "I built {$name} a homepage \u{2014} take a look";
+    if ($isEnhance) {
+        $subject = "A specific upgrade plan for {$name}";
+        if ($quote !== '') {
+            $attr    = $quoteAuthor !== '' ? " ({$quoteAuthor})" : '';
+            $hook    = "\u{201C}{$quote}\u{201D}{$attr} \u{2014} that review deserves to be front and center on your site, not buried in Google.";
+            $subject = $quoteAuthor !== '' ? "{$quoteAuthor}\u{2019}s review deserves a bigger stage" : "A review worth putting on your homepage";
+            $action  = "I put together a plan that leads with it:";
+        } elseif ($compName !== '' && $compRating !== null && $rating > 0 && $rating >= $compRating) {
+            $hook    = "You\u{2019}re at " . number_format($rating, 1) . "\u{2605} \u{2014} outrating {$compName} \u{2014} but they show up in more places and get the call.";
+            $subject = "You outrate {$compName} \u{2014} they still get the call";
+            $action  = "I put together a plan to close that visibility gap:";
+        } else {
+            $hook   = "I looked at the {$name} site and put together a specific plan: what I\u{2019}d fix, what each piece costs, no guesswork.";
+            $action = "Take a look:";
+        }
+    } else {
+        if ($quote !== '') {
+            $attr    = $quoteAuthor !== '' ? " ({$quoteAuthor})" : '';
+            $hook    = "\u{201C}{$quote}\u{201D}{$attr} \u{2014} that should be the first thing new customers see, not buried on Google.";
+            $subject = $quoteAuthor !== '' ? "{$quoteAuthor}\u{2019}s review of {$name} deserves a bigger stage" : "The review that should be on {$name}\u{2019}s homepage";
+            $action  = "I built a site that puts it right out front:";
+        } elseif ($compName !== '' && $compRating !== null && $reviews > 0 && $rating >= $compRating && $noSite) {
+            $hook    = "You\u{2019}re at " . number_format($rating, 1) . "\u{2605} \u{2014} already outrating {$compName} \u{2014} but they have a website and you don\u{2019}t, so they get the call.";
+            $subject = "Your reviews beat {$compName}\u{2019}s \u{2014} their site still wins";
+            $action  = "I built a mockup showing what closing that gap looks like:";
+        } elseif ($reviews >= 10 && $noSite) {
+            $hook    = "You have {$reviews} Google reviews at " . number_format($rating, 1) . "\u{2605} \u{2014} real proof \u{2014} but no website to put it on.";
+            $subject = "{$reviews} Google reviews and no website \u{2014} {$name}";
+            $action  = "I built a free mockup to show what that could look like:";
+        } elseif ($years >= 5 && $noSite) {
+            $hook    = "{$years} years of {$catLower} work in {$city} \u{2014} that credibility deserves a real web presence.";
+            $subject = "{$years} years in {$city} \u{2014} your website should show it";
+            $action  = "I put together a free mockup:";
+        } else {
+            $hook   = "I looked up {$catLower} services near {$city}, found {$name}, and built a free mockup to show what a stronger online presence could look like.";
+            $action = "Take a look:";
+        }
+    }
+
+    $body = "{$greeting}\n\n{$hook}\n\n{$action}\n{$previewUrl}\n\n"
+          . "\u{2014} Adam Ferree\n"
+          . "Hoosier Online | adam@hoosieronline.com | (765) 443-4321";
+
+    return ['subject' => $subject, 'body' => $body];
 }
 
 // ─── Needs-contact channel ────────────────────────────────────────────────────
@@ -3265,19 +3396,22 @@ function ho_followup_message(array $biz, string $previewUrl, int $touch, array $
 
     $sig = "\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
 
+    $catName  = (string)($biz['category_name'] ?? $biz['cat_name'] ?? '');
+    $catLower = strtolower($catName);
+
     switch ($touch) {
         case 2:
             if ($recentHit) {
                 $subject = "Saw you visited \u{2014} any questions for {$name}?";
-                $opener  = "I saw you checked out the page I put together for {$name} \u{2014} wanted to make sure nothing was unclear.";
+                $opener  = "I saw you checked out the page I put together for {$name}. If anything was unclear or you want something changed, just reply \u{2014} takes me 5 minutes.";
             } elseif ($hasVisited) {
                 $subject = "You looked \u{2014} any questions for {$name}?";
-                $opener  = "I noticed you had a look at the page for {$name}. Happy to answer anything.";
+                $opener  = "I noticed you had a look at the page for {$name}. Happy to answer anything or swap out a section if something doesn\u{2019}t feel right.";
             } else {
-                $subject = "Quick follow-up for {$name}";
-                $opener  = "Just wanted to make sure my last message didn\u{2019}t get buried.";
+                $subject = "Still thinking about {$name}?";
+                $opener  = "I\u{2019}m guessing you\u{2019}re busy \u{2014} just wanted to put this back in front of you in case my first message got buried in the inbox.";
             }
-            $body = "{$greeting}\n\n{$opener}\n\nThe preview is at:\n\n{$previewUrl}\n\nIf you have questions or want to change anything, just reply \u{2014} takes 5 minutes.\n\n{$sig}";
+            $body = "{$greeting}\n\n{$opener}\n\nThe preview is at:\n\n{$previewUrl}\n\nIf the timing\u{2019}s off, just say so and I\u{2019}ll leave you alone until it makes more sense.\n\n{$sig}";
             return ['subject' => $subject, 'body' => $body];
 
         case 3:
@@ -3285,18 +3419,22 @@ function ho_followup_message(array $biz, string $previewUrl, int $touch, array $
             $stakesLine = '';
             if ($stakes !== null) {
                 $annual = number_format($stakes['annual']);
-                $stakesLine = "\n\nTo put a number on it: even one extra customer a month from search is roughly \${$annual} a year. The site is a flat \$199 \u{2014} it pays for itself from the first job.\n";
+                $ticket = number_format($stakes['ticket']);
+                $stakesLine = "\n\nQuick number to chew on: the average {$catLower} job runs \${$ticket}. One extra customer a month from search is roughly \${$annual} a year \u{2014} and the site is a flat \$199, once.";
             }
-            $visitLine = $recentHit ? "\n\nI saw you visited again recently \u{2014} if something gave you pause, happy to talk through it." : '';
-            $subject = "{$name} \u{2014} one more thought";
-            $body = "{$greeting}\n\nI know you\u{2019}re busy, so I\u{2019}ll keep this short.{$stakesLine}{$visitLine}\n\nThe preview is still up:\n\n{$previewUrl}\n\nIf the timing isn\u{2019}t right, just say the word and I\u{2019}ll check back next season.\n\n{$sig}";
+            $objLine = $catLower !== ''
+                ? "\n\nIf you\u{2019}re thinking \u{201C}most of my work comes from referrals anyway\u{201D} \u{2014} referrals still Google you before they call. This is what they find right now."
+                : '';
+            $visitLine = $recentHit ? "\n\nI saw you visited the page again recently \u{2014} if something gave you pause, I\u{2019}m easy to reach." : '';
+            $subject = "{$name} \u{2014} one thing I should have said";
+            $body = "{$greeting}\n\nThird note, I promise this is the last unless I hear back.{$stakesLine}{$objLine}{$visitLine}\n\nThe preview is still up:\n\n{$previewUrl}\n\n{$sig}";
             return ['subject' => $subject, 'body' => $body];
 
         case 4:
         default:
             $to = $firstName !== '' ? $firstName : $name;
             $subject = "Last one, {$to} \u{2014} then I\u{2019}ll leave you alone";
-            $body = "{$greeting}\n\nThis is my last note about this \u{2014} I don\u{2019}t want to be a pest.\n\nIf you ever decide you want a website or want to improve what you have, the offer stands. I\u{2019}d love to help.\n\nWishing {$name} a great season in {$city}.\n\n{$sig}";
+            $body = "{$greeting}\n\nLast note \u{2014} I don\u{2019}t want to be that person who keeps emailing.\n\nIf it ever makes sense \u{2014} new season, slower month, wanting to pick up more work online \u{2014} the offer stands and the mockup stays up. I\u{2019}d genuinely love to help {$name} win more jobs.\n\nWishing you a great rest of the year.\n\n{$sig}";
             return ['subject' => $subject, 'body' => $body];
     }
 }

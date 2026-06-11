@@ -1550,7 +1550,13 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
               <span class="cp-sent-flag" hidden>✓ Sent</span>
             </div>
 
-            <?php $pitchBody = ho_pitch_message($b, $previewUrl)['body']; $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb; ?>
+            <?php
+              $pitchMsg  = ho_pitch_message($b, $previewUrl);
+              $pitchBody = $pitchMsg['body'];
+              $cfMsg     = ($hasSiteUrl && !$hasEmail && !$hasFb) ? ho_contact_form_message($b, $previewUrl) : null;
+              $msgBody   = $cfMsg ? $cfMsg['body'] : $pitchBody;
+              $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb;
+            ?>
             <div class="cp-send-primary">
               <?php if ($hasEmail): ?>
                 <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto($b, $previewUrl)) ?>" data-to="<?= ho_h((string)$b['email_address']) ?>" onclick="markSent(this,'email')">
@@ -1561,10 +1567,15 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
                   Message on Facebook →
                 </a>
               <?php elseif ($hasSiteUrl): ?>
-                <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">
-                  Contact via Website →
-                </a>
-                <button type="button" class="cp-btn-send cp-btn-send-copy" data-to="<?= ho_h((string)$b['website_url']) ?>" onclick="copyMessage(this);markSent(this,'website_form')">⧉&thinsp; Copy the pitch to paste in their form</button>
+                <div class="cp-cf-block">
+                  <div class="cp-cf-subject-hint">Subject to use: <strong><?= ho_h($cfMsg['subject']) ?></strong></div>
+                  <pre class="cp-cf-body-preview"><?= ho_h($cfMsg['body']) ?></pre>
+                  <button type="button" class="cp-btn-send cp-btn-send-copy"
+                    data-to="<?= ho_h((string)$b['website_url']) ?>"
+                    onclick="copyAndOpen(this,<?= json_encode((string)$b['website_url']) ?>);markSent(this,'website_form')">
+                    ⧉ Copy message + open their site →
+                  </button>
+                </div>
               <?php elseif ($hasPhone): ?>
                 <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>" data-to="<?= ho_h((string)$b['phone_number']) ?>" onclick="markSent(this,'phone')">
                   Call <?= ho_h((string)$b['phone_number']) ?>
@@ -1573,7 +1584,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
                 <span class="cp-send-no-contact">No contact info on file</span>
               <?php endif; ?>
             </div>
-            <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($pitchBody) ?></textarea><?php endif; ?>
+            <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($msgBody) ?></textarea><?php endif; ?>
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
@@ -1745,7 +1756,13 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             </div>
             <?php endif; ?>
 
-            <?php $pitchBody = ho_pitch_message_enhancement($b, $previewUrl)['body']; $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb; ?>
+            <?php
+              $pitchMsg  = ho_pitch_message_enhancement($b, $previewUrl);
+              $pitchBody = $pitchMsg['body'];
+              $cfMsg     = ($hasSiteUrl && !$hasEmail && !$hasFb) ? ho_contact_form_message($b, $previewUrl) : null;
+              $msgBody   = $cfMsg ? $cfMsg['body'] : $pitchBody;
+              $hasTextChannel = $hasEmail || $hasSiteUrl || $hasFb;
+            ?>
             <div class="cp-send-primary">
               <?php if ($hasEmail): ?>
                 <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h(ho_pitch_mailto_enhancement($b, $previewUrl)) ?>" data-to="<?= ho_h((string)$b['email_address']) ?>" onclick="markSent(this,'email')">
@@ -1754,15 +1771,22 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
               <?php elseif ($hasFb): ?>
                 <a class="cp-btn-send cp-btn-send-fb" href="<?= ho_h((string)$b['facebook_url']) ?>" target="_blank" rel="noopener" data-to="<?= ho_h((string)$b['facebook_url']) ?>" onclick="markSent(this,'facebook_dm')">Message on Facebook →</a>
               <?php elseif ($hasSiteUrl): ?>
-                <a class="cp-btn-send cp-btn-send-web" href="<?= ho_h((string)$b['website_url']) ?>" target="_blank" rel="noopener">Contact via Website →</a>
-                <button type="button" class="cp-btn-send cp-btn-send-copy" data-to="<?= ho_h((string)$b['website_url']) ?>" onclick="copyMessage(this);markSent(this,'website_form')">⧉&thinsp; Copy the pitch to paste in their form</button>
+                <div class="cp-cf-block">
+                  <div class="cp-cf-subject-hint">Subject to use: <strong><?= ho_h($cfMsg['subject']) ?></strong></div>
+                  <pre class="cp-cf-body-preview"><?= ho_h($cfMsg['body']) ?></pre>
+                  <button type="button" class="cp-btn-send cp-btn-send-copy"
+                    data-to="<?= ho_h((string)$b['website_url']) ?>"
+                    onclick="copyAndOpen(this,<?= json_encode((string)$b['website_url']) ?>);markSent(this,'website_form')">
+                    ⧉ Copy message + open their site →
+                  </button>
+                </div>
               <?php elseif ($hasPhone): ?>
                 <a class="cp-btn-send cp-btn-send-phone" href="tel:<?= ho_h((string)$b['phone_number']) ?>" data-to="<?= ho_h((string)$b['phone_number']) ?>" onclick="markSent(this,'phone')">Call <?= ho_h((string)$b['phone_number']) ?></a>
               <?php else: ?>
                 <span class="cp-send-no-contact">No contact info on file</span>
               <?php endif; ?>
             </div>
-            <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($pitchBody) ?></textarea><?php endif; ?>
+            <?php if ($hasTextChannel): ?><textarea class="cp-msg-src" hidden><?= ho_h($msgBody) ?></textarea><?php endif; ?>
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
@@ -2303,8 +2327,7 @@ function doCopy(id, btn) {
   });
 }
 
-// Copy the personalized pitch message (card-scoped) for pasting into a
-// lead's own contact form — same text as the email, equally personalized.
+// Copy the pitch message (card-scoped) for the secondary "Copy message" button.
 function copyMessage(btn) {
   var card = btn.closest('.cp-send-card');
   var src  = card ? card.querySelector('.cp-msg-src') : null;
@@ -2315,7 +2338,28 @@ function copyMessage(btn) {
     setTimeout(function(){ btn.textContent = orig; }, 2200);
   }).catch(function() {
     btn.textContent = 'Press & hold to copy';
-    setTimeout(function(){ btn.textContent = '⧉ Copy the pitch to paste in their form'; }, 2200);
+    setTimeout(function(){ btn.textContent = orig; }, 2200);
+  });
+}
+// One-tap contact form flow: copy the short message then open their site.
+// The site opens after a brief delay so clipboard write completes first.
+function copyAndOpen(btn, url) {
+  var card = btn.closest('.cp-send-card');
+  var src  = card ? card.querySelector('.cp-msg-src') : null;
+  if (!src) return;
+  var orig = btn.textContent;
+  navigator.clipboard.writeText(src.value).then(function() {
+    btn.textContent = '✓ Copied — opening their site…';
+    setTimeout(function() {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      btn.textContent = '✓ Pasted? Mark sent above when done.';
+      setTimeout(function(){ btn.textContent = orig; }, 4000);
+    }, 350);
+  }).catch(function() {
+    // Clipboard failed — just open the site so they can copy manually
+    window.open(url, '_blank', 'noopener,noreferrer');
+    btn.textContent = 'Site opened — copy manually above';
+    setTimeout(function(){ btn.textContent = orig; }, 3000);
   });
 }
 var _activeChip = 'all';

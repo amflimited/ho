@@ -1104,6 +1104,20 @@ a { color: inherit; }
 .cp-telem-done  { background: #eef3f8; border-color: #bcd3e8; }
 .cp-telem-done  .cp-telem-num { color: #2b6cb0; }
 
+/* ── Contact form copy block (website-only leads) ───────────────────────── */
+.cp-cf-block { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.cp-cf-subject-hint {
+  font-size: 11px; color: var(--ink2); padding: 5px 9px;
+  background: #f2f0ea; border-radius: 6px; line-height: 1.4;
+}
+.cp-cf-subject-hint strong { color: var(--ink); }
+.cp-cf-body-preview {
+  font-family: inherit; font-size: 12px; line-height: 1.6; color: var(--ink);
+  background: #fafaf7; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; margin: 0; white-space: pre-wrap; word-break: break-word;
+  max-height: 160px; overflow-y: auto;
+}
+
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .cp-send-card-hot-badge { animation: none; }
