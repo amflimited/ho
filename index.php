@@ -1472,7 +1472,7 @@ $faqs = [
       <p>
         When you’re ready to move forward, you already have the link to get started.
         Once you finalize the details on your project, we will get working on it within
-        a few hours and have a real deliverable for you within 24 hours guaranteed.
+        a few hours and have a real deliverable for you within 48 hours guaranteed.
       </p>
     </section>
   </div>

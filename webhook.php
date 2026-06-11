@@ -144,7 +144,7 @@ if ($custEmail !== '' && $statusUrl !== '') {
         "Track your build here:",
         $statusUrl,
         "",
-        "It'll be live within 24 hours. I'll reach out once it's done.",
+        "It'll be live within 48 hours. I'll reach out once it's done.",
         "",
         "Questions? Reply to this email or call (765) 443-4321.",
         "",

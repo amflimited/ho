@@ -302,7 +302,7 @@ endif; ?>
     <?php if ($isEnhancement): ?>
     <p>I&rsquo;ll reach out within a few hours to go over the details and get started. Check your email for a Stripe receipt.</p>
     <?php else: ?>
-    <p>Your site will be live within 24 hours. I&rsquo;ll send you the link when it&rsquo;s ready. Check your Stripe receipt for a payment confirmation.</p>
+    <p>Your site will be live within 48 hours. I&rsquo;ll send you the link when it&rsquo;s ready. Check your Stripe receipt for a payment confirmation.</p>
     <?php endif; ?>
     <?php if ($statusToken !== ''): ?>
     <div class="fd-status-link-box">
@@ -390,7 +390,7 @@ endif; ?>
     <div class="fd-trust-strip">
       <a href="tel:<?= ADAM_TEL ?>" class="fd-ts-item">📞 <?= ADAM_PHONE ?></a>
       <?php if (!$isEnhancement): ?>
-      <span class="fd-ts-item">⚡ Live in 24 hours — guaranteed</span>
+      <span class="fd-ts-item">⚡ Live in 48 hours — guaranteed</span>
       <span class="fd-ts-item">No monthly fees &middot; you own it forever</span>
       <span class="fd-ts-item">✓ 30-day money-back</span>
       <?php else: ?>
@@ -920,7 +920,7 @@ endif; ?>
     <h2 class="fd-design-title"><?= $hasWebsite ? 'Pick the style your new site gets built in.' : 'Pick the style. I build ' . ho_h($name) . '&rsquo;s site in it.' ?></h2>
     <p class="fd-design-sub">These are demo designs from my shop &mdash; the business on them isn&rsquo;t real. Yours gets built in the style you pick, with your name, your number, your services<?= $googleCount >= 3 ? ', your real reviews' : '' ?>. Tap through and see which one feels like <?= ho_h($name) ?>.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
-      <span style="font-size:12px;font-weight:700;color:var(--fd-green);background:rgba(47,94,54,.1);border:1px solid rgba(47,94,54,.2);padding:4px 10px;border-radius:20px">⚡ Live in 24 hours</span>
+      <span style="font-size:12px;font-weight:700;color:var(--fd-green);background:rgba(47,94,54,.1);border:1px solid rgba(47,94,54,.2);padding:4px 10px;border-radius:20px">⚡ Live in 48 hours</span>
       <span style="font-size:12px;font-weight:700;color:#7a4800;background:rgba(184,112,32,.1);border:1px solid rgba(184,112,32,.2);padding:4px 10px;border-radius:20px"><?= count($available) ?> style<?= count($available) !== 1 ? 's' : '' ?> &mdash; your call</span>
     </div>
 
@@ -1005,7 +1005,7 @@ endif; ?>
     ?>
     <?php if (!$isEnhancement): ?>
     <p>I build websites for Indiana service businesses &mdash; that&rsquo;s the whole business. <?= $ownerFirst !== '' ? ho_h($ownerFirst) . ', before' : 'Before' ?> I reached out, I already knew: <?php if (!empty($adamKnows)): ?><?= implode('; ', $adamKnows) ?>. <?php endif; ?>I built this preview before sending a single message. I only do that when I think it&rsquo;s worth it.</p>
-    <p style="margin-top:10px">When you say yes, you&rsquo;re not entering a queue &mdash; I start the same day. <?= ho_h($name) ?>&rsquo;s site is live within 24 hours. That&rsquo;s a guarantee, not a target.</p>
+    <p style="margin-top:10px">When you say yes, you&rsquo;re not entering a queue &mdash; I start the same day. <?= ho_h($name) ?>&rsquo;s site is live within 48 hours. That&rsquo;s a guarantee, not a target.</p>
     <?php else: ?>
     <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I looked at your <?= $hasWebsite && $websiteUrl !== '' ? 'site' : ($hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence')) ?>, noted what could be better, and put this together before reaching out. I only send these when I think the business is worth it.</p>
     <p style="margin-top:10px">No queue, no agency runaround. You tell me what you want fixed and I&rsquo;ll tell you exactly what it takes &mdash; same day. Most of it&rsquo;s a flat one-time fix.</p>
@@ -1089,7 +1089,7 @@ endif; ?>
   ?>
   <section class="fd-card fd-offer fd-reveal" id="pricing">
     <p class="fd-kicker">One decision</p>
-    <h2><?= ho_h($name) ?>&rsquo;s site &mdash; live in 24 hours.</h2>
+    <h2><?= ho_h($name) ?>&rsquo;s site &mdash; live in 48 hours.</h2>
 
     <div class="fd-offer-price-block">
       <span class="fd-offer-amount">$199</span>
@@ -1164,13 +1164,13 @@ endif; ?>
 
     <div class="fd-live-guarantee">
       <strong>⚡ Live by <?= date('l, F j') === date('l, F j', strtotime('tomorrow')) ? date('F j', strtotime('tomorrow')) : date('F j', strtotime('tomorrow')) ?> &mdash; or you pay nothing.</strong>
-      Most web agencies quote 4&ndash;8 weeks. <?= ho_h($name) ?>&rsquo;s site is live within 24 hours of checkout &mdash; real, live, at your web address. That&rsquo;s the actual contract: not a target, not a goal. If it&rsquo;s not live in time, I refund every cent.
+      Most web agencies quote 4&ndash;8 weeks. <?= ho_h($name) ?>&rsquo;s site is live within 48 hours of checkout &mdash; real, live, at your web address. That&rsquo;s the actual contract: not a target, not a goal. If it&rsquo;s not live in time, I refund every cent.
     </div>
 
     <p class="fd-kicker" style="margin-top:20px;margin-bottom:8px">What happens next</p>
     <ol class="fd-offer-steps">
       <li>You say yes &mdash; 2 minutes to check out below</li>
-      <li>I build <?= ho_h($name) ?>&rsquo;s site today &mdash; live in under 24 hours</li>
+      <li>I build <?= ho_h($name) ?>&rsquo;s site today &mdash; live in under 48 hours</li>
       <li><?= $hasExistingDomain ? ho_h($ownDotCom) : ho_h($ownDotCom ?: $name) ?> goes live &mdash; customers can find and call you</li>
     </ol>
 

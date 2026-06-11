@@ -30,7 +30,7 @@ $sales = json_decode(<<<'JSON'
         "renewal": "$250/quarter or $750/year after the first 3 months"
       }
     ],
-    "speed_positioning": "Because the preview pre-selects the likely package, design direction, and feature set, Hoosier Online can move from purchase to first build quickly, often in less than 24 hours once the customer provides the needed information. No instant delivery guarantee."
+    "speed_positioning": "Because the preview pre-selects the likely package, design direction, and feature set, Hoosier Online can move from purchase to first build quickly, often in less than 48 hours once the customer provides the needed information. No instant delivery guarantee."
   },
   "data_philosophy": {
     "summary": "Pre-research is not only for better outreach. It should power the outreach email, the preview page, the close, and the eventual build handoff.",

@@ -2128,7 +2128,7 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
     // Specific closing with deliverables, timeline, and credibility
     $closing = $ageBand === '55plus'
         ? "No charge to view. {$cred} If it looks right, just reply \u{2014} I handle everything technical, nothing for you to figure out. Flat \$199 to go live."
-        : "No charge to view. {$cred} If it looks right: \$199 flat, live in 24 hours \u{2014} domain, hosting, everything. Reply here and I\u{2019}ll take it from there.";
+        : "No charge to view. {$cred} If it looks right: \$199 flat, live in 48 hours \u{2014} domain, hosting, everything. Reply here and I\u{2019}ll take it from there.";
 
     // P.S. — most-read part of an email; use the strongest fact NOT already in the hook
     $psLine = '';
@@ -2617,7 +2617,7 @@ function ho_package_catalog(): array {
         'standard' => [
             'label' => 'Front Door',
             'price' => 199,
-            'desc'  => 'Your site built and launched — live within 24 hours. Custom .com domain and 1 year of hosting included free.',
+            'desc'  => 'Your site built and launched — live within 48 hours. Custom .com domain and 1 year of hosting included free.',
         ],
         'launch' => [
             'label' => 'Launch Ready',
