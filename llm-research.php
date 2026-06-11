@@ -15,6 +15,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
 
+// start.php fires this endpoint async (1.5s curl timeout, result ignored) —
+// keep running after the caller disconnects so the research completes.
+ignore_user_abort(true);
+
 header('Content-Type: application/json');
 
 function lr_out(int $code, array $data): never {

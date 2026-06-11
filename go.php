@@ -1386,6 +1386,7 @@ endif; ?>
     Front doors for Indiana&rsquo;s hardest-working businesses.<br>
     <?php endif; ?>
     <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:<?= ADAM_EMAIL ?>"><?= ADAM_EMAIL ?></a></span>
+    <span class="fd-footer-viral">Run a business yourself? <a href="/start.php?src=preview">Watch your own page build itself free &rarr;</a></span>
   </footer>
 
   <!-- ── STICKY BOTTOM CTA ──────────────────────────────────────────────── -->

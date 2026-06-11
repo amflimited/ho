@@ -1795,6 +1795,30 @@ body.front-door-preview-page{
   background:rgba(47,94,54,.07);border-radius:10px;padding:11px 13px;margin:14px 0 8px;
 }
 
+/* ── start.php — public self-serve funnel ────────────────────────────────── */
+.fd-start-h1{font-size:30px;font-weight:900;line-height:1.12;letter-spacing:-.01em;margin:6px 0 12px}
+.fd-start-form{display:flex;flex-direction:column;gap:14px;margin-top:18px}
+.fd-start-form label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--fd-ink)}
+.fd-start-form input,.fd-start-form select{
+  font-family:inherit;font-size:16px;color:var(--fd-ink);
+  background:#fff;border:1.5px solid var(--fd-line);border-radius:10px;padding:12px 13px;
+}
+.fd-start-form input:focus,.fd-start-form select:focus{outline:none;border-color:var(--fd-green)}
+.fd-start-opt{font-weight:400;color:var(--fd-muted)}
+.fd-start-go{font-size:18px;padding:15px 18px;margin-top:4px}
+.fd-start-trap{position:absolute;left:-9999px;height:0;width:0;opacity:0;pointer-events:none}
+.fd-start-err{background:#fff5f5;border:1.5px solid #feb2b2;color:#c53030;border-radius:10px;padding:10px 13px;font-size:13.5px}
+.fd-start-steps{display:flex;flex-direction:column;gap:12px}
+.fd-start-step{font-size:14px;line-height:1.55}
+.fd-start-build{text-align:center;padding-top:38px;padding-bottom:38px}
+.fd-start-stage{font-size:17px;font-weight:700;margin:16px 0 14px;min-height:1.5em}
+.fd-start-bar{height:10px;border-radius:8px;background:rgba(34,23,19,.08);overflow:hidden;max-width:380px;margin:0 auto 14px}
+.fd-start-bar-fill{height:100%;width:4%;border-radius:8px;background:linear-gradient(90deg,#3b7a45,var(--fd-green));transition:width .8s ease}
+
+/* ── Viral footer line on preview pages ──────────────────────────────────── */
+.fd-footer-viral{display:block;margin-top:10px;font-size:12.5px}
+.fd-footer-viral a{color:var(--fd-green);font-weight:700}
+
 /* ── Template style picker panes ─────────────────────────────────────────── */
 .fd-tpl-pane[hidden]{display:none!important}
 

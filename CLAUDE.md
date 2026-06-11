@@ -616,3 +616,29 @@ chip in the cockpit topbar links over; "cockpit →" links back.
 3. **Referral loop ($50/referral).** Three placements: paid banner on go.php
    (`.fd-referral-note`), webhook.php customer confirmation email P.S., and
    the touch-4 breakup email P.S. (dead leads become scouts).
+
+## 🚀 INBOUND ROCKET (2026-06-11) — start.php, public self-serve funnel
+
+The funnel inverted: any Indiana business can build its OWN preview at
+**/start.php** (free, no signup). Form (name/town/trade/email) → creates the
+business row (`triaged=1`, self-identified, source 'inbound' implicit) →
+fires llm-research.php **async** (1.5s curl timeout; endpoint now has
+`ignore_user_abort(true)`) → renders a staged "building your page" screen
+(progress bar + rotating stage messages) that polls `start.php?status=1&biz=
+{id}&t={hmac token}` until the preview is ready → redirects to /go/{slug},
+which has Stripe on it. ~60-90s end to end, zero Adam.
+
+**Graceful degradation:** no llm-config / no import key / `inb_daily_cap`
+(default 25) hit / bot trap tripped → lead still captured, "queued" screen
+shown; autopilot research+autopitch finishes the job by email. Duplicate
+name+town with a ready preview → instant redirect to the existing page
+(logs a visit → heat). `excluded/has_good_website` → honest "you already
+look strong" end state.
+
+**Abuse guards:** honeypot field, <3s speed trap, daily counter
+(`inb_counter` via ho_bump_daily_counter), HMAC poll token keyed on
+gpt_import_key.
+
+**Channel attribution:** `?src=` (sanitized) increments `inb_src_{src}` in
+app_settings. Every go.php preview footer now carries the viral loop:
+"Watch your own page build itself free →" (src=preview).
