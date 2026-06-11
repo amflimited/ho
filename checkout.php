@@ -51,6 +51,7 @@ try {
     $addons      = is_array($_POST['addons'] ?? null) ? (array)$_POST['addons'] : [];
     $templateKey = substr(trim((string)($_POST['template_key'] ?? '')), 0, 80);
     $chosenCom   = substr(trim((string)($_POST['chosen_com']   ?? '')), 0, 100);
+    $careOptIn   = (string)($_POST['care'] ?? '') === '1';
 
     $packages = ho_package_catalog();
     $priceMap = ho_addon_price_map();
@@ -146,6 +147,21 @@ try {
         $params["line_items[{$i}][price_data][product_data][name]"] = $item['name'];
         $params["line_items[{$i}][price_data][unit_amount]"]        = (string)$item['amount'];
         $params["line_items[{$i}][quantity]"]                       = '1';
+    }
+
+    // ── Keep-It-Running care plan — recurring revenue, first 30 days free ──────
+    // Subscription mode lets the one-time build items ride along with the
+    // recurring plan in a single Checkout; the trial means $0 extra today.
+    if ($careOptIn) {
+        $params['mode']                                  = 'subscription';
+        $params['subscription_data[trial_period_days]']  = '30';
+        $params['metadata[care]']                        = '1';
+        $ci = count($items);
+        $params["line_items[{$ci}][price_data][currency]"]                    = 'usd';
+        $params["line_items[{$ci}][price_data][product_data][name]"]          = "Keep-It-Running Plan \u{2014} hosting, security, unlimited small edits, monthly Google post";
+        $params["line_items[{$ci}][price_data][unit_amount]"]                 = '2900';
+        $params["line_items[{$ci}][price_data][recurring][interval]"]         = 'month';
+        $params["line_items[{$ci}][quantity]"]                                = '1';
     }
 
     if (!function_exists('curl_init')) {

@@ -113,6 +113,23 @@ $email        = $row ? trim((string)($row['email_address'] ?? '')) : '';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $seasonalNote = $row ? ho_seasonal_urgency_note($catSlug) : '';
 $stakes       = $row ? ho_stakes_estimate($catSlug) : null;
+
+// Honest urgency — the build slot is held for 10 days from first outreach.
+// Adam is one person; one build per category per town at a time is real.
+$slotHeldUntil = '';
+if ($row && $pdo !== null) {
+    try {
+        $fs = $pdo->prepare("SELECT MIN(sent_at) FROM outreach_log WHERE business_id = ?");
+        $fs->execute([(int)$row['id']]);
+        $firstSent = (string)($fs->fetchColumn() ?: '');
+        if ($firstSent !== '') {
+            $slotDeadline = strtotime($firstSent . ' +10 days');
+            if ($slotDeadline !== false && $slotDeadline > time()) {
+                $slotHeldUntil = date('l, F j', $slotDeadline);
+            }
+        }
+    } catch (Throwable) {}
+}
 $isEnhancement = $row && isset($row['preview_type']) && $row['preview_type'] === 'enhancement';
 $enhancementGaps = ($isEnhancement && $row) ? ho_enhancement_gaps($row) : [];
 
@@ -313,6 +330,7 @@ endif; ?>
       <p class="fd-muted">This link stays active for 30 days. Bookmark it to check progress.</p>
     </div>
     <?php endif; ?>
+    <p class="fd-referral-note">🤝 Know another business that could use this? For every referral that becomes a build, I send you <strong>$50</strong>. Just have them mention <?= ho_h($name) ?>.</p>
     <p class="fd-muted">Questions? <a href="tel:<?= ADAM_TEL ?>"><?= ADAM_PHONE ?></a> &middot; <a href="mailto:<?= ADAM_EMAIL ?>"><?= ADAM_EMAIL ?></a></p>
   </section>
   <?php endif; ?>
@@ -904,10 +922,17 @@ endif; ?>
     <?php if ($fixItemsTotal > 0): ?>
     <p class="fd-kicker">Get it done</p>
     <h2><?= count($fixItems) > 1 ? 'All of it' : 'This' ?> for $<?= number_format($fixItemsTotal) ?> &mdash; flat, one-time.</h2>
-    <p style="font-size:16px;line-height:1.6">No monthly fees, no contract. Pay online now &mdash; I start today. Want just one piece? That&rsquo;s fine too, each line above stands on its own.</p>
+    <p style="font-size:16px;line-height:1.6">One-time price for the work, no contract. Pay online now &mdash; I start today. Want just one piece? That&rsquo;s fine too, each line above stands on its own.</p>
+    <?php if ($slotHeldUntil !== ''): ?>
+    <p class="fd-slot-note">⏳ I take on one <?= ho_h(strtolower($catName)) ?> project in <?= ho_h($city) ?> at a time. This slot is held for <?= ho_h($name) ?> until <strong><?= ho_h($slotHeldUntil) ?></strong> &mdash; then it opens to the next business.</p>
+    <?php endif; ?>
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
       <input type="hidden" name="pkg"  value="enhancement">
+      <label class="fd-care-opt">
+        <input type="checkbox" name="care" value="1" checked>
+        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> I keep everything I fix working: hosting help, security, unlimited small edits, and a fresh post on your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
+      </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
         Yes &mdash; fix it &rarr; $<?= number_format($fixItemsTotal) ?>
       </button>
@@ -918,10 +943,17 @@ endif; ?>
     <?php else: ?>
     <p class="fd-kicker">Get it done</p>
     <h2>Let me fix what&rsquo;s holding you back.</h2>
-    <p style="font-size:16px;line-height:1.6">Flat, one-time. No monthly fees, no contract. Pay online now &mdash; I start today.</p>
+    <p style="font-size:16px;line-height:1.6">Flat, one-time price for the work, no contract. Pay online now &mdash; I start today.</p>
+    <?php if ($slotHeldUntil !== ''): ?>
+    <p class="fd-slot-note">⏳ I take on one <?= ho_h(strtolower($catName)) ?> project in <?= ho_h($city) ?> at a time. This slot is held for <?= ho_h($name) ?> until <strong><?= ho_h($slotHeldUntil) ?></strong> &mdash; then it opens to the next business.</p>
+    <?php endif; ?>
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
       <input type="hidden" name="pkg"  value="enhancement">
+      <label class="fd-care-opt">
+        <input type="checkbox" name="care" value="1" checked>
+        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> I keep everything I fix working: hosting help, security, unlimited small edits, and a fresh post on your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
+      </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
         Yes &mdash; get it done &rarr;
       </button>
@@ -1168,6 +1200,9 @@ endif; ?>
   <section class="fd-card fd-offer fd-reveal" id="pricing">
     <p class="fd-kicker">One decision</p>
     <h2><?= ho_h($name) ?>&rsquo;s site &mdash; live in 48 hours.</h2>
+    <?php if ($slotHeldUntil !== ''): ?>
+    <p class="fd-slot-note">⏳ I build one <?= ho_h(strtolower($catName)) ?> site in <?= ho_h($city) ?> at a time. This slot is held for <?= ho_h($name) ?> until <strong><?= ho_h($slotHeldUntil) ?></strong> &mdash; then it opens to the next <?= ho_h($city) ?> business.</p>
+    <?php endif; ?>
 
     <div class="fd-offer-price-block">
       <span class="fd-offer-amount">$199</span>
@@ -1268,6 +1303,10 @@ endif; ?>
       <input type="hidden" name="pkg"          value="standard">
       <input type="hidden" name="template_key" id="fd-h-template"  value="<?= ho_h($templateKey ?? '') ?>">
       <input type="hidden" name="chosen_com"   id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
+      <label class="fd-care-opt">
+        <input type="checkbox" name="care" value="1" checked>
+        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> The site is yours forever either way. This adds: I host it, keep it secure, make unlimited small edits, and post to your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
+      </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
         Yes &mdash; build <?= ho_h($name) ?>&rsquo;s site &rarr; $199
       </button>

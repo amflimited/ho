@@ -116,9 +116,11 @@ if ($needsDomain) {
 }
 
 // ── 3. Email Adam ─────────────────────────────────────────────────────────────
+$carePlan   = (string)($session['metadata']['care'] ?? '') === '1';
 $adminLines = [
     "Business:   {$bizName}",
     "Package:    {$pkgLabel} ({$amountFmt})",
+    $carePlan ? "Care plan:  YES — \$29/mo starts after 30-day trial" : "Care plan:  no",
     $domainLine,
     "Slug:       {$slug}",
     "Session:    {$sessionId}",
@@ -150,6 +152,9 @@ if ($custEmail !== '' && $statusUrl !== '') {
         "",
         "— Adam",
         "Hoosier Online · New Castle, Indiana",
+        "",
+        "P.S. Know another business owner who needs this? For every referral",
+        "that becomes a build, I send you \$50. Just have them mention your name.",
     ]);
 
     @mail(

@@ -597,3 +597,22 @@ advance client-side).
 glow marks the top card. Channel fallback per card: email mailto → website
 form (copy+open) → FB (copy+open) → SMS (copy + sms:). Gold "💵 The Floor"
 chip in the cockpit topbar links over; "cockpit →" links back.
+
+## 📈 EXPONENT CHANGERS (2026-06-11) — revenue model restructure
+
+1. **Keep-It-Running care plan — recurring revenue.** All three go.php checkout
+   forms have a default-checked, clearly-OPTIONAL `.fd-care-opt` checkbox:
+   $29/mo, 30-day free trial, cancel anytime. checkout.php (`care=1` POST)
+   switches the Stripe session to `mode=subscription` +
+   `subscription_data[trial_period_days]=30` + inline recurring price_data
+   line item — no Stripe dashboard setup needed. One-time build items ride
+   along in the same session. webhook.php admin email shows "Care plan: YES/no"
+   (metadata[care]). Enhancement copy reworded ("One-time price for the work")
+   so the page stays honest next to the optional monthly plan.
+2. **Slot-hold urgency.** go.php computes `$slotHeldUntil` = MIN(outreach_log
+   .sent_at)+10d; when in the future, `.fd-slot-note` renders on all offer
+   sections: "I take one {cat} build in {city} at a time — held until {date}."
+   Data-gated: absent for un-pitched previews.
+3. **Referral loop ($50/referral).** Three placements: paid banner on go.php
+   (`.fd-referral-note`), webhook.php customer confirmation email P.S., and
+   the touch-4 breakup email P.S. (dead leads become scouts).

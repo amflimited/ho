@@ -1768,6 +1768,33 @@ body.front-door-preview-page{
 /* ── Inline guarantee line (enhancement CTAs) ────────────────────────────── */
 .fd-guarantee{font-size:13px;font-weight:700;color:var(--fd-green);text-align:center;margin-top:10px}
 
+/* ── Keep-It-Running care plan opt-in ────────────────────────────────────── */
+.fd-care-opt{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(47,94,54,.06);border:1.5px dashed rgba(47,94,54,.35);
+  border-radius:12px;padding:12px 14px;margin:0 0 14px;
+  font-size:13px;line-height:1.55;cursor:pointer;text-align:left;
+}
+.fd-care-opt input{width:20px;height:20px;flex-shrink:0;margin-top:2px;accent-color:var(--fd-green)}
+.fd-care-tag{
+  display:inline-block;font-size:9px;font-weight:900;letter-spacing:.1em;
+  color:var(--fd-muted);border:1px solid var(--fd-line);border-radius:8px;
+  padding:1px 6px;vertical-align:1px;margin-right:4px;
+}
+
+/* ── Slot-hold urgency note ──────────────────────────────────────────────── */
+.fd-slot-note{
+  font-size:13.5px;line-height:1.55;
+  background:rgba(242,176,30,.10);border-left:3px solid #d99a00;
+  border-radius:0 10px 10px 0;padding:10px 13px;margin:12px 0;
+}
+
+/* ── Referral note (paid banner) ─────────────────────────────────────────── */
+.fd-referral-note{
+  font-size:13.5px;line-height:1.55;
+  background:rgba(47,94,54,.07);border-radius:10px;padding:11px 13px;margin:14px 0 8px;
+}
+
 /* ── Template style picker panes ─────────────────────────────────────────── */
 .fd-tpl-pane[hidden]{display:none!important}
 

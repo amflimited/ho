@@ -3492,7 +3492,7 @@ function ho_followup_message(array $biz, string $previewUrl, int $touch, array $
         default:
             $to = $firstName !== '' ? $firstName : $name;
             $subject = "Last one, {$to} \u{2014} then I\u{2019}ll leave you alone";
-            $body = "{$greeting}\n\nLast note \u{2014} I don\u{2019}t want to be that person who keeps emailing.\n\nIf it ever makes sense \u{2014} new season, slower month, wanting to pick up more work online \u{2014} the offer stands and the mockup stays up. I\u{2019}d genuinely love to help {$name} win more jobs.\n\nWishing you a great rest of the year.\n\n{$sig}";
+            $body = "{$greeting}\n\nLast note \u{2014} I don\u{2019}t want to be that person who keeps emailing.\n\nIf it ever makes sense \u{2014} new season, slower month, wanting to pick up more work online \u{2014} the offer stands and the mockup stays up. I\u{2019}d genuinely love to help {$name} win more jobs.\n\nWishing you a great rest of the year.\n\nP.S. If this isn\u{2019}t for you but you know a business that needs it \u{2014} send them my way. Every referral that becomes a build, I send you \$50. No catch.\n\n{$sig}";
             return ['subject' => $subject, 'body' => $body];
     }
 }
