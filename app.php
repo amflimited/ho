@@ -122,6 +122,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $bizId = (int)($_POST['business_id'] ?? 0);
                 if ($bizId === 0) throw new RuntimeException('Business ID missing.');
                 $pdo->prepare("UPDATE businesses SET website_verified=1, updated_at=NOW() WHERE id=?")->execute([$bizId]);
+                if (!empty($_POST['_ajax'])) { header('Content-Type: application/json'); echo '{"ok":true}'; exit; }
                 header('Location: ?tab=research&flash=' . urlencode('Domain verified.'));
                 exit;
 
@@ -130,6 +131,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($bizId === 0) throw new RuntimeException('Business ID missing.');
                 $pdo->prepare("UPDATE businesses SET website_url='', website_verified=0, updated_at=NOW() WHERE id=?")->execute([$bizId]);
                 $pdo->prepare("UPDATE research_records SET has_website=0, website_quality='none' WHERE business_id=?")->execute([$bizId]);
+                if (!empty($_POST['_ajax'])) { header('Content-Type: application/json'); echo '{"ok":true}'; exit; }
                 header('Location: ?tab=research&flash=' . urlencode('Domain cleared.'));
                 exit;
 
@@ -137,6 +139,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $bizId = (int)($_POST['business_id'] ?? 0);
                 if ($bizId === 0) throw new RuntimeException('Business ID missing.');
                 $pdo->prepare("UPDATE businesses SET triaged=1, updated_at=NOW() WHERE id=?")->execute([$bizId]);
+                if (!empty($_POST['_ajax'])) { header('Content-Type: application/json'); echo '{"ok":true}'; exit; }
                 header('Location: ?tab=research&flash=' . urlencode('Lead confirmed — queued for research.'));
                 exit;
 
@@ -144,6 +147,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $bizId = (int)($_POST['business_id'] ?? 0);
                 if ($bizId === 0) throw new RuntimeException('Business ID missing.');
                 ho_mark_excluded($pdo, $bizId, 'failed_triage');
+                if (!empty($_POST['_ajax'])) { header('Content-Type: application/json'); echo '{"ok":true}'; exit; }
                 header('Location: ?tab=research&flash=' . urlencode('Lead rejected.'));
                 exit;
 
@@ -2117,6 +2121,7 @@ function queueAction(btn, action, bizId) {
   fd.append('action', action);
   fd.append('business_id', bizId);
   fd.append('tab', 'research');
+  fd.append('_ajax', '1');
   try {
     fetch(window.location.pathname, {
       method: 'POST', body: fd, redirect: 'manual', keepalive: true
