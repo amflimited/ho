@@ -284,6 +284,34 @@ Migration: `CREATE TABLE IF NOT EXISTS app_settings (setting_key VARCHAR(60)
 PRIMARY KEY, setting_value TEXT);`
 Helpers: `ho_get_setting()` / `ho_set_setting()` (graceful pre-migration).
 
+## ⚠️ GPT workflow reset (2026-06-11) — SUPERSEDES the multi-step flow above
+
+The Research tab used to run THREE prompts back-to-back (Research → Contact →
+Enrich) through one auto-advancing box, plus an optional Custom GPT webhook.
+That drift (different delivery instructions per prompt, hidden sequencing,
+silent failures, webhook-vs-paste ambiguity) made imports unreliable. Reset to
+**one prompt, one paste, manual only:**
+
+- **One merged research prompt.** `ho_generate_research_prompt()` now also
+  captures contact info (`email`, `phone`, `website_url`, `website_confidence`)
+  and already covered competitor + quote (ex-enrichment) fields — so a single
+  pass fully qualifies a lead. `ho_import_research_json()` writes found contact
+  into `businesses` (fill-empty only; rejects low-confidence + lead-platform
+  URLs via `ho_is_lead_platform_url()`) before routing, so the needs_contact
+  gate works without a separate step.
+- **Unified research queue.** app.php builds `$researchBatch` =
+  `$unresearched` + folded-in `needsContactBatch` (cap 19). The Research tab
+  renders exactly one `$hoPrompts` entry. Contact/Enrich steps removed from UI.
+- **Standardized delivery footer.** `ho_prompt_delivery_footer()` is the single
+  source of truth for both sourcing + research prompts: "reply is raw JSON
+  only, no summary sentence, no fences." Killed the old "save results.json +
+  one-line summary" instruction that broke auto-paste.
+- **Manual paste/file only.** Custom GPT "Auto-import setup" panel removed;
+  `cp_gpt_row()` and the research deep link always use standard
+  `chatgpt.com/?q=`. `gpt-import.php`, `llm-research.php`, and the
+  contact/enrichment importer functions remain in place (dead-but-harmless,
+  still callable) — no DB changes needed.
+
 ## Data-quality gates (2026-06-10)
 
 Bad leads were entering at sourcing and wasting research cycles. Three gates

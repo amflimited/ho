@@ -49,7 +49,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = ho_import_research_json($pdo, $rawJson);
                 $n = $result['updated'];
                 $msg = $n > 0
-                    ? "Researched {$n} " . ($n === 1 ? 'business' : 'businesses') . " — leads moved to Send tab (or excluded if no gaps found)."
+                    ? "Researched {$n} " . ($n === 1 ? 'business' : 'businesses') . " — contact info captured where found. Sendable leads moved to the Send tab; any still missing a contact path stay in the research queue."
                     : "0 businesses updated — IDs or names may not have matched. Check errors below.";
                 if (!empty($result['errors'])) $msg .= ' Skipped: ' . implode('; ', array_slice($result['errors'], 0, 3));
                 header('Location: ?tab=research&flash=' . urlencode($msg));
@@ -229,9 +229,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // already typed into the composer (universal link ?q=). Falls back to copy-only
 // guidance when the encoded prompt exceeds a safe URL length.
 function cp_gpt_row(string $prompt): string {
-    global $gptActionsUrl;
-    $base = !empty($gptActionsUrl) ? rtrim($gptActionsUrl, '/') . '?q=' : 'https://chatgpt.com/?hints=search&q=';
-    $url  = $base . rawurlencode($prompt);
+    $url = 'https://chatgpt.com/?hints=search&q=' . rawurlencode($prompt);
     if (strlen($url) > 30000) {
         return '<p class="cp-hint" style="margin-top:6px">This batch is too big for one-tap send &mdash; tap Copy, then paste into ChatGPT.</p>';
     }
@@ -377,10 +375,21 @@ if ($runId > 0 && $pdo) {
     }
 }
 
-$researchPrompt = '';
-if (!empty($unresearched)) {
-    $researchPrompt = ho_generate_research_prompt($unresearched);
+// Unified research queue — contact-finding is now folded into the single
+// research prompt, so leads stuck at needs_contact ride along with new
+// research instead of needing their own separate prompt/import step.
+$researchBatch = $unresearched;
+if (!empty($needsContactBatch)) {
+    $seenRb = array_map('intval', array_column($researchBatch, 'id'));
+    foreach ($needsContactBatch as $b) {
+        if (count($researchBatch) >= 19) break;
+        if (!in_array((int)$b['id'], $seenRb, true)) {
+            $researchBatch[] = $b;
+            $seenRb[] = (int)$b['id'];
+        }
+    }
 }
+$researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($researchBatch) : '';
 
 ?><!doctype html>
 <html lang="en">
@@ -727,63 +736,28 @@ if (!empty($unresearched)) {
   <?php endif; ?>
 
   <?php
-  // ─── Build unified prompt sequence ────────────────────────────────────────
+  // ─── One prompt, one paste ────────────────────────────────────────────────
+  // Research, contact-finding and enrichment are now a SINGLE comprehensive
+  // prompt: research the lead, find its contact path, capture competitor +
+  // quote data — all in one pass. No hidden multi-step chain, no Custom GPT
+  // webhook. Copy → ChatGPT → paste back. That's the whole flow.
   $hoPrompts = [];
-  // Standard ChatGPT deep link auto-submits via ?hints=search&q=.
-  // Custom GPT pages don't auto-submit from ?q= — so the link just opens the GPT
-  // and hoAfterGpt() copies the prompt to clipboard so the user can paste it in.
-  $usingCustomGpt = $gptActionsUrl !== '';
-  $gptBase = $usingCustomGpt
-      ? rtrim($gptActionsUrl, '/')  // no ?q= — Custom GPTs don't honour it
-      : 'https://chatgpt.com/?hints=search&q=';
-  $gptLabel = $usingCustomGpt
-      ? 'Open your Custom GPT — prompt is copied, paste & send'
-      : 'Ask ChatGPT — one tap, nothing to copy';
-
-  if (!empty($unresearched) && $researchPrompt !== '') {
-      $staleCount = count(array_filter($unresearched, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
-      $newCount   = count($unresearched) - $staleCount;
+  if (!empty($researchBatch) && $researchPrompt !== '') {
+      $staleCount = count(array_filter($researchBatch, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
+      $newCount   = count($researchBatch) - $staleCount;
       $hintParts  = [];
       if ($newCount   > 0) $hintParts[] = $newCount . ' new';
       if ($staleCount > 0) $hintParts[] = $staleCount . ' to update';
-      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($researchPrompt);
+      $gUrl = 'https://chatgpt.com/?hints=search&q=' . rawurlencode($researchPrompt);
       $hoPrompts[] = [
           'label'    => 'Research',
-          'step'     => count($unresearched) . ' businesses — ' . implode(', ', $hintParts),
+          'step'     => count($researchBatch) . ' businesses' . ($hintParts ? ' — ' . implode(', ', $hintParts) : ''),
           'prompt'   => $researchPrompt,
           'action'   => 'import_research',
           'key'      => 'research_results',
           'noun'     => 'business',
-          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => $gptLabel,
-      ];
-  }
-  if (!empty($needsContactBatch) && $needsContactPrompt !== '') {
-      $ncTotal = $counts['needs_contact']; $ncBatch = count($needsContactBatch);
-      $stepNote = $ncBatch < $ncTotal ? "{$ncBatch} of {$ncTotal} to find" : "{$ncTotal} to find";
-      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($needsContactPrompt);
-      $hoPrompts[] = [
-          'label'    => 'Contact',
-          'step'     => 'Contact info — ' . $stepNote,
-          'prompt'   => $needsContactPrompt,
-          'action'   => 'import_contact_research',
-          'key'      => 'contacts',
-          'noun'     => 'contact',
-          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => $gptLabel,
-      ];
-  }
-  if (!empty($enrichmentBatch) && $enrichmentPrompt !== '') {
-      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($enrichmentPrompt);
-      $hoPrompts[] = [
-          'label'    => 'Enrich',
-          'step'     => count($enrichmentBatch) . ' of ' . $enrichmentTotal . ' leads to enrich',
-          'prompt'   => $enrichmentPrompt,
-          'action'   => 'import_enrichment',
-          'key'      => 'enrichment_results',
-          'noun'     => 'record',
-          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => $gptLabel,
+          'gptUrl'   => strlen($gUrl) > 30000 ? '' : $gUrl,
+          'gptLabel' => 'Ask ChatGPT — one tap, nothing to copy',
       ];
   }
   ?>
@@ -828,7 +802,7 @@ if (!empty($unresearched)) {
     </form>
   </section>
 
-  <?php if ($llmAvailable && !empty($unresearched)): ?>
+  <?php if ($llmAvailable && !empty($researchBatch)): ?>
   <section class="cp-section">
     <div class="cp-llm-header">
       <div>
@@ -838,7 +812,7 @@ if (!empty($unresearched)) {
     </div>
     <div class="cp-llm-controls">
       <button id="llmBtn" type="button" class="cp-btn-primary" onclick="startLlmResearch()">
-        Research <?= count($unresearched) ?> lead<?= count($unresearched) !== 1 ? 's' : '' ?> with Claude
+        Research <?= count($researchBatch) ?> lead<?= count($researchBatch) !== 1 ? 's' : '' ?> with Claude
       </button>
       <button id="llmStop" type="button" class="cp-btn-ghost" onclick="stopLlmResearch()" style="display:none">Stop</button>
     </div>
@@ -846,7 +820,7 @@ if (!empty($unresearched)) {
       <div class="cp-llm-bar-outer"><div class="cp-llm-bar-inner" id="llmBar" style="width:0%"></div></div>
     </div>
     <p id="llmStatus" class="cp-hint" style="margin-top:6px;min-height:18px"></p>
-    <input type="hidden" id="llmBizIds" value="<?= ho_h(json_encode(array_column($unresearched, 'id'))) ?>">
+    <input type="hidden" id="llmBizIds" value="<?= ho_h(json_encode(array_column($researchBatch, 'id'))) ?>">
     <input type="hidden" id="llmApiKey" value="<?= ho_h($gptImportKey) ?>">
   </section>
   <?php endif; ?>
@@ -857,11 +831,11 @@ if (!empty($unresearched)) {
   </div>
   <?php endif; ?>
 
-  <?php if (!empty($unresearched)): ?>
+  <?php if (!empty($researchBatch)): ?>
   <section class="cp-section">
     <h2 class="cp-sh" style="font-size:14px;">In this research batch</h2>
     <?php
-      $sortedBatch = $unresearched;
+      $sortedBatch = $researchBatch;
       usort($sortedBatch, fn($a,$b) =>
           in_array((int)$b['id'], $multiMarketIds, true) <=> in_array((int)$a['id'], $multiMarketIds, true)
       );
@@ -892,28 +866,6 @@ if (!empty($unresearched)) {
       <?php endforeach; ?>
     </ul>
   </section>
-  <?php endif; ?>
-
-  <?php if (!empty($needsContactBatch)): ?>
-  <?php $ncTotal = $counts['needs_contact']; $ncBatch = count($needsContactBatch); ?>
-  <?php if ($ncBatch < $ncTotal): ?>
-  <div class="cp-nc-progress" style="margin-bottom:6px">
-    <div class="cp-nc-bar" style="width:<?= round($ncBatch / $ncTotal * 100) ?>%"></div>
-  </div>
-  <?php endif; ?>
-  <details style="margin-bottom:18px">
-    <summary class="cp-hint" style="cursor:pointer">Contact batch &mdash; show <?= $ncBatch ?> of <?= $ncTotal ?> businesses</summary>
-    <ul class="cp-biz-list" style="margin-top:8px">
-      <?php foreach ($needsContactBatch as $b): ?>
-        <li class="cp-biz-row">
-          <div class="cp-biz-info">
-            <strong><?= ho_h((string)$b['business_name']) ?></strong>
-            <span><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
-          </div>
-        </li>
-      <?php endforeach; ?>
-    </ul>
-  </details>
   <?php endif; ?>
 
   <?php endif; ?>
@@ -1105,113 +1057,6 @@ if (!empty($unresearched)) {
     </div>
   </section>
   <?php endif; ?>
-
-  <!-- ── AUTO-IMPORT SETUP (one-time) ─────────────────────────────────────── -->
-  <section class="cp-section">
-    <details>
-      <summary class="cp-btn-outline" style="width:100%">⚙ Auto-import setup — results POST straight back, no copy/paste<?= $gptImportKey !== '' && $gptActionsUrl !== '' ? ' ✓' : '' ?></summary>
-      <div style="padding-top:12px">
-        <p class="cp-hint">One-time setup: a Custom GPT with an Action sends results directly into the pipeline the moment it finishes. After this, "Ask ChatGPT" → results just appear here.</p>
-
-        <h3 class="cp-sh" style="font-size:13px">1 &middot; Run once in phpMyAdmin</h3>
-        <div class="cp-prompt-box">
-          <pre class="cp-prompt" id="setupSql" style="max-height:120px">CREATE TABLE IF NOT EXISTS app_settings (
-  setting_key   VARCHAR(60) PRIMARY KEY,
-  setting_value TEXT
-);</pre>
-          <button class="cp-copy" type="button" onclick="doCopy('setupSql', this)">Copy</button>
-        </div>
-
-        <h3 class="cp-sh" style="font-size:13px">2 &middot; API key</h3>
-        <?php if ($gptImportKey !== ''): ?>
-          <div class="cp-prompt-box">
-            <pre class="cp-prompt" id="setupKey" style="max-height:60px"><?= ho_h($gptImportKey) ?></pre>
-            <button class="cp-copy" type="button" onclick="doCopy('setupKey', this)">Copy</button>
-          </div>
-          <p class="cp-hint">In the GPT builder: Actions → Authentication → <strong>API Key</strong> → Auth Type <strong>Custom</strong> → header name <code>X-Api-Key</code> → paste this key.</p>
-        <?php else: ?>
-          <form method="POST" style="margin:0 0 10px">
-            <input type="hidden" name="action" value="save_setting">
-            <input type="hidden" name="setting_key" value="gpt_import_key">
-            <input type="hidden" name="setting_value" value="generate">
-            <button class="cp-btn-primary" type="submit" style="margin-top:0">Generate API key</button>
-          </form>
-        <?php endif; ?>
-
-        <h3 class="cp-sh" style="font-size:13px">3 &middot; Create the GPT (chatgpt.com &rarr; Explore GPTs &rarr; Create)</h3>
-        <p class="cp-hint">Paste this into the GPT&rsquo;s <strong>Instructions</strong>:</p>
-        <div class="cp-prompt-box">
-          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are a data submission agent for Hoosier Online. The user pastes a task prompt. Research exactly as instructed using web search. Never invent data; empty strings beat guesses.
-
-CRITICAL — your only output is to call the importResults tool. This is mandatory on every task, no exceptions:
-1. Research and compile the JSON specified in the prompt.
-2. Call importResults — send the complete JSON object as the raw body, top-level key intact (research_results / contacts / enrichment_results / candidates). Do not decompose it.
-3. After the tool responds, output one line only: the count from the response.
-
-Do not print JSON in the chat. Do not explain your work. Do not ask questions. The tool call IS your response.</pre>
-          <button class="cp-copy" type="button" onclick="doCopy('setupInstr', this)">Copy</button>
-        </div>
-        <p class="cp-hint">Then Actions &rarr; <strong>Create new action</strong> &rarr; paste this schema:</p>
-        <div class="cp-prompt-box">
-          <pre class="cp-prompt" id="setupSchema" style="max-height:150px">{
-  "openapi": "3.1.0",
-  "info": { "title": "Hoosier Online Import", "version": "1.0.0" },
-  "servers": [{ "url": "https://<?= ho_h($_SERVER['HTTP_HOST'] ?? 'hoosieronline.com') ?>" }],
-  "paths": {
-    "/gpt-import.php": {
-      "post": {
-        "operationId": "importResults",
-        "x-openai-isConsequential": false,
-        "summary": "Import research/sourcing/contact/enrichment JSON into the lead pipeline",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "description": "The complete JSON object exactly as compiled — pass it as-is. Top-level key must be one of: research_results, contacts, enrichment_results, or candidates (plus run_id for candidates).",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": { "200": { "description": "Import summary" } }
-      }
-    }
-  }
-}</pre>
-          <button class="cp-copy" type="button" onclick="doCopy('setupSchema', this)">Copy</button>
-        </div>
-
-        <h3 class="cp-sh" style="font-size:13px">4 &middot; Paste your GPT&rsquo;s link here</h3>
-        <form method="POST" style="display:flex;gap:8px;margin:0">
-          <input type="hidden" name="action" value="save_setting">
-          <input type="hidden" name="setting_key" value="gpt_actions_url">
-          <input class="cp-input" type="url" name="setting_value" value="<?= ho_h($gptActionsUrl) ?>" placeholder="https://chatgpt.com/g/g-…">
-          <button class="cp-btn-ghost" type="submit">Save</button>
-        </form>
-        <p class="cp-hint" style="margin-top:6px">Once saved, the &ldquo;Open your Custom GPT&rdquo; button copies the prompt and opens your GPT &mdash; paste it in and send. The GPT then POSTs results back automatically.</p>
-
-        <?php if ($gptImportKey !== ''): ?>
-        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <button type="button" class="cp-btn-ghost" onclick="testGptEndpoint(this)">Test endpoint</button>
-          <span id="gptTestResult" style="font-size:12px"></span>
-        </div>
-        <?php if ($lastImportAt !== ''): ?>
-        <p class="cp-hint" style="margin-top:6px">Last successful import: <strong><?= ho_h($lastImportAt) ?></strong></p>
-        <?php endif; ?>
-        <?php if ($lastRequestLog !== ''): ?>
-        <div style="margin-top:8px">
-          <p class="cp-hint" style="margin-bottom:4px">Recent endpoint activity (newest first):</p>
-          <pre style="font-size:11px;background:#f5f5f5;padding:8px;border-radius:4px;overflow:auto;max-height:120px;white-space:pre-wrap"><?= ho_h($lastRequestLog) ?></pre>
-        </div>
-        <?php else: ?>
-        <p class="cp-hint" style="margin-top:6px;color:#999">No endpoint activity yet &mdash; use Test endpoint to verify, or check your GPT&rsquo;s Action authentication settings.</p>
-        <?php endif; ?>
-        <?php endif; ?>
-      </div>
-    </details>
-  </section>
 
 <!-- ═══ SEND ════════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'send'): ?>

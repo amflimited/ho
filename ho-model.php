@@ -260,6 +260,20 @@ function ho_create_source_run(PDO $pdo, int $categoryId, string $area, int $coun
     return (int)$pdo->lastInsertId();
 }
 
+/**
+ * Single source of truth for how every GPT prompt must hand back its result.
+ * Paste-friendly: the reply must be raw JSON only — no summary sentence, no
+ * markdown fences — so the one-tap paste/import parser never chokes on prose.
+ */
+function ho_prompt_delivery_footer(): string {
+    return <<<FOOTER
+DELIVERY — follow exactly, this is the most important rule:
+- Your ENTIRE reply must be the JSON object and nothing else. No summary sentence, no commentary, no markdown code fences.
+- Begin the reply with { and end it with }.
+- If the result is long, you may also save it as results.json — but still print the full JSON in the reply.
+FOOTER;
+}
+
 function ho_generate_sourcing_prompt(array $category, string $area, int $count, array $exclusions, int $runId = 0): string {
     $name    = $category['name'];
     $runLine = $runId > 0 ? "\n  \"run_id\": {$runId}," : '';
@@ -275,6 +289,7 @@ function ho_generate_sourcing_prompt(array $category, string $area, int $count, 
 
     $regions  = ho_indiana_regions();
     $cityList = $regions[$area] ?? $area;
+    $footer   = ho_prompt_delivery_footer();
 
     return <<<PROMPT
 Find up to {$count} REAL, VERIFIABLE {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint} Do NOT include national franchises, corporate chains, or multi-territory platforms (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, TruGreen, ServiceMaster, Junk King, MaidPro, Lawn Love).
@@ -309,9 +324,7 @@ confidence rules:
 - "medium" — strong indirect evidence (e.g. recent reviews mention them) but no primary listing
 - "low" — uncertain. Do NOT include low-confidence businesses at all — leave them out.{$runRule}
 
-DELIVERY:
-- Save the complete JSON as a downloadable file named results.json — always, so it can be uploaded if needed.
-- Keep your response brief: one line saying what you found.{$exclude}
+{$footer}{$exclude}
 PROMPT;
 }
 
@@ -659,9 +672,10 @@ function ho_generate_research_prompt(array $businesses): string {
         if (($b['google_business_url'] ?? '') !== '') $list .= " — google: {$b['google_business_url']}";
         $list .= "\n";
     }
+    $footer = ho_prompt_delivery_footer();
 
     return <<<PROMPT
-Research these Indiana local service businesses for Hoosier Online lead qualification. For each one, check every public source: their website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, and BBB. Search Google for each business name + city + Indiana to find anything not immediately linked.
+Research these Indiana local service businesses for Hoosier Online lead qualification. For each one, check every public source: their website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, and BBB. Search Google for each business name + city + Indiana to find anything not immediately linked. ALSO find the best way to contact each business — a public email and/or working website — so this single pass fully qualifies the lead with no follow-up steps.
 
 Businesses to research:
 {$list}
@@ -672,6 +686,11 @@ Return ONLY valid JSON — no markdown fences, no explanations. One entry per bu
     {
       "business_id": 0,
       "raw_name": "Exact business name from the list above",
+
+      "email": "",
+      "phone": "",
+      "website_url": "",
+      "website_confidence": "high",
 
       "has_website": false,
       "website_quality": "none",
@@ -763,6 +782,12 @@ FIELD RULES:
 
 business_id: Copy the [ID:N] number exactly.
 
+CONTACT — how a customer (and we) can reach them:
+- email: a public business email if one is visibly listed (site, GBP, Facebook). Empty string if none found. Never guess.
+- phone: their public phone number, digits only. Empty string if none found.
+- website_url: their real, working website that loads and names the business. NEVER guess or construct a URL from the name. Empty string if none. Do NOT use a directory/lead-platform listing (Angi, Thumbtack, Yelp, HomeAdvisor, Houzz, Bark, Porch) as the website_url.
+- website_confidence: "high" if the URL is on an official source (their GBP, the site itself names them) | "medium" if found via search and it looks right | "low" if guessed or uncertain — when low, set website_url to an empty string.
+
 WEBSITE — set all website sub-fields to null when has_website=false:
 - website_quality: "none" | "poor" (barely works/outdated) | "basic" (functional but simple) | "decent" (reasonably complete)
 - has_contact_form: true if a contact/quote/inquiry form exists on the site
@@ -840,9 +865,7 @@ AI ASSESSMENT:
 - gaps: specific things missing or broken (no website, no contact form, inactive social, paying Angi, etc.)
 - recommended_package: "standard" ($499 site build) | "managed" ($999, businesses that need ongoing content)
 
-DELIVERY:
-- Save the complete JSON as a downloadable file named results.json — always, so it can be uploaded if needed.
-- Keep your response brief: one line saying what you found.
+{$footer}
 PROMPT;
 }
 
@@ -1068,6 +1091,29 @@ function ho_import_research_json(PDO $pdo, string $rawJson): array {
             $techCheck['mobile_friendly'] === null ? null : (int)$techCheck['mobile_friendly'],
             $techCheck['has_ssl']         === null ? null : (int)$techCheck['has_ssl'],
         ]);
+
+        // Contact capture — folded in from the old separate contact step so one
+        // research pass fully qualifies the lead. Fill only empty fields; never
+        // overwrite contact info already on the record. Low-confidence or
+        // lead-platform website URLs are rejected the same way the contact
+        // importer rejected them.
+        $foundEmail   = substr(trim((string)($r['email'] ?? '')), 0, 200);
+        $foundPhone   = substr(trim((string)($r['phone'] ?? '')), 0, 40);
+        $foundWebsite = trim((string)($r['website_url'] ?? ''));
+        $webConf      = strtolower(trim((string)($r['website_confidence'] ?? 'medium')));
+        if ($foundWebsite !== '' && ($webConf === 'low' || ho_is_lead_platform_url($foundWebsite))) {
+            $foundWebsite = '';
+        }
+        $contactSets = [];
+        $contactArgs = [];
+        if ($foundWebsite !== '') { $contactSets[] = "website_url = COALESCE(NULLIF(website_url,''), ?)";       $contactArgs[] = substr($foundWebsite, 0, 500); }
+        if ($foundEmail   !== '') { $contactSets[] = "email_address = COALESCE(NULLIF(email_address,''), ?)";   $contactArgs[] = $foundEmail; }
+        if ($foundPhone   !== '') { $contactSets[] = "phone_number = COALESCE(NULLIF(phone_number,''), ?)";     $contactArgs[] = $foundPhone; }
+        if ($contactSets) {
+            $contactArgs[] = $bizId;
+            $pdo->prepare("UPDATE businesses SET " . implode(', ', $contactSets) . " WHERE id = ?")
+                ->execute($contactArgs);
+        }
 
         $ownerFirst = substr(trim((string)($r['owner_first_name'] ?? '')), 0, 100);
         $pdo->prepare("UPDATE businesses SET pipeline_status = 'researched', owner_first_name = ?, updated_at = NOW() WHERE id = ?")
