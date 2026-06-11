@@ -642,3 +642,22 @@ gpt_import_key.
 **Channel attribution:** `?src=` (sanitized) increments `inb_src_{src}` in
 app_settings. Every go.php preview footer now carries the viral loop:
 "Watch your own page build itself free →" (src=preview).
+
+## ✉️ EMAIL REWRITE (2026-06-11) — "the page closes; the email only opens"
+
+Both pitch generators rewritten from ~200-word stacked-argument emails to
+~75-110-word one-observation emails. Structure: greeting → opener (one
+specific data observation) → bridge ("so I built it") → URL → low-pressure
+closer ("ignore this and I won't bother you") → sig → ONE universal P.S.
+("everything's on the page — no call, no quote"). Price, guarantee, ROI,
+stakes, seasonal, credibility all REMOVED from email bodies — go.php carries
+them. Hook-matched branching kept (quote > competitor-beat > comp-has-site >
+Angi/Thumbtack > review-count > opp-summary > stale-reviews > no-site >
+poor-site > years > strengths > generic). Subjects recast human-typed,
+lowercase-leaning ("you vs {comp}", "who handles {name}'s website?",
+"{n} reviews, no website", "is {name} still taking work?").
+Enhancement closer keeps the flat bundle price as a "look first" frame.
+Touch 3 follow-up trimmed to ONE angle (visit-aware > stakes number >
+referral objection), subject "one number, then I'll stop". Signature unified
+everywhere: name / company · New Castle, Indiana / phone (no email in sig —
+the reply-to is the email).

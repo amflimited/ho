@@ -1727,95 +1727,60 @@ function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
 
     $topGap = $gaps[0] ?? '';
 
-    // Hook priority — lead with the most personal, undeniable proof first.
-    // Subject is set alongside each hook so the inbox line and the first
-    // sentence of the body tell one story.
-    $subject = "A quick note for {$name}";
+    // ── Same rule as the site-build email: one observation, one link, one
+    // low-pressure ask, under 90 words. The page carries prices, the bundle
+    // total, the guarantee, and the ROI math.
+
+    $subject = "a few specific fixes for {$name}";
+    $opener  = '';
+    $bridge  = "I wrote up exactly what I\u{2019}d fix on {$name}\u{2019}s online presence \u{2014} each piece priced:";
+
     if ($quote !== '') {
-        $attr = $quoteAuthor !== '' ? " \u{2014} {$quoteAuthor}" : '';
-        $hook = "One of your customers wrote: \u{201C}{$quote}\u{201D}{$attr}. That\u{2019}s the kind of thing that wins jobs \u{2014} but right now it\u{2019}s buried in your Google reviews where new customers never scroll. One of the things I\u{2019}d do is put words like that right on your site, where everyone sees them first.";
-        $subject = $quoteAuthor !== ''
-            ? "{$quoteAuthor}\u{2019}s review of {$name} deserves a bigger stage"
-            : "The review that should be on {$name}\u{2019}s homepage";
-    } elseif ($compName !== '' && $compRating !== null && $compReviews !== null && $reviews > 0 && $rating >= $compRating) {
-        $hook = "Here\u{2019}s what stuck out: you\u{2019}re at {$rating}\u{2605} with {$reviews} reviews. {$compName} is at {$compRating}\u{2605} \u{2014} lower than you \u{2014} but they show up in more places, so they get the call. You\u{2019}re the better business; the gap is visibility, and that\u{2019}s fixable.";
-        $subject = "You outrate {$compName} \u{2014} they still get the call";
+        $attr    = $quoteAuthor !== '' ? " \u{2014} {$quoteAuthor}" : " \u{2014} a Google review of yours";
+        $subject = $quoteAuthor !== '' ? "what {$quoteAuthor} said about {$name}" : "a review of yours worth more than it\u{2019}s getting";
+        $opener  = "I was reading {$name}\u{2019}s reviews \u{2014} this one stood out:\n\n\u{201C}{$quote}\u{201D}{$attr}";
+        $bridge  = "That should be on your homepage, not buried in Google. Putting it there is the first item on a fix-it plan I wrote for your site \u{2014} each piece priced:";
+    } elseif ($compName !== '' && $compRating !== null && $reviews > 0 && $rating >= $compRating) {
+        $subject = "you vs " . $compName;
+        $opener  = "You\u{2019}re rated higher than {$compName} ({$rating}\u{2605} to {$compRating}\u{2605}) \u{2014} but they show up in more places, so they get the call first.";
+        $bridge  = "The gap is visibility, and it\u{2019}s fixable. I wrote up exactly what I\u{2019}d do, with prices:";
     } else {
         switch ($topGap) {
             case 'contact_form':
-                if ($reviews >= 20) {
-                    $hook = "I looked up {$name} and saw {$reviews} Google reviews \u{2014} people clearly find you and trust you. But there\u{2019}s no way to reach you in writing. Anyone who found you outside business hours and didn\u{2019}t want to call just left. A simple contact form captures those jobs instead of handing them to a competitor.";
-                } else {
-                    $hook = "I noticed your {$catLower} business doesn\u{2019}t have a way for customers to reach you in writing. Anyone who found your site but didn\u{2019}t want to call just left \u{2014} a simple contact form captures those jobs instead.";
-                }
-                $subject = "The customers who can\u{2019}t reach {$name} after hours";
+                $subject = "the 9pm customers {$name} can\u{2019}t catch";
+                $opener  = $reviews >= 20
+                    ? "{$reviews} Google reviews \u{2014} people clearly trust you. But your site has no way to reach you in writing, so the 9pm searcher who won\u{2019}t call just\u{2026} leaves."
+                    : "Your site has no way for a customer to reach you in writing \u{2014} anyone who doesn\u{2019}t want to call simply leaves, and you never know they were there.";
                 break;
             case 'tech_issues':
-                $hook = "I checked the {$name} site and it has issues Google actively penalises \u{2014} not mobile-friendly, no SSL, or both. That means competitors are ranking above you in search right now, not because they\u{2019}re better, but because their site doesn\u{2019}t have those flags. Worth fixing.";
                 $subject = "{$name}\u{2019}s site has a fixable Google problem";
+                $opener  = "Your site has flags Google actively penalises \u{2014} mobile or SSL. Competitors are ranking above you right now because of them, not because they\u{2019}re better.";
                 break;
             case 'paid_leads':
-                $hook = "I noticed {$name} is listed on {$platform}. Customers who find you there contact {$platform} first \u{2014} {$platform} decides whether you\u{2019}re visible and whether your price competes. A contact form on your own site means they reach you directly, with no platform in the way.";
-                $subject = "The jobs {$platform} charges you for";
+                $subject = "the leads {$platform} charges you for";
+                $opener  = "Customers who find {$name} on {$platform} belong to {$platform} \u{2014} their cut, their rules, their competing bids on your job.";
+                $bridge  = "I wrote up how to make those same searches land on you directly \u{2014} each piece priced:";
                 break;
             case 'google_business':
-                $hook = "I looked up {$name} and you don\u{2019}t appear in Google Maps for {$catLower} in {$city}. That\u{2019}s the search that turns into calls. It\u{2019}s fixable with a Google Business setup \u{2014} usually one afternoon.";
-                $subject = "{$name} isn\u{2019}t showing up on Google Maps";
+                $subject = "{$name} isn\u{2019}t showing on Google Maps";
+                $opener  = "You don\u{2019}t show up in Google Maps for {$catLower} in {$city} \u{2014} and Maps is the search that turns into phone calls.";
+                $bridge  = "Usually one afternoon to fix. It\u{2019}s the first item on a short plan I wrote for {$name}:";
                 break;
             default:
-                $hook = "I looked at {$name} and noticed a few specific things that could bring in more customers without rebuilding anything.";
-                $subject = "A few specific fixes for {$name}";
+                $opener  = "I went through {$name}\u{2019}s online presence and found a few specific leaks \u{2014} the quiet kind that cost jobs without anyone telling you.";
         }
     }
 
-    // Stakes line — conservative, honest dollars. Only when we know the trade.
-    $stakesLine = '';
-    $stakes = ho_stakes_estimate($catSlug);
-    if ($stakes !== null) {
-        $jobs = $stakes['jobs_per_month'];
-        $jobWord = $jobs > 1 ? "{$jobs} jobs" : "one job";
-        $stakesLine = "\nThe average {$catLower} job runs around $" . number_format($stakes['ticket'])
-            . ". Even {$jobWord} a month slipping past you is roughly $" . number_format($stakes['annual'])
-            . " a year \u{2014} which is the whole reason this is worth ten minutes.\n";
-    }
-
-    // Offer line — flat bundle price when we have it.
-    $offerLine = $bundleTotal > 0
-        ? "\nEverything I\u{2019}d fix, done for a flat $" . number_format($bundleTotal) . " \u{2014} one time, no contract. Want just one piece? That works too.\n"
-        : "";
-
     $greeting = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    // Data-driven intro
-    if ($reviews >= 10 && $rating >= 4.0) {
-        $intro = "{$reviews} reviews at " . number_format($rating, 1) . "\u{2605} \u{2014} {$name} has a solid reputation in {$city}.";
-    } elseif ($reviews >= 5) {
-        $intro = "{$reviews} Google reviews for {$name} in {$city} \u{2014} people are finding you.";
-    } else {
-        $intro = "I looked at {$catLower} businesses in {$city} and {$name} came up.";
-    }
+    $closer = $bundleTotal > 0
+        ? "The whole list is a flat \$" . number_format($bundleTotal) . ", once \u{2014} but look first. Worst case, it\u{2019}s a free second opinion from someone who does this all day."
+        : "Look when you have a minute \u{2014} worst case, it\u{2019}s a free second opinion from someone who does this all day.";
 
-    // Credibility anchor + stronger closing
-    $hasRecord2  = $reviews > 0;
-    $trackLine2  = $hasRecord2 ? " For someone with your reviews and track record, the floor is higher." : "";
-    $credEnhance = "I\u{2019}ve improved sites for Indiana trades and seen a clean, well-positioned online presence help close a \$15k job for an operator with no experience.{$trackLine2}";
+    $sig = "\u{2014} Adam Ferree\nHoosier Online \u{00B7} New Castle, Indiana\n(765) 443-4321";
+    $ps  = "P.S. No call needed \u{2014} everything\u{2019}s priced on the page. Pick one fix or all of them.";
 
-    $closingLine = $bundleTotal > 0
-        ? "Everything I\u{2019}d fix, done for a flat \$" . number_format($bundleTotal) . " \u{2014} one time, no contract, and if you\u{2019}re not happy with the work, full refund. Want just one piece? That works too. {$credEnhance} Reply and I\u{2019}ll get started the same day."
-        : "{$credEnhance} Reply here and I\u{2019}ll have a quote to you the same day. One flat fee, no contract, no surprises \u{2014} and if you\u{2019}re not happy with the work, full refund.";
-
-    // P.S. — use the strongest remaining signal
-    $psLine = '';
-    if ($stakes !== null) {
-        $psLine = "\nP.S. The average {$catLower} job runs \$" . number_format($stakes['ticket']) . ". Even one extra job a month from fixing these gaps covers the cost inside the first week.";
-    } elseif ($quote !== '' && $quoteAuthor !== '') {
-        $psLine = "\nP.S. {$quoteAuthor} wrote: \u{201C}" . ho_quote_inline($quote, 100) . "\u{201D} \u{2014} that belongs on your homepage, not three scrolls deep in Google.";
-    }
-
-    $body = "{$greeting}\n\n{$intro}\n\n"
-        . "{$hook}\n{$stakesLine}"
-        . "\nI put together a page showing exactly what I\u{2019}d do and what each piece costs:\n\n{$previewUrl}\n\n"
-        . "{$closingLine}{$psLine}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    $body = "{$greeting}\n\n{$opener}\n\n{$bridge}\n\n{$previewUrl}\n\n{$closer}\n\n{$sig}\n\n{$ps}";
 
     return ['subject' => $subject, 'body' => $body];
 }
@@ -2011,136 +1976,89 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
         $reviewAgeMonths = ((int)date('Y') - (int)$lm[1]) * 12 + ((int)date('n') - (int)$lm[2]);
     }
 
-    // Subject is set per-branch so it mirrors the hook — the subject line and
-    // the first sentence of the body tell one story, not two.
-    $subject = "A quick note for {$name}";
+    // ── The email has ONE job: earn the click. Price, guarantee, ROI,
+    // timeline, credibility — all of that lives on the page, with full
+    // context. Target: under 90 words. One specific observation that proves
+    // a human looked, one link, one low-pressure ask. Subjects read like a
+    // person typed them, not a campaign.
 
-    // Track whether a "premium" personalized hook fired — if so we skip the
-    // generic gap line to avoid the email reading like a checklist.
-    $strongHook = false;
+    $subject = "built something for {$name}";
+    $opener  = '';
+    $bridge  = '';
 
-    // Priority hooks: most personal, undeniable proof first
     if ($quote !== '') {
-        $attr = $quoteAuthor !== '' ? " \u{2014} {$quoteAuthor}" : '';
-        $hook = "One of your customers wrote: \u{201C}{$quote}\u{201D}{$attr}. That kind of review wins jobs \u{2014} but right now it\u{2019}s buried in your Google listing where almost nobody scrolls. I built you a website that puts it right out front, where every new customer sees it first.";
-        $subject = $quoteAuthor !== ''
-            ? "{$quoteAuthor}\u{2019}s review of {$name} deserves a bigger stage"
-            : "The review that should be on {$name}\u{2019}s homepage";
-        $strongHook = true;
-    } elseif ($compName !== '' && $compRating !== null && $compReviews !== null && $reviews > 0 && $rating >= $compRating && $noSite) {
-        $hook = "Here\u{2019}s what stuck out: you\u{2019}re at {$rating}\u{2605} with {$reviews} reviews. {$compName} sits at {$compRating}\u{2605} \u{2014} lower than you \u{2014} and they\u{2019}re still the first thing people find when they search {$catLower} in {$city}, because they have a website and you don\u{2019}t. You\u{2019}re the better business; you\u{2019}re just invisible. I built a mockup to show what closing that gap looks like.";
-        $subject = "Your reviews beat {$compName}\u{2019}s \u{2014} their website still wins";
-        $strongHook = true;
+        $attr    = $quoteAuthor !== '' ? " \u{2014} {$quoteAuthor}" : " \u{2014} a Google review of yours";
+        $subject = $quoteAuthor !== '' ? "what {$quoteAuthor} said about {$name}" : "found a review of yours worth reading twice";
+        $opener  = "I was reading {$name}\u{2019}s Google reviews and this one stopped me:\n\n\u{201C}{$quote}\u{201D}{$attr}";
+        $bridge  = "A review like that should be the first thing a new customer sees \u{2014} not buried where nobody scrolls. So I built you a homepage with it right up top:";
+    } elseif ($compName !== '' && $compRating !== null && $reviews > 0 && $rating >= $compRating && $noSite) {
+        $subject = "you vs " . $compName;
+        $opener  = "You\u{2019}re rated higher than {$compName} ({$rating}\u{2605} to {$compRating}\u{2605}) \u{2014} but when someone in {$city} searches {$catLower}, they find {$compName} first. Only difference: they have a website.";
+        $bridge  = "You\u{2019}re the better business, just invisible. So I built the missing piece \u{2014} your reviews are already on it:";
     } elseif ($compHasSite && $noSite && $compName !== '') {
-        $hook = "I noticed {$compName} has a website. When someone in {$city} searches for {$catLower} services, they\u{2019}re finding {$compName} \u{2014} not you. I built a quick mockup to show you what closing that gap could look like.";
-        $subject = "What {$compName} has that {$name} doesn\u{2019}t";
+        $subject = "what {$compName} has that {$name} doesn\u{2019}t";
+        $opener  = "When someone in {$city} searches for {$catLower}, they find {$compName}. I couldn\u{2019}t find you anywhere past your Google listing \u{2014} so those jobs go to them by default.";
+        $bridge  = "I went ahead and built you a page. Your name and reviews are already on it:";
     } elseif ($hasAngi || $hasThumb) {
         $platform = $hasAngi ? 'Angi' : 'Thumbtack';
-        $hook = "I noticed you\u{2019}re on {$platform} \u{2014} paying per lead for jobs you could be getting for free from a website. I put together a quick mockup to show you what that could look like.";
-        $subject = "The jobs {$platform} charges you for";
+        $subject  = "the leads {$platform} charges you for";
+        $opener   = "Saw {$name} on {$platform}. Every job through there, they take a cut \u{2014} and that customer was searching for {$catLower} in {$city} anyway.";
+        $bridge   = "I built the page those searches could land on instead. Already done, free to look:";
     } elseif ($noSite && $reviews >= 21) {
-        $hook = "I noticed {$name} has {$reviews} Google reviews \u{2014} that\u{2019}s serious social proof. But right now it\u{2019}s all locked inside Google\u{2019}s interface. A website puts that proof everywhere: on the page, in estimates, wherever you share it. I built a mockup to show what that looks like.";
-        $subject = "{$reviews} Google reviews and no website \u{2014} {$name}";
+        $subject = "{$reviews} reviews, no website";
+        $ratingBit = $rating > 0 ? ' at ' . number_format($rating, 1) . "\u{2605}" : '';
+        $opener  = "{$reviews} Google reviews{$ratingBit} and no website \u{2014} honestly the most backwards thing I\u{2019}ve seen in {$city}. You\u{2019}ve already done the hard part.";
+        $bridge  = "So I did the easy part \u{2014} built you a homepage that puts those reviews where every customer sees them:";
     } elseif ($opSum !== '') {
-        $hook = $opSum;
-        $subject = "A mockup I built for {$name}";
+        $subject = "a thought about {$name}";
+        $opener  = $opSum;
+        $bridge  = "I built you a page around exactly that:";
     } elseif ($noSite && $reviews >= 10) {
-        $hook = "I noticed your {$reviews} Google reviews \u{2014} that\u{2019}s real social proof with nowhere to live. Right now customers who search for you find your Google listing and then\u{2026} nothing. I built a mockup to show what fixing that looks like.";
-        $subject = "Your {$reviews} Google reviews deserve a homepage";
+        $subject = "your {$reviews} Google reviews";
+        $opener  = "{$reviews} Google reviews and nowhere to put them. Right now someone who hears about {$name} finds your Google listing, and then\u{2026} nothing.";
+        $bridge  = "I built you a homepage that fixes that \u{2014} your reviews are already on it:";
     } elseif ($reviewAgeMonths !== null && $reviewAgeMonths >= 6 && $reviews >= 5) {
-        $hook = "Your most recent Google review was {$reviewAgeMonths} months ago. Without fresh activity, customers searching for {$catLower} services can\u{2019}t tell if you\u{2019}re still taking work. A website gives you a permanent presence that doesn\u{2019}t go stale.";
-        $subject = "Can {$city} customers tell {$name} is still open?";
+        $subject = "is {$name} still taking work?";
+        $opener  = "Honest question \u{2014} your last Google review was {$reviewAgeMonths} months ago, and someone searching today can\u{2019}t tell whether you\u{2019}re still in business.";
+        $bridge  = "I built you a page that settles it \u{2014} current, real, yours:";
     } elseif (!$hasSite || $siteQual === 'none') {
-        $hook = "I noticed you don\u{2019}t have a dedicated website yet \u{2014} which actually means there\u{2019}s a real opportunity here.";
-        $subject = "I built {$name} a homepage \u{2014} take a look";
+        $subject = "who handles {$name}\u{2019}s website?";
+        $opener  = "Odd question: who handles the website for {$name}? I ask because I couldn\u{2019}t find one \u{2014} just your Google listing.";
+        $bridge  = "So I went ahead and built one. Took a couple hours, it\u{2019}s real, and it\u{2019}s yours to look at:";
     } elseif ($siteQual === 'poor') {
-        $hook = "I came across your website and could see the potential for something much more effective.";
-        $subject = "A sharper website for {$name} \u{2014} already built";
+        $subject = "{$name}\u{2019}s website \u{2014} honest thought";
+        $opener  = "I found {$name}\u{2019}s website, and I think it\u{2019}s costing you jobs it should be winning.";
+        $bridge  = "Instead of sending a list of complaints, I built the better version so you can compare side by side:";
     } elseif ($reviews >= 10) {
-        $hook = "I noticed your {$reviews} Google reviews \u{2014} that\u{2019}s real social proof that deserves a better home online.";
-        $subject = "Your {$reviews} Google reviews deserve a homepage";
+        $subject = "your {$reviews} Google reviews";
+        $opener  = "{$reviews} Google reviews is real proof \u{2014} and it deserves a better home than a listing nobody scrolls.";
+        $bridge  = "I built a page that shows what I mean:";
     } elseif ($years >= 5) {
-        $hook = "I came across {$name} \u{2014} {$years} years in business is real credibility. The opportunity is making sure that shows up online the way it deserves to.";
-        $subject = "{$years} years in {$city} \u{2014} your website should show it";
+        $subject = "{$years} years, no real web presence";
+        $opener  = "{$years} years of {$catLower} in {$city} \u{2014} and your reputation is doing all the carrying online.";
+        $bridge  = "I built you a page that puts those years to work:";
     } elseif (!empty($strengths)) {
-        $hook = ucfirst(strtolower((string)$strengths[0])) . " \u{2014} that kind of thing deserves better visibility online.";
+        $opener  = ucfirst(strtolower((string)$strengths[0])) . " \u{2014} that deserves to be visible.";
+        $bridge  = "I built you a page around it:";
     } else {
-        $hook = "I came across your {$catLower} business while researching the {$city} area.";
-    }
-
-    // Generic gap line — only when no premium hook already carried the message.
-    $gapLine = '';
-    if (!$strongHook && !empty($gaps)) {
-        $gapLine = "\nThe main thing I think could move the needle: " . strtolower((string)$gaps[0]) . ".\n";
-    }
-
-    // Stakes line — conservative, honest dollars. Only when we know the trade.
-    $stakesLine = '';
-    $stakes = ho_stakes_estimate($catSlug);
-    if ($stakes !== null) {
-        $jobs = $stakes['jobs_per_month'];
-        $jobWord = $jobs > 1 ? "{$jobs} jobs" : "one job";
-        $stakesLine = "\nEven {$jobWord} a month slipping past you \u{2014} the late-night searcher who couldn\u{2019}t find a site \u{2014} is roughly $" . number_format($stakes['annual']) . " a year. The fix is a flat $199, once.\n";
-    }
-
-    // Seasonal urgency line
-    $seasonalLine = '';
-    $seasonal = ho_seasonal_urgency_note($catSlug);
-    if ($seasonal !== '') {
-        $seasonalLine = "\n{$seasonal}\n";
+        $opener  = "I research {$catLower} businesses around {$city}, and {$name} kept coming up.";
+        $bridge  = "So I built you a homepage preview \u{2014} free to look at, nothing to sign up for:";
     }
 
     $firstName = trim((string)($biz['owner_first_name'] ?? ''));
     $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
 
-    // Data-driven intro — open with the most remarkable signal, not a template line
-    if ($reviews >= 10 && $rating >= 4.0) {
-        $intro = "{$reviews} Google reviews at " . number_format($rating, 1) . "\u{2605} \u{2014} {$name} has real credibility in {$city}.";
-    } elseif ($years >= 5 && $noSite) {
-        $intro = "{$years} years running {$name} in {$city}.";
-    } elseif ($reviews >= 5) {
-        $intro = "{$reviews} Google reviews for {$name} in {$city} \u{2014} people are finding you and liking what they get.";
-    } elseif ($noSite) {
-        $intro = "Searched {$catLower} near {$city}, found {$name} \u{2014} solid reputation, no website.";
-    } else {
-        $intro = "I looked at {$catLower} businesses in {$city} and {$name} came up.";
-    }
+    // Low-pressure close — the permission to ignore is what earns the click
+    $closer = $ageBand === '55plus'
+        ? "No charge to look. If you like it, I handle every technical piece \u{2014} nothing for you to figure out. If not, ignore me and that\u{2019}s the end of it."
+        : "If it\u{2019}s not for you, ignore this and I won\u{2019}t bother you. But it\u{2019}s worth 60 seconds.";
 
-    // Hook-matched preview framing — the CTA sentence mirrors the hook
-    if ($strongHook && $quote !== '') {
-        $ctaLine = "I put " . ($quoteAuthor !== '' ? "{$quoteAuthor}\u{2019}s words" : "that review") . " right on the front page of a site I built for you:";
-    } elseif ($strongHook && $compName !== '' && $noSite) {
-        $ctaLine = "Here\u{2019}s what closing that gap looks like:";
-    } elseif ($hasAngi || $hasThumb) {
-        $platform2 = $hasAngi ? 'Angi' : 'Thumbtack';
-        $ctaLine = "Here\u{2019}s what owning your own leads channel \u{2014} no {$platform2} cut \u{2014} looks like:";
-    } elseif ($reviews >= 10 && $noSite) {
-        $ctaLine = "Here\u{2019}s what putting those {$reviews} reviews to work looks like:";
-    } else {
-        $ctaLine = "Here\u{2019}s what I built:";
-    }
+    $sig = "\u{2014} Adam Ferree\nHoosier Online \u{00B7} New Castle, Indiana\n(765) 443-4321";
 
-    // Credibility anchor — the $15k story answers "who is this guy?"
-    $hasRecord = $reviews > 0 || $years > 0;
-    $trackLine = $hasRecord ? " Imagine what it does for someone with your track record." : "";
-    $cred = "I\u{2019}ve built sites for Indiana trades \u{2014} one client, brand new to the industry with no track record, used a clean site and logo to close a \$15k job.{$trackLine}";
+    // One universal P.S. — kills the #1 fear about replying (a sales call)
+    $ps = "P.S. Everything\u{2019}s on the page \u{2014} price, timeline, all of it. No call, no quote, no back-and-forth.";
 
-    // Specific closing with deliverables, timeline, credibility, and risk reversal
-    $closing = $ageBand === '55plus'
-        ? "No charge to view. {$cred} If it looks right, just reply \u{2014} I handle everything technical, nothing for you to figure out. Flat \$199 to go live, and if you don\u{2019}t love it, full refund \u{2014} you risk nothing."
-        : "No charge to view. {$cred} If it looks right: \$199 flat, live in 48 hours \u{2014} domain, hosting, everything. Don\u{2019}t love it? Full refund, no questions \u{2014} you risk nothing. Reply here and I\u{2019}ll take it from there.";
-
-    // P.S. — most-read part of an email; use the strongest fact NOT already in the hook
-    $psLine = '';
-    if ($stakes !== null && $strongHook) {
-        $psLine = "\nP.S. The average {$catLower} job runs \$" . number_format($stakes['ticket']) . ". One new customer a month from search pays for this in the first week.";
-    } elseif ($reviews >= 20 && $noSite && !$strongHook) {
-        $psLine = "\nP.S. {$reviews} reviews and no website is actually rare \u{2014} it means you\u{2019}re already trusted, just not findable. This fixes that.";
-    } elseif ($years >= 5 && $reviews >= 5 && !$strongHook) {
-        $psLine = "\nP.S. {$years} years in business + {$reviews} reviews is a strong foundation. A website just makes it visible to people who haven\u{2019}t heard of you yet.";
-    }
-
-    $body = "{$greeting}\n\n{$intro}\n\n{$hook}{$gapLine}{$stakesLine}{$seasonalLine}\n{$ctaLine}\n\n{$previewUrl}\n\n{$closing}{$psLine}\n\n\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    $body = "{$greeting}\n\n{$opener}\n\n{$bridge}\n\n{$previewUrl}\n\n{$closer}\n\n{$sig}\n\n{$ps}";
 
     return ['subject' => $subject, 'body' => $body];
 }
@@ -3452,7 +3370,7 @@ function ho_followup_message(array $biz, string $previewUrl, int $touch, array $
     $hasVisited = $visitData !== null && $visitData['total'] > 0;
     $recentHit  = $visitData !== null && $visitData['recent'] > 0;
 
-    $sig = "\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+    $sig = "\u{2014} Adam Ferree\nHoosier Online \u{00B7} New Castle, Indiana\n(765) 443-4321";
 
     $catName  = (string)($biz['category_name'] ?? $biz['cat_name'] ?? '');
     $catLower = strtolower($catName);
@@ -3474,18 +3392,16 @@ function ho_followup_message(array $biz, string $previewUrl, int $touch, array $
 
         case 3:
             $stakes = ho_stakes_estimate($catSlug);
-            $stakesLine = '';
-            if ($stakes !== null) {
-                $annual = number_format($stakes['annual']);
-                $ticket = number_format($stakes['ticket']);
-                $stakesLine = "\n\nQuick number to chew on: the average {$catLower} job runs \${$ticket}. One extra customer a month from search is roughly \${$annual} a year \u{2014} and the site is a flat \$199, once.";
+            $subject = "one number, then I\u{2019}ll stop";
+            if ($recentHit) {
+                $opener3 = "Saw you stopped by the page again \u{2014} if something gave you pause, reply and tell me. I\u{2019}ll fix it or tell you straight if this isn\u{2019}t for you.";
+            } elseif ($stakes !== null) {
+                $opener3 = "One number before I go quiet: the average {$catLower} job runs \$" . number_format($stakes['ticket'])
+                         . ". Being findable for even one more of those a month is about \$" . number_format($stakes['annual']) . " a year.";
+            } else {
+                $opener3 = "If most of your work comes from referrals \u{2014} fair. But referrals Google you before they call, and this is what they find.";
             }
-            $objLine = $catLower !== ''
-                ? "\n\nIf you\u{2019}re thinking \u{201C}most of my work comes from referrals anyway\u{201D} \u{2014} referrals still Google you before they call. This is what they find right now."
-                : '';
-            $visitLine = $recentHit ? "\n\nI saw you visited the page again recently \u{2014} if something gave you pause, I\u{2019}m easy to reach." : '';
-            $subject = "{$name} \u{2014} one thing I should have said";
-            $body = "{$greeting}\n\nThird note, I promise this is the last unless I hear back.{$stakesLine}{$objLine}{$visitLine}\n\nThe preview is still up:\n\n{$previewUrl}\n\n{$sig}";
+            $body = "{$greeting}\n\nThird note \u{2014} last one for a while.\n\n{$opener3}\n\nThe page is still up:\n\n{$previewUrl}\n\n{$sig}";
             return ['subject' => $subject, 'body' => $body];
 
         case 4:
