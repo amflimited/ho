@@ -456,6 +456,51 @@ and show on go.php with correct prices.
 
 ---
 
+## ⚠️ REQUIRED MIGRATION — gpt_tasks table (V144)
+
+Run in phpMyAdmin before the GPT task packet system is active:
+
+```sql
+CREATE TABLE IF NOT EXISTS gpt_tasks (
+  id              BIGINT        AUTO_INCREMENT PRIMARY KEY,
+  task_uid        VARCHAR(64)   UNIQUE NOT NULL,
+  task_type       ENUM('sourcing','research','contact','enrichment') NOT NULL,
+  expected_key    VARCHAR(64)   NOT NULL,
+  import_action   VARCHAR(64)   NOT NULL,
+  source_run_id   BIGINT        NULL,
+  prompt          MEDIUMTEXT    NOT NULL,
+  input_fingerprint CHAR(64)    NOT NULL,
+  allowed_ids     TEXT          NULL,
+  status          ENUM('ready','fetched','imported','failed','expired') NOT NULL DEFAULT 'ready',
+  created_at      DATETIME      NOT NULL,
+  fetched_at      DATETIME      NULL,
+  imported_at     DATETIME      NULL,
+  last_error      TEXT          NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+**Until this migration runs**: `ho_create_gpt_task()` returns `{status:'unavailable'}` and all callers degrade gracefully — the old URL-based and copy/paste flows remain fully functional.
+
+---
+
+## GPT Task Packet System (V144, 2026-06-11)
+
+Replaces the fragile "prompt-in-URL" approach:
+
+1. **Task creation**: When the Research tab loads, each prompt type (research / contact / enrichment / sourcing) creates a `gpt_tasks` row with its full prompt text and gets back a `task_uid`.
+2. **Launcher text**: The Custom GPT button copies just: `"Run Hoosier Online task {uid}. Fetch the task, complete it, and import the results."`  — no giant prompt in the URL or clipboard.
+3. **`gpt-task.php`**: Key-authed endpoint. GPT sends `task_uid` → gets back the full prompt + `import_url`. No UID = returns the newest ready task.
+4. **`gpt-import.php`**: Accepts optional `task_uid` in payload → marks task imported on success, failed on error. Falls back gracefully if task not found.
+5. **`hoCopyThenOpen(btn)`**: Async JS function. Copies the launcher text, opens the GPT URL. Does NOT auto-advance the step — step advances only after a successful import.
+
+### Batch sizes (V144)
+- Research: **8** leads per batch (was 19)
+- Contact: **12** per batch (was 15)
+- Enrichment: **10** per batch (was 38)
+- Source: max 12 in the UI (see source run creation form)
+
+---
+
 ## Known Gotchas
 
 - `'good'` website_quality is dead code — import validator only accepts `['none','poor','basic','decent']`

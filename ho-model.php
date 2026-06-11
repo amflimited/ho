@@ -251,6 +251,86 @@ function ho_set_setting(PDO $pdo, string $key, string $value): bool {
     }
 }
 
+// ─── GPT task packets ─────────────────────────────────────────────────────────
+
+function ho_create_gpt_task(
+    PDO $pdo,
+    string $type,         // 'sourcing'|'research'|'contact'|'enrichment'
+    string $expectedKey,  // e.g. 'research_results'
+    string $importAction, // e.g. 'import_research'
+    string $prompt,
+    ?int $sourceRunId = null,
+    array $allowedIds = []
+): array {
+    $uid = bin2hex(random_bytes(12)); // 24-char hex
+    $fp  = hash('sha256', $prompt);
+    try {
+        $pdo->prepare("
+            INSERT INTO gpt_tasks
+              (task_uid, task_type, expected_key, import_action, source_run_id,
+               prompt, input_fingerprint, allowed_ids, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ready', NOW())
+        ")->execute([
+            $uid, $type, $expectedKey, $importAction,
+            $sourceRunId, $prompt, $fp,
+            $allowedIds ? implode(',', $allowedIds) : ''
+        ]);
+    } catch (Throwable $e) {
+        // Table not migrated yet — return a stub so callers don't crash
+        return ['task_uid' => '', 'status' => 'unavailable', 'error' => $e->getMessage()];
+    }
+    return ['task_uid' => $uid, 'status' => 'ready'];
+}
+
+function ho_get_gpt_task(PDO $pdo, string $taskUid): ?array {
+    try {
+        $s = $pdo->prepare("SELECT * FROM gpt_tasks WHERE task_uid = ?");
+        $s->execute([$taskUid]);
+        $row = $s->fetch();
+        return $row ?: null;
+    } catch (Throwable) { return null; }
+}
+
+function ho_mark_gpt_task_fetched(PDO $pdo, string $taskUid): void {
+    try {
+        $pdo->prepare("UPDATE gpt_tasks SET status='fetched', fetched_at=NOW() WHERE task_uid=? AND status='ready'")
+            ->execute([$taskUid]);
+    } catch (Throwable) {}
+}
+
+function ho_mark_gpt_task_imported(PDO $pdo, string $taskUid): void {
+    try {
+        $pdo->prepare("UPDATE gpt_tasks SET status='imported', imported_at=NOW() WHERE task_uid=?")
+            ->execute([$taskUid]);
+    } catch (Throwable) {}
+}
+
+function ho_get_next_ready_task(PDO $pdo): ?array {
+    try {
+        $s = $pdo->prepare("
+            SELECT * FROM gpt_tasks WHERE status = 'ready' ORDER BY created_at DESC LIMIT 1
+        ");
+        $s->execute();
+        return $s->fetch() ?: null;
+    } catch (Throwable) { return null; }
+}
+
+function ho_prompt_reset_block(string $taskUid, string $expectedKey, array $allowedIds = [], array $allowedCities = []): string {
+    $idsLine    = !empty($allowedIds)    ? "\nALLOWED_IDS: [" . implode(',', $allowedIds) . "]" : '';
+    $citiesLine = !empty($allowedCities) ? "\nALLOWED_CITIES: " . json_encode($allowedCities) : '';
+    $uidLine    = $taskUid !== ''        ? "\nTASK_UID: {$taskUid}" : '';
+    return <<<BLOCK
+STATE RESET / CURRENT TASK ONLY
+- Ignore previous conversations, previous JSON, previous businesses, and previous regions.
+- Use ONLY the businesses/region/IDs in this prompt.
+- Do NOT reuse any prior output.
+- Every returned business_id must be one of the allowed IDs listed below.
+- If a fact cannot be verified, use null or an empty string. Do not guess.{$uidLine}
+EXPECTED_TOP_LEVEL_KEY: {$expectedKey}{$idsLine}{$citiesLine}
+
+BLOCK;
+}
+
 function ho_create_source_run(PDO $pdo, int $categoryId, string $area, int $count): int {
     $s = $pdo->prepare("
         INSERT INTO source_runs (run_uid, category_id, area_query, target_count, status)
@@ -260,7 +340,7 @@ function ho_create_source_run(PDO $pdo, int $categoryId, string $area, int $coun
     return (int)$pdo->lastInsertId();
 }
 
-function ho_generate_sourcing_prompt(array $category, string $area, int $count, array $exclusions, int $runId = 0): string {
+function ho_generate_sourcing_prompt(array $category, string $area, int $count, array $exclusions, int $runId = 0, string $taskUid = ''): string {
     $name    = $category['name'];
     $runLine = $runId > 0 ? "\n  \"run_id\": {$runId}," : '';
     $runRule = $runId > 0 ? "\n- run_id: include exactly as shown above — it routes this batch on import" : '';
@@ -273,11 +353,13 @@ function ho_generate_sourcing_prompt(array $category, string $area, int $count, 
         ? 'Typical services include: ' . implode(', ', $services) . '.'
         : '';
 
-    $regions  = ho_indiana_regions();
-    $cityList = $regions[$area] ?? $area;
+    $regions        = ho_indiana_regions();
+    $cityList       = $regions[$area] ?? $area;
+    $allowedCities  = explode(', ', $regions[$area] ?? $area);
+    $resetBlock     = ho_prompt_reset_block($taskUid, 'candidates', [], $allowedCities);
 
     return <<<PROMPT
-Find up to {$count} REAL, VERIFIABLE {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint} Do NOT include national franchises, corporate chains, or multi-territory platforms (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, TruGreen, ServiceMaster, Junk King, MaidPro, Lawn Love).
+{$resetBlock}Find up to {$count} REAL, VERIFIABLE {$name} businesses in the {$area} region of Indiana. Cities in this region include: {$cityList}. Spread results across these cities where possible. Focus on small, owner-operated businesses — the kind where the owner does the work themselves. {$serviceHint} Do NOT include national franchises, corporate chains, or multi-territory platforms (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, TruGreen, ServiceMaster, Junk King, MaidPro, Lawn Love).
 
 VERIFICATION REQUIREMENTS — these matter more than the count:
 - Only include a business you can actually verify exists right now: a live Google Maps/Google Business listing, an active Facebook page, or a working website that names the business and city.
@@ -649,7 +731,7 @@ function ho_template_dir_for_slug(string $slug): string {
     return '';
 }
 
-function ho_generate_research_prompt(array $businesses): string {
+function ho_generate_research_prompt(array $businesses, string $taskUid = ''): string {
     $list = '';
     foreach ($businesses as $i => $b) {
         $n = $i + 1;
@@ -660,8 +742,11 @@ function ho_generate_research_prompt(array $businesses): string {
         $list .= "\n";
     }
 
+    $allowedIds = array_column($businesses, 'id');
+    $resetBlock = ho_prompt_reset_block($taskUid, 'research_results', $allowedIds);
+
     return <<<PROMPT
-Research these Indiana local service businesses for Hoosier Online lead qualification. For each one, check every public source: their website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, and BBB. Search Google for each business name + city + Indiana to find anything not immediately linked.
+{$resetBlock}Research these Indiana local service businesses for Hoosier Online lead qualification. For each one, check every public source: their website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, and BBB. Search Google for each business name + city + Indiana to find anything not immediately linked.
 
 Businesses to research:
 {$list}
@@ -2025,15 +2110,18 @@ function ho_get_needs_contact_businesses(PDO $pdo, int $limit = 20): array {
     return $s->fetchAll();
 }
 
-function ho_generate_contact_prompt(array $businesses): string {
+function ho_generate_contact_prompt(array $businesses, string $taskUid = ''): string {
     $list = '';
     foreach ($businesses as $i => $b) {
         $n = $i + 1;
         $list .= "{$n}. [ID:{$b['id']}] {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN\n";
     }
 
+    $allowedIds = array_column($businesses, 'id');
+    $resetBlock = ho_prompt_reset_block($taskUid, 'contacts', $allowedIds);
+
     return <<<PROMPT
-Find contact information for these Indiana local service businesses. For each, find an email address and/or website URL. A website with a contact form counts. Return a result for EVERY business listed, even if you find nothing.
+{$resetBlock}Find contact information for these Indiana local service businesses. For each, find an email address and/or website URL. A website with a contact form counts. Return a result for EVERY business listed, even if you find nothing.
 
 Businesses:
 {$list}
@@ -2763,7 +2851,7 @@ function ho_get_needs_enrichment(PDO $pdo, int $limit = 25): array {
     }
 }
 
-function ho_generate_enrichment_prompt(array $businesses): string {
+function ho_generate_enrichment_prompt(array $businesses, string $taskUid = ''): string {
     $list = '';
     foreach ($businesses as $i => $b) {
         $n = $i + 1;
@@ -2775,8 +2863,11 @@ function ho_generate_enrichment_prompt(array $businesses): string {
         $list .= "\n";
     }
 
+    $allowedIds = array_column($businesses, 'id');
+    $resetBlock = ho_prompt_reset_block($taskUid, 'enrichment_results', $allowedIds);
+
     return <<<PROMPT
-These Indiana local service businesses have already been researched. Fill in the MISSING fields below — only the ones not yet collected. Do not re-assess website quality, review counts, or services.
+{$resetBlock}These Indiana local service businesses have already been researched. Fill in the MISSING fields below — only the ones not yet collected. Do not re-assess website quality, review counts, or services.
 
 Businesses:
 {$list}

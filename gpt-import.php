@@ -87,6 +87,19 @@ if (!isset($data['research_results']) && !isset($data['contacts'])
     $data = $data['data'];
 }
 
+// ── Task-UID resolution ───────────────────────────────────────────────────────
+$taskUid  = trim((string)($data['task_uid'] ?? ''));
+$taskRow  = null;
+if ($taskUid !== '') {
+    $taskRow = ho_get_gpt_task($pdo, $taskUid);
+    if ($taskRow !== null) {
+        // For sourcing tasks: pull run_id from the task if not in payload
+        if (isset($data['candidates']) && empty($data['run_id']) && !empty($taskRow['source_run_id'])) {
+            $data['run_id'] = $taskRow['source_run_id'];
+        }
+    }
+}
+
 @set_time_limit(180);
 
 // ── Dispatch by payload key ──────────────────────────────────────────────────
@@ -95,6 +108,7 @@ try {
         gi_log_attempt($pdo, 200, 'research — ' . count($data['research_results']) . ' entries received');
         $result = ho_import_research_json($pdo, json_encode($data));
         gi_log($pdo, 'research', $result['updated']);
+        if ($taskRow !== null) ho_mark_gpt_task_imported($pdo, $taskUid);
         gi_out(200, [
             'ok' => true, 'type' => 'research',
             'updated' => $result['updated'], 'errors' => $result['errors'],
@@ -106,6 +120,7 @@ try {
         gi_log_attempt($pdo, 200, 'contacts — ' . count($data['contacts']) . ' entries received');
         $result = ho_import_contact_json($pdo, json_encode($data));
         gi_log($pdo, 'contacts', $result['updated']);
+        if ($taskRow !== null) ho_mark_gpt_task_imported($pdo, $taskUid);
         gi_out(200, [
             'ok' => true, 'type' => 'contacts',
             'updated' => $result['updated'], 'errors' => $result['errors'],
@@ -117,6 +132,7 @@ try {
         gi_log_attempt($pdo, 200, 'enrichment — ' . count($data['enrichment_results']) . ' entries received');
         $result = ho_import_enrichment_json($pdo, json_encode($data));
         gi_log($pdo, 'enrichment', $result['updated']);
+        if ($taskRow !== null) ho_mark_gpt_task_imported($pdo, $taskUid);
         gi_out(200, [
             'ok' => true, 'type' => 'enrichment',
             'updated' => $result['updated'], 'errors' => $result['errors'],
@@ -137,6 +153,7 @@ try {
         $result   = ho_import_sourcing_json($pdo, $runId, json_encode($data));
         $promoted = ho_promote_candidates($pdo, $runId);
         gi_log($pdo, 'sourcing', $result['imported']);
+        if ($taskRow !== null) ho_mark_gpt_task_imported($pdo, $taskUid);
         gi_out(200, [
             'ok' => true, 'type' => 'sourcing',
             'imported' => $result['imported'], 'skipped' => $result['skipped'],
@@ -145,6 +162,12 @@ try {
         ]);
     }
 } catch (Throwable $e) {
+    if ($taskRow !== null) {
+        try {
+            $pdo->prepare("UPDATE gpt_tasks SET status='failed', last_error=? WHERE task_uid=?")
+                ->execute([$e->getMessage(), $taskUid]);
+        } catch (Throwable) {}
+    }
     gi_out(500, ['ok' => false, 'error' => 'Import failed: ' . $e->getMessage()]);
 }
 

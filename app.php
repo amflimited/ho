@@ -228,15 +228,44 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Renders an "Ask ChatGPT" deep link that opens the ChatGPT app with the prompt
 // already typed into the composer (universal link ?q=). Falls back to copy-only
 // guidance when the encoded prompt exceeds a safe URL length.
-function cp_gpt_row(string $prompt): string {
+function cp_gpt_row(string $prompt, ?PDO $pdo = null, int $srcRunId = 0): string {
     global $gptActionsUrl;
-    $base = !empty($gptActionsUrl) ? rtrim($gptActionsUrl, '/') . '?q=' : 'https://chatgpt.com/?hints=search&q=';
-    $url  = $base . rawurlencode($prompt);
+    $custom = !empty($gptActionsUrl);
+    $base   = $custom ? rtrim($gptActionsUrl, '/') : 'https://chatgpt.com/?hints=search&q=';
+
+    if ($custom && $pdo !== null) {
+        // Task packet mode: create task, copy tiny launcher text, open GPT
+        try {
+            $t = ho_create_gpt_task($pdo, 'sourcing', 'candidates', 'import_sourcing', $prompt, $srcRunId ?: null);
+            $uid  = $t['task_uid'] ?? '';
+        } catch (Throwable) { $uid = ''; }
+        if ($uid !== '') {
+            $launcher = ho_h("Run Hoosier Online task {$uid}. Fetch the task, complete it, and import the results.");
+            $label    = '🚀 Open GPT task → ' . substr($uid, 0, 8) . '…';
+            return '<button type="button" class="cp-gpt-btn"'
+                 . ' data-url="' . ho_h($base) . '"'
+                 . ' data-launcher="' . $launcher . '"'
+                 . ' data-custom="1"'
+                 . ' onclick="hoCopyThenOpen(this)">' . $label . '</button>'
+                 . '<p class="cp-hint" style="margin-top:4px;text-align:center">Copies a short launcher to clipboard, then opens your Custom GPT &mdash; just send it.</p>';
+        }
+        // Task table not ready — fall back to open-only
+        return '<button type="button" class="cp-gpt-btn"'
+             . ' data-url="' . ho_h($base) . '"'
+             . ' data-launcher="" data-custom="1"'
+             . ' onclick="hoCopyThenOpen(this)">🚀 Open Custom GPT</button>'
+             . '<p class="cp-hint" style="margin-top:4px;text-align:center">Paste the prompt from above after opening.</p>';
+    }
+
+    // Normal ChatGPT with ?q= deep link
+    $url = $base . rawurlencode($prompt);
     if (strlen($url) > 30000) {
         return '<p class="cp-hint" style="margin-top:6px">This batch is too big for one-tap send &mdash; tap Copy, then paste into ChatGPT.</p>';
     }
-    return '<a class="cp-gpt-btn" href="' . ho_h($url) . '" target="_blank" rel="noopener">🚀 Ask ChatGPT &mdash; one tap, nothing to copy</a>'
-         . '<p class="cp-hint" style="margin-top:4px;text-align:center">Opens ChatGPT with the prompt pre-filled &mdash; just hit send. If it arrives cut off, use Copy.</p>';
+    return '<button type="button" class="cp-gpt-btn"'
+         . ' data-url="' . ho_h($url) . '" data-launcher="" data-custom="0"'
+         . ' onclick="hoCopyThenOpen(this)">🚀 Ask ChatGPT &mdash; one tap, nothing to copy</button>'
+         . '<p class="cp-hint" style="margin-top:4px;text-align:center">Opens ChatGPT with the prompt pre-filled &mdash; just hit send.</p>';
 }
 
 // ─── Load state ───────────────────────────────────────────────────────────────
@@ -271,10 +300,10 @@ if ($tab === '') $tab = $job;
 
 $categories    = $pdo ? ho_get_categories($pdo) : [];
 $resCatId      = (int)($_GET['research_cat_id'] ?? 0);
-$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 19, $resCatId) : [];
+$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 8, $resCatId) : [];
 $resCatCounts     = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $unresearched) : [];
-$needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
+$needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 12) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $websiteReviewBatch = $pdo ? ho_get_website_review_batch($pdo) : [];
 $triageBatch        = $pdo ? ho_get_triage_batch($pdo) : [];
@@ -283,7 +312,7 @@ $gptActionsUrl      = $pdo ? ho_get_setting($pdo, 'gpt_actions_url')  : '';
 $lastImportAt       = $pdo ? ho_get_setting($pdo, 'last_import_at')   : '';
 $lastRequestLog     = $pdo ? ho_get_setting($pdo, 'last_request_log') : '';
 $dashboardData    = $pdo ? ho_dashboard_data($pdo) : ['categories'=>[],'region_leads'=>[]];
-$enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 38) : [];
+$enrichmentBatch  = $pdo ? ho_get_needs_enrichment($pdo, 10) : [];
 $enrichmentPrompt = !empty($enrichmentBatch) ? ho_generate_enrichment_prompt($enrichmentBatch) : '';
 $enrichmentTotal  = 0;
 if ($pdo && !empty($enrichmentBatch)) {
@@ -505,7 +534,7 @@ if (!empty($unresearched)) {
         <pre id="srcPrompt" class="cp-prompt"><?= ho_h($sourcePrompt) ?></pre>
         <button class="cp-copy" onclick="doCopy('srcPrompt',this)">Copy</button>
       </div>
-      <?= cp_gpt_row($sourcePrompt) ?>
+      <?= cp_gpt_row($sourcePrompt, $pdo, $runId) ?>
     </section>
 
     <section class="cp-section">
@@ -729,16 +758,25 @@ if (!empty($unresearched)) {
   <?php
   // ─── Build unified prompt sequence ────────────────────────────────────────
   $hoPrompts = [];
-  // Standard ChatGPT deep link auto-submits via ?hints=search&q=.
-  // Custom GPT pages don't auto-submit from ?q= — so the link just opens the GPT
-  // and hoAfterGpt() copies the prompt to clipboard so the user can paste it in.
   $usingCustomGpt = $gptActionsUrl !== '';
   $gptBase = $usingCustomGpt
-      ? rtrim($gptActionsUrl, '/')  // no ?q= — Custom GPTs don't honour it
+      ? rtrim($gptActionsUrl, '/')
       : 'https://chatgpt.com/?hints=search&q=';
-  $gptLabel = $usingCustomGpt
-      ? 'Open your Custom GPT — prompt is copied, paste & send'
-      : 'Ask ChatGPT — one tap, nothing to copy';
+
+  // Create a GPT task for a prompt and return the task_uid (or '' if table not ready)
+  $mkTask = function(string $type, string $key, string $action, string $prompt, ?int $srcRunId = null) use ($pdo): string {
+      if (!$pdo || $prompt === '') return '';
+      try {
+          $res = ho_create_gpt_task($pdo, $type, $key, $action, $prompt, $srcRunId);
+          return $res['task_uid'] ?? '';
+      } catch (Throwable) { return ''; }
+  };
+
+  // Build the launcher text for Custom GPT: tiny instruction, just the task_uid
+  $launcherText = function(string $taskUid) use ($gptActionsUrl): string {
+      if ($taskUid === '') return '';
+      return "Run Hoosier Online task {$taskUid}. Fetch the task, complete it, and import the results.";
+  };
 
   if (!empty($unresearched) && $researchPrompt !== '') {
       $staleCount = count(array_filter($unresearched, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
@@ -746,44 +784,59 @@ if (!empty($unresearched)) {
       $hintParts  = [];
       if ($newCount   > 0) $hintParts[] = $newCount . ' new';
       if ($staleCount > 0) $hintParts[] = $staleCount . ' to update';
-      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($researchPrompt);
+      $taskUid  = $mkTask('research', 'research_results', 'import_research', $researchPrompt);
+      $launcher = $launcherText($taskUid);
+      $gUrl     = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($researchPrompt);
       $hoPrompts[] = [
-          'label'    => 'Research',
-          'step'     => count($unresearched) . ' businesses — ' . implode(', ', $hintParts),
-          'prompt'   => $researchPrompt,
-          'action'   => 'import_research',
-          'key'      => 'research_results',
-          'noun'     => 'business',
-          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => $gptLabel,
+          'label'      => 'Research',
+          'step'       => count($unresearched) . ' businesses — ' . implode(', ', $hintParts),
+          'prompt'     => $researchPrompt,
+          'action'     => 'import_research',
+          'key'        => 'research_results',
+          'noun'       => 'business',
+          'gptUrl'     => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
+          'gptLabel'   => $usingCustomGpt && $launcher !== '' ? 'Open GPT task &rarr; ' . substr($taskUid, 0, 8) . '…' : 'Ask ChatGPT — one tap',
+          'launcher'   => $launcher,
+          'taskUid'    => $taskUid,
+          'customGpt'  => $usingCustomGpt,
       ];
   }
   if (!empty($needsContactBatch) && $needsContactPrompt !== '') {
-      $ncTotal = $counts['needs_contact']; $ncBatch = count($needsContactBatch);
+      $ncTotal  = $counts['needs_contact']; $ncBatch = count($needsContactBatch);
       $stepNote = $ncBatch < $ncTotal ? "{$ncBatch} of {$ncTotal} to find" : "{$ncTotal} to find";
-      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($needsContactPrompt);
+      $taskUid  = $mkTask('contact', 'contacts', 'import_contact_research', $needsContactPrompt);
+      $launcher = $launcherText($taskUid);
+      $gUrl     = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($needsContactPrompt);
       $hoPrompts[] = [
-          'label'    => 'Contact',
-          'step'     => 'Contact info — ' . $stepNote,
-          'prompt'   => $needsContactPrompt,
-          'action'   => 'import_contact_research',
-          'key'      => 'contacts',
-          'noun'     => 'contact',
-          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => $gptLabel,
+          'label'      => 'Contact',
+          'step'       => 'Contact info — ' . $stepNote,
+          'prompt'     => $needsContactPrompt,
+          'action'     => 'import_contact_research',
+          'key'        => 'contacts',
+          'noun'       => 'contact',
+          'gptUrl'     => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
+          'gptLabel'   => $usingCustomGpt && $launcher !== '' ? 'Open GPT task &rarr; ' . substr($taskUid, 0, 8) . '…' : 'Ask ChatGPT — one tap',
+          'launcher'   => $launcher,
+          'taskUid'    => $taskUid,
+          'customGpt'  => $usingCustomGpt,
       ];
   }
   if (!empty($enrichmentBatch) && $enrichmentPrompt !== '') {
-      $gUrl = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($enrichmentPrompt);
+      $taskUid  = $mkTask('enrichment', 'enrichment_results', 'import_enrichment', $enrichmentPrompt);
+      $launcher = $launcherText($taskUid);
+      $gUrl     = $usingCustomGpt ? $gptBase : $gptBase . rawurlencode($enrichmentPrompt);
       $hoPrompts[] = [
-          'label'    => 'Enrich',
-          'step'     => count($enrichmentBatch) . ' of ' . $enrichmentTotal . ' leads to enrich',
-          'prompt'   => $enrichmentPrompt,
-          'action'   => 'import_enrichment',
-          'key'      => 'enrichment_results',
-          'noun'     => 'record',
-          'gptUrl'   => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => $gptLabel,
+          'label'      => 'Enrich',
+          'step'       => count($enrichmentBatch) . ' of ' . $enrichmentTotal . ' leads to enrich',
+          'prompt'     => $enrichmentPrompt,
+          'action'     => 'import_enrichment',
+          'key'        => 'enrichment_results',
+          'noun'       => 'record',
+          'gptUrl'     => !$usingCustomGpt && strlen($gUrl) > 30000 ? '' : $gUrl,
+          'gptLabel'   => $usingCustomGpt && $launcher !== '' ? 'Open GPT task &rarr; ' . substr($taskUid, 0, 8) . '…' : 'Ask ChatGPT — one tap',
+          'launcher'   => $launcher,
+          'taskUid'    => $taskUid,
+          'customGpt'  => $usingCustomGpt,
       ];
   }
   ?>
@@ -804,9 +857,20 @@ if (!empty($unresearched)) {
       <button class="cp-copy" id="hoCopyBtn" type="button" onclick="hoDoStep(this)">Copy</button>
     </div>
     <?php if ($hoPrompts[0]['gptUrl'] !== ''): ?>
-    <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener" onclick="hoAfterGpt()"><?= ho_h($hoPrompts[0]['gptLabel']) ?></a>
+    <button id="hoGptLink" type="button" class="cp-gpt-btn"
+            data-url="<?= ho_h($hoPrompts[0]['gptUrl']) ?>"
+            data-launcher="<?= ho_h($hoPrompts[0]['launcher'] ?? '') ?>"
+            data-custom="<?= $hoPrompts[0]['customGpt'] ? '1' : '0' ?>"
+            onclick="hoCopyThenOpen(this)"><?= $hoPrompts[0]['gptLabel'] ?></button>
+    <?php if ($hoPrompts[0]['customGpt'] && ($hoPrompts[0]['taskUid'] ?? '') !== ''): ?>
+    <p class="cp-hint" style="text-align:center;margin-top:4px">
+      Copies a short launcher instruction to your clipboard, then opens your Custom GPT &mdash; just hit send.
+    </p>
+    <?php elseif (!$hoPrompts[0]['customGpt']): ?>
+    <p class="cp-hint" style="text-align:center;margin-top:4px">Opens ChatGPT with the prompt pre-filled &mdash; just hit send.</p>
+    <?php endif; ?>
     <?php else: ?>
-    <a id="hoGptLink" class="cp-gpt-btn" href="#" hidden>Ask ChatGPT</a>
+    <button id="hoGptLink" type="button" class="cp-gpt-btn" hidden>Ask ChatGPT</button>
     <p class="cp-hint" style="text-align:center;margin-top:4px">Batch too big for one-tap &mdash; use Copy above, then paste into ChatGPT.</p>
     <?php endif; ?>
   </section>
@@ -1141,36 +1205,67 @@ if (!empty($unresearched)) {
         <h3 class="cp-sh" style="font-size:13px">3 &middot; Create the GPT (chatgpt.com &rarr; Explore GPTs &rarr; Create)</h3>
         <p class="cp-hint">Paste this into the GPT&rsquo;s <strong>Instructions</strong>:</p>
         <div class="cp-prompt-box">
-          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are a data submission agent for Hoosier Online. The user pastes a task prompt. Research exactly as instructed using web search. Never invent data; empty strings beat guesses.
+          <pre class="cp-prompt" id="setupInstr" style="max-height:150px">You are a data research and submission agent for Hoosier Online.
 
-CRITICAL — your only output is to call the importResults tool. This is mandatory on every task, no exceptions:
-1. Research and compile the JSON specified in the prompt.
-2. Call importResults — send the complete JSON object as the raw body, top-level key intact (research_results / contacts / enrichment_results / candidates). Do not decompose it.
-3. After the tool responds, output one line only: the count from the response.
+WORKFLOW — follow exactly:
+1. When the user says "Run Hoosier Online task XXXXXX", call fetchTask with {"task_uid":"XXXXXX"}.
+   If no task_uid is given, call fetchTask with {} to get the latest ready task.
+2. Read the "prompt" field returned. Research exactly as instructed using web search.
+   Never invent data. Empty strings beat guesses.
+3. Call importResults with the complete JSON. Include "task_uid" at the top level alongside the data key.
+   Top-level key must be one of: research_results, contacts, enrichment_results, candidates.
+4. After importResults responds, output ONE LINE only: the count from the response.
 
-Do not print JSON in the chat. Do not explain your work. Do not ask questions. The tool call IS your response.</pre>
+Do not print JSON in chat. Do not explain your work. Do not ask questions.</pre>
           <button class="cp-copy" type="button" onclick="doCopy('setupInstr', this)">Copy</button>
         </div>
         <p class="cp-hint">Then Actions &rarr; <strong>Create new action</strong> &rarr; paste this schema:</p>
         <div class="cp-prompt-box">
-          <pre class="cp-prompt" id="setupSchema" style="max-height:150px">{
+          <pre class="cp-prompt" id="setupSchema" style="max-height:200px">{
   "openapi": "3.1.0",
-  "info": { "title": "Hoosier Online Import", "version": "1.0.0" },
+  "info": { "title": "Hoosier Online GPT Actions", "version": "2.0.0" },
   "servers": [{ "url": "https://<?= ho_h($_SERVER['HTTP_HOST'] ?? 'hoosieronline.com') ?>" }],
   "paths": {
+    "/gpt-task.php": {
+      "post": {
+        "operationId": "fetchTask",
+        "x-openai-isConsequential": false,
+        "summary": "Fetch a task prompt by UID (or the newest ready task if no UID given)",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "task_uid": { "type": "string", "description": "Task UID from the launcher text. Omit to get the newest ready task." }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Task details including the full prompt" } }
+      }
+    },
     "/gpt-import.php": {
       "post": {
         "operationId": "importResults",
         "x-openai-isConsequential": false,
-        "summary": "Import research/sourcing/contact/enrichment JSON into the lead pipeline",
+        "summary": "Import completed research/sourcing/contact/enrichment results",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "The complete JSON object exactly as compiled — pass it as-is. Top-level key must be one of: research_results, contacts, enrichment_results, or candidates (plus run_id for candidates).",
-                "additionalProperties": true
+                "properties": {
+                  "task_uid": { "type": "string", "description": "Task UID from fetchTask response — include for tracking" },
+                  "run_id":   { "type": "integer", "description": "Source run ID — required for candidates payload" },
+                  "research_results":  { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                  "contacts":          { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                  "enrichment_results":{ "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                  "candidates":        { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+                }
               }
             }
           }
@@ -1190,7 +1285,7 @@ Do not print JSON in the chat. Do not explain your work. Do not ask questions. T
           <input class="cp-input" type="url" name="setting_value" value="<?= ho_h($gptActionsUrl) ?>" placeholder="https://chatgpt.com/g/g-…">
           <button class="cp-btn-ghost" type="submit">Save</button>
         </form>
-        <p class="cp-hint" style="margin-top:6px">Once saved, the &ldquo;Open your Custom GPT&rdquo; button copies the prompt and opens your GPT &mdash; paste it in and send. The GPT then POSTs results back automatically.</p>
+        <p class="cp-hint" style="margin-top:6px">Once saved, the button copies a short launcher instruction and opens your GPT &mdash; just hit send. The GPT fetches the task prompt via fetchTask, researches it, and POSTs results back via importResults automatically.</p>
 
         <?php if ($gptImportKey !== ''): ?>
         <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1947,17 +2042,35 @@ function hoGoStep(n) {
   hoRenderStep();
 }
 
-// Copy current prompt to clipboard then advance the step.
-// Custom GPT pages don't auto-submit from ?q=, so the user needs to paste —
-// copying here means the clipboard is ready the moment the GPT tab opens.
-function hoAfterGpt() {
-  var el = document.getElementById('hoPrompt');
-  if (el && navigator.clipboard) {
-    navigator.clipboard.writeText(el.textContent.trim()).catch(function() {});
+// hoCopyThenOpen: for Custom GPT, copies the tiny launcher text then opens the GPT.
+// For normal ChatGPT, just opens the pre-filled URL (no copy needed).
+// Does NOT advance the step — step only advances after a successful import.
+async function hoCopyThenOpen(btn) {
+  var p       = HO_PROMPTS[hoStep];
+  var url     = btn.getAttribute('data-url') || p.gptUrl;
+  var launcher= btn.getAttribute('data-launcher') || p.launcher || '';
+  var custom  = btn.getAttribute('data-custom') === '1';
+  var origTxt = btn.innerHTML;
+  btn.disabled = true;
+
+  if (custom && launcher) {
+    try {
+      await navigator.clipboard.writeText(launcher);
+      btn.innerHTML = 'Copied — opening GPT…';
+      setTimeout(function() {
+        window.open(url, '_blank', 'noopener');
+        setTimeout(function() { btn.disabled = false; btn.innerHTML = origTxt; }, 3000);
+      }, 300);
+    } catch (e) {
+      btn.innerHTML = 'Copy failed — tap Copy above first';
+      btn.disabled = false;
+      setTimeout(function() { btn.innerHTML = origTxt; }, 3000);
+    }
+  } else {
+    // Normal ChatGPT — URL already has prompt via ?q=
+    window.open(url, '_blank', 'noopener');
+    btn.disabled = false;
   }
-  setTimeout(function() {
-    if (hoStep + 1 < HO_PROMPTS.length) { hoStep++; hoRenderStep(); }
-  }, 600);
 }
 
 function hoRenderStep() {
@@ -1977,8 +2090,11 @@ function hoRenderStep() {
   if (pre)  pre.textContent  = p.prompt;
   if (gpt) {
     if (p.gptUrl) {
-      gpt.href = p.gptUrl; gpt.hidden = false;
-      if (p.gptLabel) gpt.textContent = p.gptLabel;
+      gpt.setAttribute('data-url', p.gptUrl);
+      gpt.setAttribute('data-launcher', p.launcher || '');
+      gpt.setAttribute('data-custom', p.customGpt ? '1' : '0');
+      gpt.hidden = false;
+      if (p.gptLabel) gpt.innerHTML = p.gptLabel;
     } else { gpt.hidden = true; }
   }
   if (act) act.value = p.action;
@@ -1995,13 +2111,11 @@ function hoRenderStep() {
 function hoDoStep(btn) {
   var el = document.getElementById('hoPrompt');
   if (!el) return;
+  // Copy only — do NOT auto-advance. Step advances only after a successful import.
   navigator.clipboard.writeText(el.textContent.trim()).then(function() {
     var orig = btn.textContent;
     btn.textContent = 'Copied!';
-    setTimeout(function() {
-      btn.textContent = orig;
-      if (hoStep + 1 < HO_PROMPTS.length) { hoStep++; hoRenderStep(); }
-    }, 1500);
+    setTimeout(function() { btn.textContent = orig; }, 1500);
   }).catch(function() {
     var orig = btn.textContent;
     btn.textContent = 'Select all → copy';
