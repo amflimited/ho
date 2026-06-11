@@ -166,6 +166,58 @@ function ho_pipeline_counts(PDO $pdo): array {
     ];
 }
 
+/**
+ * Research-tab funnel telemetry — answers "where are my leads sitting?" so
+ * nothing is invisible. Each count is fetched in its own try/catch so a single
+ * un-migrated column (triaged / website_verified) can't zero the whole strip.
+ */
+function ho_research_telemetry(PDO $pdo): array {
+    $t = [
+        'awaiting_triage'        => 0,  // sourced but not yet confirmed — HIDDEN from research
+        'ready_to_research'      => 0,  // confirmed + waiting for the research prompt
+        'awaiting_domain_review' => 0,  // optional QC lane — does NOT block research
+        'needs_contact'          => 0,  // researched, no contact path yet (folded back into research)
+        'researched'             => 0,
+        'sendable'               => 0,  // preview_ready + enhancement_ready
+        'pitched'                => 0,
+        'converted'              => 0,
+    ];
+    try {
+        $row = $pdo->query("
+            SELECT SUM(pipeline_status='needs_contact')                      AS needs_contact,
+                   SUM(pipeline_status='researched')                         AS researched,
+                   SUM(pipeline_status IN ('preview_ready','enhancement_ready')) AS sendable,
+                   SUM(pipeline_status='pitched')                            AS pitched,
+                   SUM(pipeline_status='converted')                          AS converted
+            FROM businesses
+        ")->fetch();
+        foreach (['needs_contact','researched','sendable','pitched','converted'] as $k) {
+            $t[$k] = (int)($row[$k] ?? 0);
+        }
+    } catch (Throwable) {}
+    try {
+        $triageClause = ho_triage_clause($pdo);
+        $t['ready_to_research'] = (int)$pdo->query("
+            SELECT COUNT(*) FROM businesses b
+            LEFT JOIN research_records r ON r.business_id = b.id
+            WHERE b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
+              AND (r.id IS NULL OR r.has_contact_form IS NULL)
+              AND {$triageClause}
+        ")->fetchColumn();
+    } catch (Throwable) {}
+    try {
+        $t['awaiting_triage'] = (int)$pdo->query(
+            "SELECT COUNT(*) FROM businesses WHERE pipeline_status='identified' AND triaged=0"
+        )->fetchColumn();
+    } catch (Throwable) {}
+    try {
+        $t['awaiting_domain_review'] = (int)$pdo->query(
+            "SELECT COUNT(*) FROM businesses WHERE website_url <> '' AND website_verified = 0"
+        )->fetchColumn();
+    } catch (Throwable) {}
+    return $t;
+}
+
 function ho_current_job(array $counts): string {
     if ($counts['preview_ready'] > 0) return 'send';
     if ($counts['identified']    > 0) return 'research';

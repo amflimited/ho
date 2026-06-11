@@ -956,3 +956,28 @@ a { color: inherit; }
   height: 100%; background: var(--green); border-radius: 3px;
   transition: width .4s ease;
 }
+
+/* ── Research telemetry strip ──────────────────────────────────────────── */
+.cp-telem {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+.cp-telem-card {
+  background: #f7f4ec;
+  border: 1px solid #e4ddcb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cp-telem-num   { font-size: 24px; font-weight: 700; line-height: 1; color: var(--ink); }
+.cp-telem-lbl   { font-size: 12px; font-weight: 600; color: var(--ink); }
+.cp-telem-sub   { font-size: 11px; color: var(--ink2); }
+.cp-telem-warn  { background: #fdf3e3; border-color: #e9c98c; }
+.cp-telem-warn  .cp-telem-num { color: #b5740d; }
+.cp-telem-go    { background: #eef6ef; border-color: #b9dcbe; }
+.cp-telem-go    .cp-telem-num { color: var(--green); }
+.cp-telem-done  { background: #eef3f8; border-color: #bcd3e8; }
+.cp-telem-done  .cp-telem-num { color: #2b6cb0; }

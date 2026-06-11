@@ -269,13 +269,14 @@ if ($tab === '') $tab = $job;
 
 $categories    = $pdo ? ho_get_categories($pdo) : [];
 $resCatId      = (int)($_GET['research_cat_id'] ?? 0);
-$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 19, $resCatId) : [];
+$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 8, $resCatId) : [];
 $resCatCounts     = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $unresearched) : [];
 $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
 $needsContactPrompt = !empty($needsContactBatch) ? ho_generate_contact_prompt($needsContactBatch) : '';
 $websiteReviewBatch = $pdo ? ho_get_website_review_batch($pdo) : [];
 $triageBatch        = $pdo ? ho_get_triage_batch($pdo) : [];
+$researchTelemetry  = $pdo ? ho_research_telemetry($pdo) : [];
 $gptImportKey       = $pdo ? ho_get_setting($pdo, 'gpt_import_key')    : '';
 $gptActionsUrl      = $pdo ? ho_get_setting($pdo, 'gpt_actions_url')  : '';
 $lastImportAt       = $pdo ? ho_get_setting($pdo, 'last_import_at')   : '';
@@ -382,7 +383,7 @@ $researchBatch = $unresearched;
 if (!empty($needsContactBatch)) {
     $seenRb = array_map('intval', array_column($researchBatch, 'id'));
     foreach ($needsContactBatch as $b) {
-        if (count($researchBatch) >= 19) break;
+        if (count($researchBatch) >= 8) break;
         if (!in_array((int)$b['id'], $seenRb, true)) {
             $researchBatch[] = $b;
             $seenRb[] = (int)$b['id'];
@@ -677,6 +678,39 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
 <!-- ═══ RESEARCH ════════════════════════════════════════════════════════════ -->
 <?php elseif ($tab === 'research'): ?>
+
+  <?php if (!empty($researchTelemetry)): $tm = $researchTelemetry; ?>
+  <section class="cp-section">
+    <h2 class="cp-sh" style="font-size:14px">Pipeline at a glance</h2>
+    <div class="cp-telem">
+      <div class="cp-telem-card<?= $tm['awaiting_triage'] > 0 ? ' cp-telem-warn' : '' ?>">
+        <span class="cp-telem-num"><?= (int)$tm['awaiting_triage'] ?></span>
+        <span class="cp-telem-lbl">Awaiting triage</span>
+        <span class="cp-telem-sub">Hidden from research until you tap Real ✓</span>
+      </div>
+      <div class="cp-telem-card cp-telem-go">
+        <span class="cp-telem-num"><?= (int)$tm['ready_to_research'] ?></span>
+        <span class="cp-telem-lbl">Ready to research</span>
+        <span class="cp-telem-sub"><?= min(8, (int)$tm['ready_to_research']) ?> in this batch</span>
+      </div>
+      <div class="cp-telem-card">
+        <span class="cp-telem-num"><?= (int)$tm['needs_contact'] ?></span>
+        <span class="cp-telem-lbl">Needs contact</span>
+        <span class="cp-telem-sub">Folded into research now</span>
+      </div>
+      <div class="cp-telem-card">
+        <span class="cp-telem-num"><?= (int)$tm['awaiting_domain_review'] ?></span>
+        <span class="cp-telem-lbl">Domain review</span>
+        <span class="cp-telem-sub">Optional QC — doesn't block research</span>
+      </div>
+      <div class="cp-telem-card cp-telem-done">
+        <span class="cp-telem-num"><?= (int)$tm['sendable'] ?></span>
+        <span class="cp-telem-lbl">Ready to send</span>
+        <span class="cp-telem-sub"><?= (int)$tm['pitched'] ?> pitched · <?= (int)$tm['converted'] ?> won</span>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
 
   <?php if (!empty($triageBatch)): ?>
   <section class="cp-section">
