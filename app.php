@@ -682,7 +682,12 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
     <!-- ── 2. SMART NEXT RECOMMENDATION ──────────────────────────────────── -->
     <?php if ($smartNextCat !== ''): ?>
     <section class="cp-section cp-src-rec-wrap">
-      <div class="cp-src-rec">
+      <form method="POST" class="cp-src-rec">
+        <input type="hidden" name="action" value="create_run">
+        <input type="hidden" name="tab" value="source">
+        <input type="hidden" name="category_id" value="<?= $smartNextCatId ?>">
+        <input type="hidden" name="area" value="<?= ho_h($smartNextRegion) ?>">
+        <input type="hidden" name="count" value="19">
         <div class="cp-src-rec-badge">Best next run</div>
         <div class="cp-src-rec-target">
           <strong><?= ho_h($smartNextCat) ?></strong>
@@ -691,10 +696,10 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
         <div class="cp-src-rec-reason">
           <?= isset($covLookup[$smartNextCat][$smartNextRegion]) ? 'Fewest runs in your coverage map' : 'Never sourced — fresh territory' ?>
         </div>
-        <button type="button" class="cp-btn-primary cp-src-rec-btn" onclick="srcFillRec(<?= $smartNextCatId ?>, <?= json_encode($smartNextRegion) ?>)">
+        <button type="submit" class="cp-btn-primary cp-src-rec-btn">
           Source this →
         </button>
-      </div>
+      </form>
     </section>
     <?php endif; ?>
 
@@ -750,7 +755,14 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           <div class="cp-src-run-meta">
             <span class="cp-cov-pill cp-cov-<?= $rrSt ?>"><?= $rrYield ?> leads</span>
             <span class="cp-src-run-date"><?= ho_h($rrDate) ?></span>
-            <button type="button" class="cp-src-run-again" onclick="srcFillRec(<?= $rrCatId ?>, <?= json_encode($rrArea) ?>)">Run again</button>
+            <form method="POST" style="display:inline">
+              <input type="hidden" name="action" value="create_run">
+              <input type="hidden" name="tab" value="source">
+              <input type="hidden" name="category_id" value="<?= $rrCatId ?>">
+              <input type="hidden" name="area" value="<?= ho_h($rrArea) ?>">
+              <input type="hidden" name="count" value="19">
+              <button type="submit" class="cp-src-run-again">Run again</button>
+            </form>
           </div>
         </div>
         <?php endforeach; ?>
@@ -846,9 +858,16 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           <?php foreach ($allRegions as $region):
             $abbr = $regionAbbr[$region] ?? $region;
           ?>
-          <button type="button" class="cp-cov-pill cp-cov-untapped cp-cov-tappable" onclick="srcFillRec(<?= $catIdForMap ?>, <?= json_encode($region) ?>)" title="Source <?= ho_h($catName) ?> in <?= ho_h($region) ?>">
-            <?= ho_h($abbr) ?><em>new</em>
-          </button>
+          <form method="POST" style="display:inline">
+            <input type="hidden" name="action" value="create_run">
+            <input type="hidden" name="tab" value="source">
+            <input type="hidden" name="category_id" value="<?= $catIdForMap ?>">
+            <input type="hidden" name="area" value="<?= ho_h($region) ?>">
+            <input type="hidden" name="count" value="19">
+            <button type="submit" class="cp-cov-pill cp-cov-untapped cp-cov-tappable" title="Source <?= ho_h($catName) ?> in <?= ho_h($region) ?>">
+              <?= ho_h($abbr) ?><em>new</em>
+            </button>
+          </form>
           <?php endforeach; ?>
         <?php else: ?>
           <?php foreach ($regMap as $region => $row):
@@ -859,16 +878,30 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             else               $st = 'dry';
             $abbr = $regionAbbr[$region] ?? $region;
           ?>
-            <button type="button" class="cp-cov-pill cp-cov-<?= $st ?> cp-cov-tappable" onclick="srcFillRec(<?= $catIdForMap ?>, <?= json_encode($region) ?>)" title="<?= ho_h($region) ?>">
-              <?= ho_h($abbr) ?><em><?= $ly ?></em>
-            </button>
+            <form method="POST" style="display:inline">
+              <input type="hidden" name="action" value="create_run">
+              <input type="hidden" name="tab" value="source">
+              <input type="hidden" name="category_id" value="<?= $catIdForMap ?>">
+              <input type="hidden" name="area" value="<?= ho_h($region) ?>">
+              <input type="hidden" name="count" value="19">
+              <button type="submit" class="cp-cov-pill cp-cov-<?= $st ?> cp-cov-tappable" title="<?= ho_h($region) ?>">
+                <?= ho_h($abbr) ?><em><?= $ly ?></em>
+              </button>
+            </form>
           <?php endforeach; ?>
           <?php foreach ($allRegions as $region): if (!isset($regMap[$region])):
             $abbr = $regionAbbr[$region] ?? $region;
           ?>
-            <button type="button" class="cp-cov-pill cp-cov-untapped cp-cov-tappable" onclick="srcFillRec(<?= $catIdForMap ?>, <?= json_encode($region) ?>)" title="Source <?= ho_h($catName) ?> in <?= ho_h($region) ?>">
-              <?= ho_h($abbr) ?><em>new</em>
-            </button>
+            <form method="POST" style="display:inline">
+              <input type="hidden" name="action" value="create_run">
+              <input type="hidden" name="tab" value="source">
+              <input type="hidden" name="category_id" value="<?= $catIdForMap ?>">
+              <input type="hidden" name="area" value="<?= ho_h($region) ?>">
+              <input type="hidden" name="count" value="19">
+              <button type="submit" class="cp-cov-pill cp-cov-untapped cp-cov-tappable" title="Source <?= ho_h($catName) ?> in <?= ho_h($region) ?>">
+                <?= ho_h($abbr) ?><em>new</em>
+              </button>
+            </form>
           <?php endif; endforeach; ?>
         <?php endif; ?>
       </div>
