@@ -273,7 +273,8 @@ if ($tab === '') $tab = $job;
 
 $categories    = $pdo ? ho_get_categories($pdo) : [];
 $resCatId      = (int)($_GET['research_cat_id'] ?? 0);
-$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, 8, $resCatId) : [];
+$resBatchSize  = max(4, min(19, (int)($_GET['batch'] ?? 8)));
+$unresearched     = $pdo ? ho_get_unresearched_businesses($pdo, $resBatchSize, $resCatId) : [];
 $resCatCounts     = $pdo ? ho_unresearched_category_counts($pdo) : [];
 $multiMarketIds   = $pdo && !empty($unresearched) ? ho_multi_market_ids($pdo, $unresearched) : [];
 $needsContactBatch = $pdo ? ho_get_needs_contact_businesses($pdo, 15) : [];
@@ -455,7 +456,7 @@ $researchBatch = $unresearched;
 if (!empty($needsContactBatch)) {
     $seenRb = array_map('intval', array_column($researchBatch, 'id'));
     foreach ($needsContactBatch as $b) {
-        if (count($researchBatch) >= 8) break;
+        if (count($researchBatch) >= $resBatchSize) break;
         if (!in_array((int)$b['id'], $seenRb, true)) {
             $researchBatch[] = $b;
             $seenRb[] = (int)$b['id'];
@@ -953,9 +954,15 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   <?php if (!empty($resCatCounts)): ?>
   <div class="cp-cat-toggle">
     <?php $totalUnres = array_sum(array_column($resCatCounts, 'cnt')); ?>
-    <a href="?tab=research" class="cp-cat-btn<?= $resCatId === 0 ? ' is-active' : '' ?>">All <span class="cp-badge"><?= $totalUnres ?></span></a>
+    <a href="?tab=research&batch=<?= $resBatchSize ?>" class="cp-cat-btn<?= $resCatId === 0 ? ' is-active' : '' ?>">All <span class="cp-badge"><?= $totalUnres ?></span></a>
     <?php foreach ($resCatCounts as $rc): ?>
-    <a href="?tab=research&research_cat_id=<?= (int)$rc['id'] ?>" class="cp-cat-btn<?= $resCatId === (int)$rc['id'] ? ' is-active' : '' ?>"><?= ho_h((string)$rc['name']) ?> <span class="cp-badge"><?= (int)$rc['cnt'] ?></span></a>
+    <a href="?tab=research&research_cat_id=<?= (int)$rc['id'] ?>&batch=<?= $resBatchSize ?>" class="cp-cat-btn<?= $resCatId === (int)$rc['id'] ? ' is-active' : '' ?>"><?= ho_h((string)$rc['name']) ?> <span class="cp-badge"><?= (int)$rc['cnt'] ?></span></a>
+    <?php endforeach; ?>
+  </div>
+  <div class="cp-batch-size-row">
+    <span class="cp-batch-label">Batch size:</span>
+    <?php foreach ([4, 8, 12, 19] as $bs): ?>
+    <a href="?tab=research&research_cat_id=<?= $resCatId ?>&batch=<?= $bs ?>" class="cp-batch-opt<?= $resBatchSize === $bs ? ' is-active' : '' ?>"><?= $bs ?></a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
@@ -1382,18 +1389,27 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   <?php else: ?>
 
     <section class="cp-section">
-      <?php $allSendable = array_merge($sendQueue, $enhancementQueue); ?>
+      <?php $allSendable = array_merge($sendQueue, $enhancementQueue);
+            $hotCount    = count($hotLeadIds);
+            $emailCount  = count(array_filter($allSendable, fn($b) => (string)$b['email_address'] !== ''));
+            $buildCount  = count($sendQueue);
+            $enhCount    = count($enhancementQueue);
+      ?>
+      <!-- Quick-filter chips — one-tap to narrow the list -->
+      <div class="cp-send-chips">
+        <button type="button" class="cp-chip cp-chip-active" id="chipAll"     onclick="setChip('all')">All <span class="cp-chip-n"><?= count($allSendable) ?></span></button>
+        <?php if ($hotCount > 0): ?>
+        <button type="button" class="cp-chip" id="chipHot"     onclick="setChip('hot')">🔥 Hot <span class="cp-chip-n"><?= $hotCount ?></span></button>
+        <?php endif; ?>
+        <?php if ($emailCount > 0): ?>
+        <button type="button" class="cp-chip" id="chipEmail"   onclick="setChip('email')">✉ Email <span class="cp-chip-n"><?= $emailCount ?></span></button>
+        <?php endif; ?>
+        <?php if ($buildCount > 0 && $enhCount > 0): ?>
+        <button type="button" class="cp-chip" id="chipBuild"   onclick="setChip('build')">New site <span class="cp-chip-n"><?= $buildCount ?></span></button>
+        <button type="button" class="cp-chip" id="chipEnhance" onclick="setChip('enhance')">Enhance <span class="cp-chip-n"><?= $enhCount ?></span></button>
+        <?php endif; ?>
+      </div>
       <div class="cp-send-filters">
-        <select class="cp-select" id="filterType" onchange="applyFilters()">
-          <option value="">All pitches</option>
-          <?php if (!empty($sendQueue)): ?><option value="build">New site builds</option><?php endif; ?>
-          <?php if (!empty($enhancementQueue)): ?><option value="enhance">Site enhancements</option><?php endif; ?>
-        </select>
-        <select class="cp-select" id="filterWebsite" onchange="applyFilters()">
-          <option value="">Website: any</option>
-          <option value="1">Has a website</option>
-          <option value="0">No website</option>
-        </select>
         <select class="cp-select" id="filterCat" onchange="applyFilters()">
           <option value="">All categories</option>
           <?php
@@ -1474,7 +1490,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             $bizHot     = $bizHeat !== null && $bizHeat['is_hot'];
             $bizHeatCls = $bizHot ? ' cp-send-card-hot' : '';
           ?>
-          <div class="cp-send-card <?= $accentCls ?><?= $bizHeatCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite ? '1' : '0' ?>">
+          <div class="cp-send-card <?= $accentCls ?><?= $bizHeatCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite ? '1' : '0' ?>" data-hasemail="<?= $hasEmail ? '1' : '0' ?>">
 
             <div class="cp-send-head">
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -1597,7 +1613,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             $accentCls2 = $hasFb ? 'cp-send-card-fb' : ($hasPhone ? 'cp-send-card-phone' : 'cp-send-card-none');
             $hasSite2   = (bool)($b['has_website'] ?? false);
           ?>
-            <div class="cp-send-card <?= $accentCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite2 ? '1' : '0' ?>">
+            <div class="cp-send-card <?= $accentCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite2 ? '1' : '0' ?>" data-hasemail="0">
               <div class="cp-send-head">
                 <strong><?= ho_h((string)$b['business_name']) ?></strong>
                 <span class="cp-send-sub"><?= ho_h((string)$b['category_name']) ?> &middot; <?= ho_h((string)$b['location_city']) ?></span>
@@ -1671,7 +1687,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             $bizHot2     = $bizHeat2 !== null && $bizHeat2['is_hot'];
             $bizHeatCls2 = $bizHot2 ? ' cp-send-card-hot' : '';
           ?>
-          <div class="cp-send-card cp-send-card-enhance<?= $bizHeatCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="enhance" data-haswebsite="1">
+          <div class="cp-send-card cp-send-card-enhance<?= $bizHeatCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="enhance" data-haswebsite="1" data-hasemail="<?= $hasEmail ? '1' : '0' ?>">
 
             <div class="cp-send-head">
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -1809,7 +1825,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       <div class="cp-order-statuses">
         <?php foreach ($statuses as $sc): ?>
         <label class="cp-order-stat-label"><?= ho_h($statLabels[$sc]) ?>
-          <select name="<?= $sc ?>" class="cp-select cp-order-stat-sel" onchange="this.form.submit()">
+          <select name="<?= $sc ?>" class="cp-select cp-order-stat-sel" onchange="orderStatusChange(this)">
             <?php foreach ($statOpts as $sv => $sl): ?>
               <option value="<?= $sv ?>"<?= ($o[$sc] ?? 'pending') === $sv ? ' selected' : '' ?>><?= $sl ?></option>
             <?php endforeach; ?>
@@ -2269,18 +2285,29 @@ function copyMessage(btn) {
     setTimeout(function(){ btn.textContent = '⧉ Copy the pitch to paste in their form'; }, 2200);
   });
 }
+var _activeChip = 'all';
+function setChip(chip) {
+  _activeChip = chip;
+  var chips = document.querySelectorAll('.cp-chip');
+  chips.forEach(function(c) { c.classList.remove('cp-chip-active'); });
+  var active = document.getElementById('chip' + chip.charAt(0).toUpperCase() + chip.slice(1));
+  if (active) active.classList.add('cp-chip-active');
+  applyFilters();
+}
 function applyFilters() {
-  var cat    = document.getElementById('filterCat')     ? document.getElementById('filterCat').value     : '';
-  var region = document.getElementById('filterRegion')  ? document.getElementById('filterRegion').value  : '';
-  var type   = document.getElementById('filterType')    ? document.getElementById('filterType').value    : '';
-  var web    = document.getElementById('filterWebsite') ? document.getElementById('filterWebsite').value : '';
+  var cat    = document.getElementById('filterCat')    ? document.getElementById('filterCat').value    : '';
+  var region = document.getElementById('filterRegion') ? document.getElementById('filterRegion').value : '';
   var cards  = document.querySelectorAll('#sendList .cp-send-card');
   var visible = 0;
   cards.forEach(function(card) {
-    var show = (!cat    || card.dataset.cat    === cat) &&
-               (!region || card.dataset.region === region) &&
-               (!type   || card.dataset.type   === type) &&
-               (web === '' || card.dataset.haswebsite === web);
+    var matchCat    = !cat    || card.dataset.cat    === cat;
+    var matchRegion = !region || card.dataset.region === region;
+    var matchChip   = true;
+    if (_activeChip === 'hot')     matchChip = card.classList.contains('cp-send-card-hot');
+    if (_activeChip === 'email')   matchChip = card.dataset.hasemail === '1';
+    if (_activeChip === 'build')   matchChip = card.dataset.type === 'build';
+    if (_activeChip === 'enhance') matchChip = card.dataset.type === 'enhance';
+    var show = matchCat && matchRegion && matchChip;
     card.style.display = show ? '' : 'none';
     if (show) visible++;
   });
@@ -2312,6 +2339,22 @@ function markSent(el, via) {
   card.classList.add('is-sent');
   var flag = card.querySelector('.cp-sent-flag');
   if (flag) flag.hidden = false;
+}
+// Orders tab: confirm before auto-submitting status change.
+function orderStatusChange(sel) {
+  var label = sel.closest('label');
+  var field = label ? label.textContent.trim().split('\n')[0].trim() : 'this field';
+  var newVal = sel.options[sel.selectedIndex].text;
+  if (newVal === 'Complete') {
+    if (!confirm('Mark ' + field + ' as Complete?')) {
+      // Revert to the previously selected option
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].defaultSelected) { sel.selectedIndex = i; break; }
+      }
+      return;
+    }
+  }
+  sel.form.submit();
 }
 // Source tab: fill form with a cat+region and scroll to it.
 function srcFillRec(catId, region) {
