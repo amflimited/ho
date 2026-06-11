@@ -13,6 +13,7 @@ try {
     $pdo = ho_db();
     $row = ho_get_preview_by_slug($pdo, $slug);
     if (!$row) throw new RuntimeException('not-found');
+    ho_log_preview_visit($pdo, (int)$row['preview_id'], (int)$row['id']);
 } catch (Throwable $e) {
     $err = $e->getMessage();
 }

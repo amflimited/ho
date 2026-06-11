@@ -3082,3 +3082,196 @@ function ho_audit_and_fix_websites(PDO $pdo): array {
 
     return ['total' => count($businesses), 'live' => $live, 'fixed' => $fixed];
 }
+
+// ─── Lead heat tracking ───────────────────────────────────────────────────────
+
+/**
+ * Log a go.php page visit. Silently skipped if preview_visits table doesn't exist yet.
+ */
+function ho_log_preview_visit(PDO $pdo, int $previewId, int $bizId): void {
+    try {
+        $ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . 'ho2026');
+        $pdo->prepare("
+            INSERT INTO preview_visits (preview_id, business_id, ip_hash)
+            VALUES (?, ?, ?)
+        ")->execute([$previewId, $bizId, $ipHash]);
+    } catch (Throwable) {}
+}
+
+/**
+ * Returns visit stats keyed by business_id.
+ * Each entry: ['total' => int, 'recent' => int (last 48h), 'last_at' => string, 'is_hot' => bool]
+ * Silently returns [] if preview_visits table doesn't exist yet.
+ */
+function ho_visit_stats_for_businesses(PDO $pdo, array $bizIds): array {
+    if (empty($bizIds)) return [];
+    $ids = array_values(array_unique(array_map('intval', $bizIds)));
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    try {
+        $s = $pdo->prepare("
+            SELECT business_id,
+                   COUNT(*) AS total,
+                   SUM(visited_at >= DATE_SUB(NOW(), INTERVAL 48 HOUR)) AS recent,
+                   MAX(visited_at) AS last_at
+            FROM preview_visits
+            WHERE business_id IN ({$placeholders})
+            GROUP BY business_id
+        ");
+        $s->execute($ids);
+        $stats = [];
+        foreach ($s->fetchAll() as $r) {
+            $total  = (int)$r['total'];
+            $recent = (int)$r['recent'];
+            $stats[(int)$r['business_id']] = [
+                'total'   => $total,
+                'recent'  => $recent,
+                'last_at' => (string)($r['last_at'] ?? ''),
+                'is_hot'  => $recent > 0 || $total >= 2,
+            ];
+        }
+        return $stats;
+    } catch (Throwable) {
+        return [];
+    }
+}
+
+// ─── Follow-up engine ─────────────────────────────────────────────────────────
+
+/**
+ * Build a follow-up message for touches 2, 3, or 4.
+ * $visitStats: result of ho_visit_stats_for_businesses(), keyed by business_id.
+ */
+function ho_followup_message(array $biz, string $previewUrl, int $touch, array $visitStats = []): array {
+    $name      = (string)($biz['business_name'] ?? '');
+    $firstName = trim((string)($biz['owner_first_name'] ?? ''));
+    $greeting  = $firstName !== '' ? "Hi {$firstName}," : "Hi,";
+    $catSlug   = (string)($biz['category_slug'] ?? '');
+    $bizId     = (int)($biz['id'] ?? $biz['business_id'] ?? 0);
+    $city      = (string)($biz['location_city'] ?? '');
+
+    $visitData  = $visitStats[$bizId] ?? null;
+    $hasVisited = $visitData !== null && $visitData['total'] > 0;
+    $recentHit  = $visitData !== null && $visitData['recent'] > 0;
+
+    $sig = "\u{2014} Adam Ferree\nHoosier Online\nadam@hoosieronline.com";
+
+    switch ($touch) {
+        case 2:
+            if ($recentHit) {
+                $subject = "Saw you visited \u{2014} any questions for {$name}?";
+                $opener  = "I saw you checked out the page I put together for {$name} \u{2014} wanted to make sure nothing was unclear.";
+            } elseif ($hasVisited) {
+                $subject = "You looked \u{2014} any questions for {$name}?";
+                $opener  = "I noticed you had a look at the page for {$name}. Happy to answer anything.";
+            } else {
+                $subject = "Quick follow-up for {$name}";
+                $opener  = "Just wanted to make sure my last message didn\u{2019}t get buried.";
+            }
+            $body = "{$greeting}\n\n{$opener}\n\nThe preview is at:\n\n{$previewUrl}\n\nIf you have questions or want to change anything, just reply \u{2014} takes 5 minutes.\n\n{$sig}";
+            return ['subject' => $subject, 'body' => $body];
+
+        case 3:
+            $stakes = ho_stakes_estimate($catSlug);
+            $stakesLine = '';
+            if ($stakes !== null) {
+                $annual = number_format($stakes['annual']);
+                $stakesLine = "\n\nTo put a number on it: even one extra customer a month from search is roughly \${$annual} a year. The site is a flat \$199 \u{2014} it pays for itself from the first job.\n";
+            }
+            $visitLine = $recentHit ? "\n\nI saw you visited again recently \u{2014} if something gave you pause, happy to talk through it." : '';
+            $subject = "{$name} \u{2014} one more thought";
+            $body = "{$greeting}\n\nI know you\u{2019}re busy, so I\u{2019}ll keep this short.{$stakesLine}{$visitLine}\n\nThe preview is still up:\n\n{$previewUrl}\n\nIf the timing isn\u{2019}t right, just say the word and I\u{2019}ll check back next season.\n\n{$sig}";
+            return ['subject' => $subject, 'body' => $body];
+
+        case 4:
+        default:
+            $to = $firstName !== '' ? $firstName : $name;
+            $subject = "Last one, {$to} \u{2014} then I\u{2019}ll leave you alone";
+            $body = "{$greeting}\n\nThis is my last note about this \u{2014} I don\u{2019}t want to be a pest.\n\nIf you ever decide you want a website or want to improve what you have, the offer stands. I\u{2019}d love to help.\n\nWishing {$name} a great season in {$city}.\n\n{$sig}";
+            return ['subject' => $subject, 'body' => $body];
+    }
+}
+
+/**
+ * Like ho_get_followup_due() but includes touch_number, sent_via, and extra fields
+ * needed for follow-up message building. Gracefully falls back if touch_number column
+ * is not yet migrated.
+ */
+function ho_get_followup_due_full(PDO $pdo, int $limit = 20): array {
+    $extra = "b.email_address, b.phone_number, b.owner_first_name,
+              ol.sent_via,
+              p.id AS preview_id,
+              c.slug AS category_slug, c.name AS category_name,";
+    try {
+        $s = $pdo->prepare("
+            SELECT b.business_name, b.location_city, b.id AS business_id,
+                   {$extra}
+                   COALESCE(ol.touch_number, 1) AS touch_number,
+                   ol.id AS log_id, ol.sent_at, ol.follow_up_at, ol.outcome, ol.sent_to,
+                   p.preview_slug
+            FROM outreach_log ol
+            JOIN businesses b ON b.id = ol.business_id
+            LEFT JOIN previews p ON p.id = ol.preview_id
+            LEFT JOIN categories c ON c.id = b.category_id
+            WHERE ol.outcome = 'pending'
+              AND ol.follow_up_at <= CURDATE()
+            ORDER BY ol.follow_up_at ASC
+            LIMIT " . (int)$limit . "
+        ");
+        $s->execute([]);
+        return $s->fetchAll();
+    } catch (PDOException) {
+        // touch_number column not yet migrated — fall back to minimal query
+        $s = $pdo->prepare("
+            SELECT b.business_name, b.location_city, b.id AS business_id,
+                   {$extra}
+                   1 AS touch_number,
+                   ol.id AS log_id, ol.sent_at, ol.follow_up_at, ol.outcome, ol.sent_to,
+                   p.preview_slug
+            FROM outreach_log ol
+            JOIN businesses b ON b.id = ol.business_id
+            LEFT JOIN previews p ON p.id = ol.preview_id
+            LEFT JOIN categories c ON c.id = b.category_id
+            WHERE ol.outcome = 'pending'
+              AND ol.follow_up_at <= CURDATE()
+            ORDER BY ol.follow_up_at ASC
+            LIMIT " . (int)$limit . "
+        ");
+        $s->execute([]);
+        return $s->fetchAll();
+    }
+}
+
+/**
+ * Record that a follow-up touch was sent, close the current log row, and schedule the next
+ * touch (if touch < 4). Schedule: touch→2 at +3d; touch→3 at +7d; touch→4 at +11d.
+ */
+function ho_record_followup_sent(PDO $pdo, int $logId, int $bizId, string $sentVia, string $sentTo, int $touch): void {
+    // Close current row with no_response (no reply to that touch → moving forward)
+    $pdo->prepare("UPDATE outreach_log SET outcome = 'no_response' WHERE id = ?")
+        ->execute([$logId]);
+
+    if ($touch >= 4) return;
+
+    $nextTouch = $touch + 1;
+    $days = [2 => 3, 3 => 7, 4 => 11];
+    $interval = $days[$nextTouch] ?? 7;
+
+    $previewId = null;
+    $p = $pdo->prepare("SELECT id FROM previews WHERE business_id = ?");
+    $p->execute([$bizId]);
+    $pr = $p->fetch();
+    if ($pr) $previewId = (int)$pr['id'];
+
+    try {
+        $pdo->prepare("
+            INSERT INTO outreach_log (business_id, preview_id, sent_via, sent_to, outcome, follow_up_at, touch_number)
+            VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL {$interval} DAY), ?)
+        ")->execute([$bizId, $previewId, $sentVia, $sentTo, $nextTouch]);
+    } catch (PDOException) {
+        // touch_number column not yet migrated
+        $pdo->prepare("
+            INSERT INTO outreach_log (business_id, preview_id, sent_via, sent_to, outcome, follow_up_at)
+            VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL {$interval} DAY))
+        ")->execute([$bizId, $previewId, $sentVia, $sentTo]);
+    }
+}

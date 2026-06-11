@@ -323,6 +323,89 @@ silently absent when data is missing:
    Yelp cross-platform rating line (only when both ≥ 4.0) and professional-logo
    strength prepended to "Working in your favour".
 
+## Three Game-Changer Features (2026-06-11)
+
+### Feature 1: Lead Heat Tracking
+
+Every go.php page visit is logged. Hot leads surface with 🔥 badges in the Send tab.
+
+**SQL migration (run in phpMyAdmin):**
+```sql
+CREATE TABLE IF NOT EXISTS preview_visits (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  preview_id INT NOT NULL,
+  business_id INT NOT NULL,
+  visited_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ip_hash CHAR(64) NOT NULL DEFAULT '',
+  INDEX idx_pv_business (business_id),
+  INDEX idx_pv_visited (visited_at)
+) ENGINE=InnoDB;
+```
+
+**Functions (ho-model.php):**
+- `ho_log_preview_visit(PDO, previewId, bizId)` — inserts into preview_visits (silently skips if table missing)
+- `ho_visit_stats_for_businesses(PDO, bizIds[])` — returns `[bizId => ['total', 'recent' (48h), 'last_at', 'is_hot']]`
+
+**go.php:** logs every visit after `ho_get_preview_by_slug()` succeeds.
+
+**app.php Send tab:** 🔥 HOT badge on hot cards, "X hot leads" strip at top, heat counts on badges.
+`is_hot` = visited within 48h OR 2+ total visits.
+
+---
+
+### Feature 2: Follow-up Engine
+
+Multi-touch sequence: touch 1 (existing), touch 2 (+3d), touch 3 (+10d), touch 4 breakup (+21d).
+Pre-written copy shown inline with copy + mailto buttons in the follow-up queue.
+
+**SQL migration:**
+```sql
+ALTER TABLE outreach_log ADD COLUMN touch_number TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER outcome;
+```
+
+**Functions (ho-model.php):**
+- `ho_followup_message(biz, previewUrl, touch, visitStats)` — returns `['subject', 'body']` for touches 2–4.
+  Personalizes based on visit data (🔥 HOT = different opener). Touch 4 is the breakup email.
+- `ho_get_followup_due_full(PDO)` — like `ho_get_followup_due()` but includes `touch_number`,
+  `email_address`, `phone_number`, `owner_first_name`, `sent_via`, `category_slug`.
+  Gracefully falls back if `touch_number` column not yet migrated.
+- `ho_record_followup_sent(PDO, logId, bizId, sentVia, sentTo, touch)` — closes current log row
+  as `no_response`, creates next touch row with correct `follow_up_at` (touch→2: +3d, →3: +7d, →4: +11d).
+
+**app.php:** New `record_followup_sent` POST action. Follow-up cards show:
+- Pre-written touch N+1 message (expandable) with Subject + body + email link + copy button
+- "✓ Sent touch N+1" button (calls `record_followup_sent`)
+- Interested / Not Interested buttons (unchanged)
+- Heat badge + visit count inline
+
+---
+
+### Feature 3: Zero-Touch Research (Claude API)
+
+Replaces ChatGPT copy/paste for research. A single button in the Research tab researches
+all queued leads one-by-one via the Anthropic API with web search.
+
+**Config file (outside public_html — NEVER commit):**
+```
+/home1/spofnkte/llm-config.php
+  define('LLM_API_KEY', 'sk-ant-...');
+  define('LLM_MODEL', 'claude-sonnet-4-6');  // optional, defaults to claude-sonnet-4-6
+```
+
+**New file: `llm-research.php`** — POST endpoint
+- Auth: same `gpt_import_key` as `gpt-import.php` (X-Api-Key header)
+- Body: `{ "business_id": N }`
+- Builds research prompt via `ho_generate_research_prompt([$biz])`, strips ChatGPT DELIVERY section,
+  calls Anthropic Messages API with `web_search_20250305` tool.
+- Extracts JSON from response, pipes through `ho_import_research_json()`.
+- Returns `{ "ok": true, "updated": N, "message": "..." }`.
+
+**app.php Research tab:** "Research with Claude" section appears when:
+- `/home1/spofnkte/llm-config.php` exists AND `gpt_import_key` is configured.
+- Shows button + stop button + progress bar + status line.
+- JS `startLlmResearch()` / `llmNext()` self-chains: fetches next biz_id, POSTs to
+  llm-research.php, waits 800ms, repeats. On error, logs and continues.
+
 ---
 
 ## DONE (2026-06-09 → continued session)

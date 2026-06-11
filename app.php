@@ -205,6 +205,18 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $requeuedCount = ho_count_no_contact_ready($pdo); // should be 0 now
                 header('Location: ?tab=send&flash=' . urlencode("No-contact leads moved back to the contact-research queue."));
                 exit;
+
+            case 'record_followup_sent':
+                $logId   = (int)($_POST['log_id'] ?? 0);
+                $bizId   = (int)($_POST['business_id'] ?? 0);
+                $sentVia = trim((string)($_POST['sent_via'] ?? 'email'));
+                $sentTo  = trim((string)($_POST['sent_to'] ?? ''));
+                $touch   = (int)($_POST['touch'] ?? 1);
+                if ($logId === 0 || $bizId === 0) throw new RuntimeException('Log/Business ID missing.');
+                ho_record_followup_sent($pdo, $logId, $bizId, $sentVia, $sentTo, $touch);
+                $nextNote = $touch < 4 ? ' Touch ' . ($touch + 1) . ' scheduled in ' . [2=>3,3=>7,4=>11][$touch+1] . ' days.' : ' Sequence complete.';
+                header('Location: ?tab=send&flash=' . urlencode('Follow-up recorded.' . $nextNote));
+                exit;
         }
     } catch (Throwable $e) {
         header('Location: ?tab=' . urlencode($_POST['tab'] ?? 'source') . '&error=' . urlencode($e->getMessage()));
@@ -295,7 +307,18 @@ if ($pdo && !empty($enrichmentBatch)) {
 try { $sendQueue = $pdo ? ho_get_preview_ready($pdo) : []; } catch (Throwable $e) { $sendQueue = []; $dbError = $dbError ?? $e->getMessage(); }
 try { $enhancementQueue = $pdo ? ho_get_enhancement_ready($pdo) : []; } catch (Throwable) { $enhancementQueue = []; }
 $noContactStuckCount = $pdo ? ho_count_no_contact_ready($pdo) : 0;
-try { $followupDue = $pdo ? ho_get_followup_due($pdo) : []; } catch (Throwable) { $followupDue = []; }
+try { $followupDue = $pdo ? ho_get_followup_due_full($pdo) : []; } catch (Throwable) { $followupDue = []; }
+
+// Heat stats for send queue and follow-up leads
+$_allSendIds   = array_merge(array_column($sendQueue, 'id'), array_column($enhancementQueue, 'id'));
+$heatStats     = $pdo && !empty($_allSendIds) ? ho_visit_stats_for_businesses($pdo, $_allSendIds) : [];
+$followupHeat  = $pdo && !empty($followupDue)
+    ? ho_visit_stats_for_businesses($pdo, array_column($followupDue, 'business_id'))
+    : [];
+$hotLeadIds    = array_keys(array_filter($heatStats, fn($s) => $s['is_hot']));
+
+// LLM (zero-touch) research availability
+$llmAvailable = is_file('/home1/spofnkte/llm-config.php') && $gptImportKey !== '';
 try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
 
 if (isset($_GET['demo']) && empty($pendingOrders)) {
@@ -805,6 +828,29 @@ if (!empty($unresearched)) {
     </form>
   </section>
 
+  <?php if ($llmAvailable && !empty($unresearched)): ?>
+  <section class="cp-section">
+    <div class="cp-llm-header">
+      <div>
+        <strong style="font-size:15px">Research with Claude — zero touch</strong>
+        <p class="cp-hint" style="margin:2px 0 0">Claude researches each lead using web search and imports results directly — no copy/paste.</p>
+      </div>
+    </div>
+    <div class="cp-llm-controls">
+      <button id="llmBtn" type="button" class="cp-btn-primary" onclick="startLlmResearch()">
+        Research <?= count($unresearched) ?> lead<?= count($unresearched) !== 1 ? 's' : '' ?> with Claude
+      </button>
+      <button id="llmStop" type="button" class="cp-btn-ghost" onclick="stopLlmResearch()" style="display:none">Stop</button>
+    </div>
+    <div class="cp-llm-progress" id="llmProgressWrap" style="display:none">
+      <div class="cp-llm-bar-outer"><div class="cp-llm-bar-inner" id="llmBar" style="width:0%"></div></div>
+    </div>
+    <p id="llmStatus" class="cp-hint" style="margin-top:6px;min-height:18px"></p>
+    <input type="hidden" id="llmBizIds" value="<?= ho_h(json_encode(array_column($unresearched, 'id'))) ?>">
+    <input type="hidden" id="llmApiKey" value="<?= ho_h($gptImportKey) ?>">
+  </section>
+  <?php endif; ?>
+
   <?php if (!empty($multiMarketIds)): ?>
   <div class="cp-alert cp-alert-warn">
     <strong><?= count($multiMarketIds) ?> multi-market flag<?= count($multiMarketIds) !== 1 ? 's' : '' ?></strong> &mdash; same business name appears in multiple cities. Review below &mdash; likely national franchises.
@@ -1178,22 +1224,75 @@ Do not print JSON in the chat. Do not explain your work. Do not ask questions. T
           Follow-up<?= count($followupDue) !== 1 ? 's' : '' ?> due
         </summary>
         <?php foreach ($followupDue as $fu):
-          $sentDaysAgo = (int)floor((time() - strtotime((string)$fu['sent_at'])) / 86400);
-          $previewHref = (string)$fu['preview_slug'] !== '' ? '/go/' . ho_h((string)$fu['preview_slug']) : '';
+          $fuTouch      = (int)($fu['touch_number'] ?? 1);
+          $fuNextTouch  = min($fuTouch + 1, 4);
+          $sentDaysAgo  = (int)floor((time() - strtotime((string)$fu['sent_at'])) / 86400);
+          $previewHref  = (string)$fu['preview_slug'] !== '' ? '/go/' . ho_h((string)$fu['preview_slug']) : '';
+          $previewUrl   = $previewHref !== '' ? 'https://' . $_SERVER['HTTP_HOST'] . $previewHref : '';
+          $fuHeat       = $followupHeat[(int)$fu['business_id']] ?? null;
+          $fuHot        = $fuHeat !== null && $fuHeat['is_hot'];
+          $fuMsg        = $previewUrl !== '' ? ho_followup_message($fu, $previewUrl, $fuNextTouch, $followupHeat) : null;
+          $fuHasEmail   = (string)$fu['email_address'] !== '';
+          $fuSentTo     = (string)($fu['sent_to'] ?? '');
+          $fuSentVia    = (string)($fu['sent_via'] ?? 'email');
+          $fuMailto     = $fuMsg && $fuHasEmail
+              ? 'mailto:' . rawurlencode((string)$fu['email_address']) . '?subject=' . rawurlencode($fuMsg['subject']) . '&body=' . rawurlencode($fuMsg['body'])
+              : '';
+          $touchLabels  = [1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th'];
         ?>
-        <div class="cp-followup-card">
+        <div class="cp-followup-card<?= $fuHot ? ' cp-followup-hot' : '' ?>">
           <div class="cp-followup-head">
-            <strong><?= ho_h((string)$fu['business_name']) ?></strong>
-            <span><?= ho_h((string)$fu['location_city']) ?> &middot; sent <?= $sentDaysAgo ?> day<?= $sentDaysAgo !== 1 ? 's' : '' ?> ago</span>
+            <div>
+              <strong><?= ho_h((string)$fu['business_name']) ?></strong>
+              <?php if ($fuHot): ?>
+                <span class="cp-heat-badge">🔥 HOT</span>
+              <?php endif; ?>
+            </div>
+            <span>
+              <?= ho_h((string)$fu['location_city']) ?> &middot; sent <?= $sentDaysAgo ?> day<?= $sentDaysAgo !== 1 ? 's' : '' ?> ago
+              &middot; touch <?= $fuTouch ?>
+              <?php if ($fuHeat): ?>
+                &middot; <?= $fuHeat['total'] ?> view<?= $fuHeat['total'] !== 1 ? 's' : '' ?>
+                <?php if ($fuHeat['recent'] > 0): ?>&middot; <em>visited recently</em><?php endif; ?>
+              <?php endif; ?>
+            </span>
           </div>
+
+          <?php if ($fuMsg): ?>
+          <details class="cp-followup-msg-wrap">
+            <summary class="cp-btn-ghost" style="font-size:12px;padding:5px 10px">Touch <?= $fuNextTouch ?> message (<?= $touchLabels[$fuNextTouch] ?? $fuNextTouch ?> follow-up) ▾</summary>
+            <div class="cp-followup-msg">
+              <div class="cp-followup-msg-subject">Subject: <?= ho_h($fuMsg['subject']) ?></div>
+              <textarea class="cp-msg-src cp-followup-msg-body" readonly><?= ho_h($fuMsg['body']) ?></textarea>
+              <div class="cp-followup-msg-actions">
+                <?php if ($fuMailto !== ''): ?>
+                  <a class="cp-btn-send cp-btn-send-email" href="<?= ho_h($fuMailto) ?>" style="font-size:13px">✉ Send touch <?= $fuNextTouch ?> via email</a>
+                <?php endif; ?>
+                <button type="button" class="cp-btn-ghost" style="font-size:12px" onclick="copyFollowup(this)">Copy message ⧉</button>
+              </div>
+            </div>
+          </details>
+          <?php endif; ?>
+
           <div class="cp-followup-actions">
+            <?php if ($fuMsg && $fuNextTouch <= 4): ?>
+            <form method="POST" style="display:contents">
+              <input type="hidden" name="action" value="record_followup_sent">
+              <input type="hidden" name="tab" value="send">
+              <input type="hidden" name="log_id" value="<?= (int)$fu['log_id'] ?>">
+              <input type="hidden" name="business_id" value="<?= (int)$fu['business_id'] ?>">
+              <input type="hidden" name="touch" value="<?= $fuNextTouch ?>">
+              <input type="hidden" name="sent_via" value="<?= ho_h($fuSentVia) ?>">
+              <input type="hidden" name="sent_to" value="<?= ho_h($fuSentTo) ?>">
+              <button class="cp-btn-outcome cp-btn-outcome-fu" type="submit">✓ Sent touch <?= $fuNextTouch ?></button>
+            </form>
+            <?php endif; ?>
             <form method="POST" style="display:contents">
               <input type="hidden" name="action" value="mark_outcome">
               <input type="hidden" name="tab" value="send">
               <input type="hidden" name="log_id" value="<?= (int)$fu['log_id'] ?>">
-              <button class="cp-btn-outcome cp-btn-outcome-yes" name="outcome" value="interested" type="submit">Interested</button>
-              <button class="cp-btn-outcome cp-btn-outcome-no" name="outcome" value="no_response" type="submit">No Reply</button>
-              <button class="cp-btn-outcome cp-btn-outcome-pass" name="outcome" value="not_interested" type="submit">Not Interested</button>
+              <button class="cp-btn-outcome cp-btn-outcome-yes" name="outcome" value="interested" type="submit">Interested ✓</button>
+              <button class="cp-btn-outcome cp-btn-outcome-pass" name="outcome" value="not_interested" type="submit">Not interested</button>
             </form>
             <?php if ($previewHref !== ''): ?>
               <a class="cp-btn-ghost" href="<?= $previewHref ?>" target="_blank">Preview ↗</a>
@@ -1255,6 +1354,15 @@ Do not print JSON in the chat. Do not explain your work. Do not ask questions. T
         </select>
       </div>
       <h2 class="cp-sh" id="sendCount"><?= count($allSendable) ?> ready to send</h2>
+
+      <?php if (!empty($hotLeadIds)): ?>
+      <div class="cp-heat-strip">
+        🔥 <strong><?= count($hotLeadIds) ?> hot lead<?= count($hotLeadIds) !== 1 ? 's' : '' ?></strong>
+        &mdash; visited their preview page recently
+        <span class="cp-heat-strip-hint">Highlighted below</span>
+      </div>
+      <?php endif; ?>
+
       <?php
         // Partition: email/website first, phone/FB-only second
         $sendPrimary   = [];
@@ -1299,7 +1407,12 @@ Do not print JSON in the chat. Do not explain your work. Do not ask questions. T
             $gRating     = (float)($b['google_rating'] ?? 0);
             $fbActivity  = (string)($b['facebook_activity'] ?? '');
           ?>
-          <div class="cp-send-card <?= $accentCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite ? '1' : '0' ?>">
+          <?php
+            $bizHeat    = $heatStats[(int)$b['id']] ?? null;
+            $bizHot     = $bizHeat !== null && $bizHeat['is_hot'];
+            $bizHeatCls = $bizHot ? ' cp-send-card-hot' : '';
+          ?>
+          <div class="cp-send-card <?= $accentCls ?><?= $bizHeatCls ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="build" data-haswebsite="<?= $hasSite ? '1' : '0' ?>">
 
             <div class="cp-send-head">
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -1307,9 +1420,15 @@ Do not print JSON in the chat. Do not explain your work. Do not ask questions. T
             </div>
 
             <div class="cp-card-badges">
+              <?php if ($bizHot): ?><span class="cp-heat-badge">🔥 HOT</span><?php endif; ?>
               <span class="cp-pkg cp-pkg-<?= ho_h((string)$b['package_recommendation']) ?>"><?= strtoupper((string)$b['package_recommendation']) ?></span>
               <span class="cp-score cp-score-<?= $scoreCls ?>">fit&nbsp;<?= $score ?></span>
-              <?php if ($viewCount > 0): ?>
+              <?php if ($bizHeat): ?>
+                <span class="cp-view-count">
+                  <?= $bizHeat['total'] ?> preview view<?= $bizHeat['total'] !== 1 ? 's' : '' ?>
+                  <?php if ($bizHeat['recent'] > 0): ?>&middot; <em>recent</em><?php endif; ?>
+                </span>
+              <?php elseif ($viewCount > 0): ?>
                 <span class="cp-view-count">
                   <?= $viewCount ?> view<?= $viewCount !== 1 ? 's' : '' ?>
                   <?php if ($viewedDaysAgo !== null): ?>
@@ -1485,7 +1604,12 @@ Do not print JSON in the chat. Do not explain your work. Do not ask questions. T
             $method     = (string)$b['best_contact_method'];
             $eGaps      = (array)$b['enhancement_gaps'];
         ?>
-          <div class="cp-send-card cp-send-card-enhance" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="enhance" data-haswebsite="1">
+          <?php
+            $bizHeat2    = $heatStats[(int)$b['id']] ?? null;
+            $bizHot2     = $bizHeat2 !== null && $bizHeat2['is_hot'];
+            $bizHeatCls2 = $bizHot2 ? ' cp-send-card-hot' : '';
+          ?>
+          <div class="cp-send-card cp-send-card-enhance<?= $bizHeatCls2 ?>" data-cat="<?= ho_h((string)$b['category_name']) ?>" data-region="<?= ho_h($region) ?>" data-biz="<?= (int)$b['id'] ?>" data-type="enhance" data-haswebsite="1">
 
             <div class="cp-send-head">
               <strong><?= ho_h((string)$b['business_name']) ?></strong>
@@ -1498,8 +1622,12 @@ Do not print JSON in the chat. Do not explain your work. Do not ask questions. T
               <span class="cp-sent-flag" hidden>✓ Sent</span>
             </div>
 
-            <?php if (!empty($eGaps)): ?>
+            <?php if (!empty($eGaps) || $bizHot2 || $bizHeat2): ?>
             <div class="cp-card-badges" style="flex-wrap:wrap;gap:4px">
+              <?php if ($bizHot2): ?><span class="cp-heat-badge">🔥 HOT</span><?php endif; ?>
+              <?php if ($bizHeat2 && !$bizHot2): ?>
+                <span class="cp-view-count"><?= $bizHeat2['total'] ?> view<?= $bizHeat2['total'] !== 1 ? 's' : '' ?></span>
+              <?php endif; ?>
               <?php foreach ($eGaps as $gk): ?>
                 <span class="cp-gap-badge"><?= ho_h($gapLabels[$gk] ?? $gk) ?></span>
               <?php endforeach; ?>
@@ -2154,6 +2282,88 @@ function dashTab(id, btn) {
   var pane = document.getElementById('dash' + id.charAt(0).toUpperCase() + id.slice(1));
   if (pane) pane.hidden = false;
   if (btn)  btn.classList.add('is-active');
+}
+
+// ── Follow-up copy ───────────────────────────────────────────────────────────
+function copyFollowup(btn) {
+  var wrap = btn.closest('.cp-followup-msg');
+  var ta   = wrap ? wrap.querySelector('textarea') : null;
+  if (!ta) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(ta.value).then(function() {
+      var orig = btn.textContent;
+      btn.textContent = 'Copied ✓';
+      setTimeout(function() { btn.textContent = orig; }, 2000);
+    });
+  } else {
+    ta.select();
+    document.execCommand('copy');
+  }
+}
+
+// ── Zero-touch LLM research ──────────────────────────────────────────────────
+var llmIds     = [];
+var llmIdx     = 0;
+var llmRunning = false;
+
+function startLlmResearch() {
+  var raw = document.getElementById('llmBizIds');
+  if (!raw) return;
+  try { llmIds = JSON.parse(raw.value || '[]'); } catch(e) { llmIds = []; }
+  if (llmIds.length === 0) return;
+  llmIdx     = 0;
+  llmRunning = true;
+  document.getElementById('llmBtn').disabled = true;
+  document.getElementById('llmStop').style.display = 'inline-flex';
+  document.getElementById('llmProgressWrap').style.display = '';
+  document.getElementById('llmStatus').textContent = '';
+  llmNext();
+}
+
+function stopLlmResearch() {
+  llmRunning = false;
+  document.getElementById('llmBtn').disabled = false;
+  document.getElementById('llmStop').style.display = 'none';
+  document.getElementById('llmStatus').textContent = 'Stopped at ' + llmIdx + ' of ' + llmIds.length + '. Refresh to see results.';
+}
+
+function llmNext() {
+  if (!llmRunning || llmIdx >= llmIds.length) {
+    document.getElementById('llmBtn').disabled = false;
+    document.getElementById('llmStop').style.display = 'none';
+    if (llmIdx >= llmIds.length) {
+      document.getElementById('llmStatus').textContent = 'All ' + llmIds.length + ' done! Refresh to see results.';
+    }
+    llmRunning = false;
+    return;
+  }
+  var bizId  = llmIds[llmIdx];
+  var total  = llmIds.length;
+  var apiKey = (document.getElementById('llmApiKey') || {}).value || '';
+  document.getElementById('llmStatus').textContent = (llmIdx + 1) + ' of ' + total + ' — researching…';
+  document.getElementById('llmBar').style.width = Math.round(llmIdx / total * 100) + '%';
+
+  fetch('/llm-research.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ business_id: bizId })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    llmIdx++;
+    document.getElementById('llmBar').style.width = Math.round(llmIdx / total * 100) + '%';
+    if (d.ok) {
+      document.getElementById('llmStatus').textContent = (llmIdx) + ' of ' + total + ' — ' + (d.message || 'done');
+    } else {
+      document.getElementById('llmStatus').textContent = 'Error (biz ' + bizId + '): ' + (d.error || 'unknown') + ' — continuing…';
+    }
+    setTimeout(llmNext, 800);
+  })
+  .catch(function(err) {
+    llmIdx++;
+    document.getElementById('llmStatus').textContent = 'Network error on biz ' + bizId + ': ' + err.message + ' — continuing…';
+    setTimeout(llmNext, 1500);
+  });
 }
 </script>
 
