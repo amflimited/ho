@@ -1,4 +1,4 @@
-/* v132 Front Door Preview */
+/* v133 Front Door Preview */
 :root{
   --fd-bg:#f4efe6;
   --fd-card:#fffaf1;
@@ -1851,5 +1851,79 @@ body.front-door-preview-page{
   *, *::before, *::after {
     transition-duration: 0.001ms !important;
     animation-duration:  0.001ms !important;
+  }
+}
+
+/* ════ v133 — Three big design improvements ════════════════════════════════ */
+
+/* ── 1. GRADIENT BUSINESS NAME — hero name becomes a rich green gradient ── */
+.fd-turn-name{
+  background:linear-gradient(135deg,#0a2712 0%,#2f5e36 45%,#4da862 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  /* older browsers fall back to color:var(--fd-ink) from the earlier rule */
+}
+
+/* ── 2. DARK CINEMATIC QUOTE CARD — testimonials become the spotlight ───── */
+.fd-quote-card{
+  background:linear-gradient(155deg,#1c1409 0%,#231808 100%)!important;
+  border-color:transparent!important;
+  border-left:4px solid #f59e0b!important;
+  position:relative;
+  overflow:hidden;
+}
+.fd-quote-card::after{
+  content:'\201C';
+  position:absolute;top:-30px;right:12px;
+  font-size:200px;
+  font-family:Georgia,'Times New Roman',serif;
+  font-style:italic;
+  color:rgba(245,158,11,.10);
+  line-height:1;
+  pointer-events:none;
+  user-select:none;
+  z-index:0;
+}
+.fd-quote-card .fd-kicker{color:#f59e0b}
+.fd-quote-card h2{color:#fff!important;position:relative;z-index:1}
+.fd-quote-card .fd-quote{
+  border-left-color:rgba(245,158,11,.55)!important;
+  position:relative;z-index:1;
+  margin:16px 0;
+}
+.fd-quote-card .fd-quote p{
+  color:rgba(255,255,255,.93)!important;
+  font-size:19px!important;
+  line-height:1.6!important;
+}
+.fd-quote-card .fd-quote cite{
+  color:rgba(245,158,11,.78)!important;
+  font-size:13px!important;
+}
+.fd-quote-card .fd-quote-frame{
+  color:rgba(255,255,255,.55)!important;
+  font-size:14px!important;
+  position:relative;z-index:1;
+}
+
+/* ── 3. PHONE MOCKUP 3D TILT — product-shot perspective on desktop ───────── */
+.fd-phone-stage{perspective:1400px}
+.fd-phone-frame{
+  transform:rotateY(-11deg) rotateX(4deg);
+  transition:transform .55s cubic-bezier(.22,.61,.36,1),box-shadow .4s ease;
+}
+@media(max-width:600px){
+  /* flat on mobile — tilt doesn't read well on small touch screens */
+  .fd-phone-frame{transform:none}
+}
+@media(hover:hover){
+  .fd-phone-frame:hover{
+    transform:rotateY(-3deg) rotateX(1deg);
+    box-shadow:
+      inset 0 0 0 2px #3f3f46,
+      0 0 0 1px #000,
+      0 60px 140px rgba(0,0,0,.55),
+      0 0 130px rgba(47,94,54,.34);
   }
 }
