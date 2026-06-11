@@ -1886,7 +1886,7 @@ async function hoPaste(btn) {
   }
   txt = (txt || '').trim();
   if (!txt) {
-    note.textContent = 'Clipboard is empty — copy ChatGPT’s reply first.';
+    note.textContent = ‘Clipboard is empty — copy ChatGPT’s reply first.’;
     note.style.color = '#a33327'; note.hidden = false; return;
   }
   hoIngest(txt, btn);
@@ -1992,7 +1992,7 @@ async function hoPasteImport(btn, key, noun) {
   try { txt = await navigator.clipboard.readText(); }
   catch (e) { say('Clipboard unavailable — paste manually below.', false); if (ta) ta.focus(); return; }
   txt = (txt || '').trim();
-  if (!txt) { say('Clipboard is empty — copy ChatGPT’s reply first.', false); return; }
+  if (!txt) { say(‘Clipboard is empty — copy ChatGPT’s reply first.’, false); return; }
   if (ta) ta.value = txt;
   var clean = txt.replace(/```[a-zA-Z]*\n?/g, '').trim();
   var parsed = null;
