@@ -1795,10 +1795,14 @@ function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
         $intro = "I looked at {$catLower} businesses in {$city} and {$name} came up.";
     }
 
-    // Stronger closing — specific offer, no fluff
+    // Credibility anchor + stronger closing
+    $hasRecord2  = $reviews > 0;
+    $trackLine2  = $hasRecord2 ? " For someone with your reviews and track record, the floor is higher." : "";
+    $credEnhance = "I\u{2019}ve improved sites for Indiana trades and seen a clean, well-positioned online presence help close a \$15k job for an operator with no experience.{$trackLine2}";
+
     $closingLine = $bundleTotal > 0
-        ? "Everything I\u{2019}d fix, done for a flat \$" . number_format($bundleTotal) . " \u{2014} one time, no contract. Want just one piece? That works too. Reply and I\u{2019}ll get started the same day."
-        : "Reply here and I\u{2019}ll have a quote to you the same day. One flat fee, no contract, no surprises.";
+        ? "Everything I\u{2019}d fix, done for a flat \$" . number_format($bundleTotal) . " \u{2014} one time, no contract. Want just one piece? That works too. {$credEnhance} Reply and I\u{2019}ll get started the same day."
+        : "{$credEnhance} Reply here and I\u{2019}ll have a quote to you the same day. One flat fee, no contract, no surprises.";
 
     // P.S. — use the strongest remaining signal
     $psLine = '';
@@ -2116,10 +2120,15 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
         $ctaLine = "Here\u{2019}s what I built:";
     }
 
-    // Specific closing with deliverables and timeline — replaces soft "no strings"
+    // Credibility anchor — the $15k story answers "who is this guy?"
+    $hasRecord = $reviews > 0 || $years > 0;
+    $trackLine = $hasRecord ? " Imagine what it does for someone with your track record." : "";
+    $cred = "I\u{2019}ve built sites for Indiana trades \u{2014} one client, brand new to the industry with no track record, used a clean site and logo to close a \$15k job.{$trackLine}";
+
+    // Specific closing with deliverables, timeline, and credibility
     $closing = $ageBand === '55plus'
-        ? "No charge to view. If it looks right, just reply \u{2014} I handle everything technical, nothing for you to figure out. Flat \$199 to go live."
-        : "No charge to view. If it looks right: \$199 flat, live in 24 hours \u{2014} domain, hosting, everything included. Reply here and I\u{2019}ll take it from there.";
+        ? "No charge to view. {$cred} If it looks right, just reply \u{2014} I handle everything technical, nothing for you to figure out. Flat \$199 to go live."
+        : "No charge to view. {$cred} If it looks right: \$199 flat, live in 24 hours \u{2014} domain, hosting, everything. Reply here and I\u{2019}ll take it from there.";
 
     // P.S. — most-read part of an email; use the strongest fact NOT already in the hook
     $psLine = '';
@@ -2210,7 +2219,11 @@ function ho_contact_form_message(array $biz, string $previewUrl): array {
         }
     }
 
+    // Brief credibility line — contact forms need a trust signal fast
+    $cfCred = "I\u{2019}ve built sites for Indiana trades \u{2014} one client closed a \$15k job using nothing but a clean site and logo.";
+
     $body = "{$greeting}\n\n{$hook}\n\n{$action}\n{$previewUrl}\n\n"
+          . "{$cfCred}\n\n"
           . "\u{2014} Adam Ferree\n"
           . "Hoosier Online | adam@hoosieronline.com | (765) 443-4321";
 
