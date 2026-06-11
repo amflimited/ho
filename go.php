@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
+require_once __DIR__ . '/ho-enhancement-packages.php';
 
 $slug = trim((string)($_GET['slug'] ?? ''));
 $row  = null;
@@ -120,14 +121,22 @@ $enhancementGaps = ($isEnhancement && $row) ? ho_enhancement_gaps($row) : [];
 $packageItems = [];
 if ($isEnhancement) {
     if (!empty($row['package_items'])) {
-        $packageItems = (array)json_decode((string)$row['package_items'], true);
+        $decoded = json_decode((string)$row['package_items'], true);
+        if (is_array($decoded)) {
+            // checkout.php and ho_rebuild_enhancement_package store the full bundle object;
+            // ho_route_to_enhancement stores the flat items array — unwrap either format.
+            $packageItems = isset($decoded['items']) && is_array($decoded['items']) ? $decoded['items'] : $decoded;
+        }
     }
     if (empty($packageItems) && !empty($enhancementGaps) && isset($pdo)) {
         try { $packageItems = ho_build_package_items($pdo, $enhancementGaps); } catch (Throwable) {}
     }
 }
 $priceByGap  = [];
-foreach ($packageItems as $pi) { $priceByGap[(string)$pi['gap_key']] = (float)($pi['price'] ?? 0); }
+foreach ($packageItems as $pi) {
+    if (!is_array($pi)) continue;
+    $priceByGap[(string)($pi['gap_key'] ?? '')] = (float)($pi['price'] ?? 0);
+}
 $bundleTotal = array_sum(array_column($packageItems, 'price'));
 $design       = $row ? ho_design_direction($catSlug) : ['key' => 'default', 'name' => '', 'feel' => ''];
 $subdomain    = $row ? ho_suggest_subdomain($name) : '';
@@ -689,6 +698,24 @@ if ($paid && $row && $pdo !== null) {
       $fixItems[] = ['icon'=>'📬','title'=>'A few things worth tightening up','body'=>'I looked over your site and spotted specific things that quietly cost you jobs. Easiest to walk through them on a quick call.','gap_key'=>'','price'=>0.0];
   }
   $fixItemsTotal = array_sum(array_column($fixItems, 'price'));
+  // If stored pricing couldn't be resolved, recompute live from research context.
+  if ($fixItemsTotal <= 0 && !empty($enhancementGaps) && isset($pdo)) {
+      try {
+          $liveBundle    = ho_current_enhancement_bundle($pdo, $row);
+          $fixItemsTotal = (float)($liveBundle['total'] ?? 0);
+          // Re-populate priceByGap so the per-line prices display correctly too.
+          foreach ((array)($liveBundle['items'] ?? []) as $li) {
+              if (is_array($li) && isset($li['gap_key'])) {
+                  $priceByGap[(string)$li['gap_key']] = (float)($li['price'] ?? 0);
+                  $fixItems = array_map(function($fi) use ($li) {
+                      return (string)($fi['gap_key'] ?? '') === (string)$li['gap_key']
+                          ? array_merge($fi, ['price' => (float)($li['price'] ?? 0)])
+                          : $fi;
+                  }, $fixItems);
+              }
+          }
+      } catch (Throwable) {}
+  }
   ?>
   <section class="fd-card fd-reveal" id="what-i-can-add">
     <p class="fd-kicker">What I&rsquo;d do</p>
@@ -749,14 +776,18 @@ if ($paid && $row && $pdo !== null) {
     <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
     <div class="fd-phone-fallback">Questions first? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
     <?php else: ?>
-    <p class="fd-kicker">Let&rsquo;s talk it through</p>
-    <h2>Tell me what you want fixed &mdash; I&rsquo;ll quote it same day.</h2>
-    <p style="font-size:16px;line-height:1.6">No obligation, no pressure. Most of these are a flat one-time fix &mdash; no monthly anything.</p>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px">
-      <a class="fd-btn fd-btn-primary fd-checkout-main-btn" href="tel:7654434321">📞 Call me &mdash; (765) 443-4321</a>
-      <a class="fd-btn fd-btn-secondary" href="mailto:adam@hoosieronline.com?subject=<?= rawurlencode('Website help for ' . $name) ?>&body=<?= rawurlencode("Hi Adam — I saw the page you put together for " . $name . ". I'd like to talk about:") ?>">Email me instead &rarr;</a>
-    </div>
-    <p class="fd-muted" style="margin-top:16px">Adam Ferree &middot; Hoosier Online &middot; New Castle, Indiana</p>
+    <p class="fd-kicker">Get it done</p>
+    <h2>Let me fix what&rsquo;s holding you back.</h2>
+    <p style="font-size:16px;line-height:1.6">Flat, one-time. No monthly fees, no contract. Pay online now &mdash; I start today.</p>
+    <form method="POST" action="/checkout.php" class="fd-checkout-form">
+      <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
+      <input type="hidden" name="pkg"  value="enhancement">
+      <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
+        Yes &mdash; get it done &rarr;
+      </button>
+    </form>
+    <div class="fd-secure-note">Stripe &middot; 256-bit SSL &middot; pay in 2 minutes</div>
+    <div class="fd-phone-fallback">Questions first? <a href="tel:7654434321">Call me: (765) 443-4321</a></div>
     <?php endif; ?>
   </section>
 
@@ -1152,7 +1183,11 @@ if ($paid && $row && $pdo !== null) {
         <button type="submit" class="fd-btn fd-btn-primary fd-sticky-btn">Fix it &rarr; $<?= number_format($fixItemsTotal) ?></button>
       </form>
       <?php else: ?>
-      <a href="tel:7654434321" class="fd-btn fd-btn-primary fd-sticky-btn">📞 Call Adam</a>
+      <form method="POST" action="/checkout.php" style="margin:0;display:contents">
+        <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
+        <input type="hidden" name="pkg"  value="enhancement">
+        <button type="submit" class="fd-btn fd-btn-primary fd-sticky-btn">Get it done &rarr;</button>
+      </form>
       <?php endif; ?>
     </div>
   </div>

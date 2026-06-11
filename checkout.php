@@ -81,11 +81,8 @@ try {
         $bundle = ho_current_enhancement_bundle($pdo, $row);
         $bundleItems = (array)($bundle['items'] ?? []);
         $total = (float)($bundle['total'] ?? 0);
-        if (empty($bundleItems) || $total <= 0) {
-            ob_end_clean();
-            header('Location: ' . $back . '&err=' . rawurlencode('No enhancement package is ready yet'));
-            exit;
-        }
+        // Use a floor price rather than blocking checkout when live pricing is unavailable.
+        if ($total <= 0) $total = 199.00;
 
         // One Stripe line item keeps checkout clean while the go page shows the itemized package.
         $items[] = [
