@@ -439,6 +439,23 @@ endif; ?>
     <?php if ($angle !== ''): ?>
       <p class="fd-turn-angle"><?= ho_h($angle) ?></p>
     <?php endif; ?>
+    <?php
+    $heroStats = [];
+    if ($googleCount >= 5 && $googleRating >= 4.0) $heroStats[] = ['num' => number_format($googleRating, 1) . '★ · ' . number_format($googleCount) . ' reviews', 'lbl' => 'on Google'];
+    elseif ($googleCount >= 5) $heroStats[] = ['num' => number_format($googleCount), 'lbl' => 'Google reviews'];
+    if ($yearsInBiz >= 3) $heroStats[] = ['num' => $yearsInBiz . ' years', 'lbl' => 'in business'];
+    if (!$hasWebsite) $heroStats[] = ['num' => 'Nothing', 'lbl' => 'online right now', 'warn' => true];
+    elseif ($compHasSite && $compName !== '') $heroStats[] = ['num' => '0', 'lbl' => 'search rank vs ' . $compName, 'warn' => true];
+    if (!empty($heroStats)): ?>
+    <div class="fd-hero-stats">
+      <?php foreach ($heroStats as $hs): ?>
+      <div class="fd-hstat<?= !empty($hs['warn']) ? ' fd-hstat-warn' : '' ?>">
+        <strong><?= $hs['num'] ?></strong>
+        <span><?= ho_h($hs['lbl']) ?></span>
+      </div>
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
     <div class="fd-turn-actions">
       <?php if ($isEnhancement): ?>
       <a href="#what-i-can-add" class="fd-btn fd-btn-primary fd-turn-cta">See What I Found &darr;</a>
@@ -446,6 +463,9 @@ endif; ?>
       <a href="#preview" class="fd-btn fd-btn-primary fd-turn-cta">See what it looks like online &darr;</a>
       <?php endif; ?>
     </div>
+    <?php if (!$isEnhancement): ?>
+    <p class="fd-price-anchor">$199 one-time &middot; live in 48&nbsp;hours &middot; 30-day refund</p>
+    <?php endif; ?>
     <div class="fd-trust-strip">
       <a href="tel:<?= ADAM_TEL ?>" class="fd-ts-item">📞 <?= ADAM_PHONE ?></a>
       <?php if (!$isEnhancement): ?>
@@ -1081,7 +1101,13 @@ endif; ?>
     <h2><?= count($fixItems) > 1 ? 'All of it' : 'This' ?> for $<?= number_format($fixItemsTotal) ?> &mdash; flat, one-time.</h2>
     <p style="font-size:16px;line-height:1.6">One-time price for the work, no contract. Pay online now &mdash; I start today. Want just one piece? That&rsquo;s fine too, each line above stands on its own.</p>
     <?php if ($slotHeldUntil !== ''): ?>
-    <p class="fd-slot-note">⏳ I have time set aside for <?= ho_h($name) ?> through <strong><?= ho_h($slotHeldUntil) ?></strong>.</p>
+    <div class="fd-slot-fire">
+      <span class="fd-slot-fire-dot"></span>
+      <div>
+        <strong><?= ho_h($name) ?> &mdash; slot open through <?= ho_h($slotHeldUntil) ?></strong>
+        <span><?= !$isEnhancement ? 'I only build one ' . ho_h(strtolower($catName)) . ' site per city &mdash; first reply locks it in.' : 'Reply before then &mdash; I work through my list in order.' ?></span>
+      </div>
+    </div>
     <?php endif; ?>
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
@@ -1102,7 +1128,13 @@ endif; ?>
     <h2>Let me fix what&rsquo;s holding you back.</h2>
     <p style="font-size:16px;line-height:1.6">Flat, one-time price for the work, no contract. Pay online now &mdash; I start today.</p>
     <?php if ($slotHeldUntil !== ''): ?>
-    <p class="fd-slot-note">⏳ I have time set aside for <?= ho_h($name) ?> through <strong><?= ho_h($slotHeldUntil) ?></strong>.</p>
+    <div class="fd-slot-fire">
+      <span class="fd-slot-fire-dot"></span>
+      <div>
+        <strong><?= ho_h($name) ?> &mdash; slot open through <?= ho_h($slotHeldUntil) ?></strong>
+        <span><?= !$isEnhancement ? 'I only build one ' . ho_h(strtolower($catName)) . ' site per city &mdash; first reply locks it in.' : 'Reply before then &mdash; I work through my list in order.' ?></span>
+      </div>
+    </div>
     <?php endif; ?>
     <form method="POST" action="/checkout.php" class="fd-checkout-form">
       <input type="hidden" name="slug" value="<?= ho_h($slug) ?>">
@@ -1362,7 +1394,13 @@ endif; ?>
     <p class="fd-kicker">One decision</p>
     <h2><?= ho_h($name) ?>&rsquo;s site &mdash; live in 48 hours.</h2>
     <?php if ($slotHeldUntil !== ''): ?>
-    <p class="fd-slot-note">⏳ I have time set aside for <?= ho_h($name) ?> through <strong><?= ho_h($slotHeldUntil) ?></strong>.</p>
+    <div class="fd-slot-fire">
+      <span class="fd-slot-fire-dot"></span>
+      <div>
+        <strong><?= ho_h($name) ?> &mdash; slot open through <?= ho_h($slotHeldUntil) ?></strong>
+        <span><?= !$isEnhancement ? 'I only build one ' . ho_h(strtolower($catName)) . ' site per city &mdash; first reply locks it in.' : 'Reply before then &mdash; I work through my list in order.' ?></span>
+      </div>
+    </div>
     <?php endif; ?>
 
     <div class="fd-offer-price-block">

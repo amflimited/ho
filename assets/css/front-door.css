@@ -704,3 +704,21 @@ html.fd-landed .fd-turn { animation:fd-land .7s cubic-bezier(.2,.8,.3,1) both; }
   .fd-boot { display:none; }
   html.fd-landed .fd-turn { animation:none; }
 }
+/* ══ Conversion lift ════════════════════════════════════════════════════════ */
+/* Hero stats strip — proof row above CTA */
+.fd-hero-stats { display:flex; justify-content:center; flex-wrap:wrap; gap:10px; margin:16px 0 0; position:relative; }
+.fd-hstat { display:flex; flex-direction:column; align-items:center; gap:3px; background:rgba(255,250,241,.88); border:1px solid rgba(34,23,19,.10); border-radius:14px; padding:10px 16px; min-width:76px; box-shadow:inset 0 1px 0 rgba(255,255,255,.72); }
+.fd-hstat strong { font-size:16px; font-weight:950; color:var(--fd-ink); line-height:1.1; letter-spacing:-.02em; text-align:center; }
+.fd-hstat span { font-size:10.5px; font-weight:700; color:var(--fd-muted); text-transform:uppercase; letter-spacing:.07em; text-align:center; line-height:1.3; }
+.fd-hstat-warn { background:rgba(181,18,34,.05); border-color:rgba(181,18,34,.20); }
+.fd-hstat-warn strong { color:var(--fd-red); }
+/* Price anchor — floats below CTA so the $199 lands before the scroll */
+.fd-price-anchor { margin:10px 0 0; font-size:13px; color:var(--fd-muted); font-weight:600; letter-spacing:.01em; text-align:center; position:relative; }
+/* Slot fire urgency badge */
+.fd-slot-fire { display:flex; align-items:flex-start; gap:10px; background:rgba(176,98,18,.07); border:1.5px solid rgba(176,98,18,.28); border-radius:12px; padding:12px 14px; margin:0 0 16px; }
+.fd-slot-fire-dot { flex-shrink:0; width:9px; height:9px; border-radius:50%; background:#c04a00; margin-top:4px; animation:fd-fire-pulse 2s ease-in-out infinite; }
+.fd-slot-fire div { display:flex; flex-direction:column; gap:3px; }
+.fd-slot-fire strong { display:block; font-size:14px; font-weight:800; color:#7a2800; line-height:1.3; }
+.fd-slot-fire span { font-size:13px; color:rgba(122,40,0,.75); line-height:1.4; }
+@keyframes fd-fire-pulse { 0%,100% { box-shadow:0 0 0 3px rgba(192,74,0,.22); } 50% { box-shadow:0 0 0 7px rgba(192,74,0,.06); } }
+@media (prefers-reduced-motion: reduce) { .fd-slot-fire-dot { animation:none; } }
