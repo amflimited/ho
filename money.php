@@ -1,11 +1,13 @@
 <?php
 declare(strict_types=1);
 /**
- * THE MONEY FLOOR — the screen Adam lives in.
+ * MISSION CONTROL — the room Adam runs the program from.
  *
- * One feed of "moves", sorted by expected dollars. Every card is one decision
- * with the message already written and one primary tap. No tabs, no filters,
- * no management — only execution. app.php remains the back office.
+ * One feed of "moves", sorted by expected dollars. Every card is a flight
+ * station (CAPCOM, FIDO, GUIDO, BOOSTER, RECOVERY, SURGEON) calling FLIGHT
+ * with a GO: the message already written, one primary tap. No tabs, no
+ * filters, no management — only execution. app.php remains the back office.
+ * Mission: first revenue. The Eagle lands on the first conversion.
  *
  * Move types, highest priority first:
  *   close     — a lead marked Interested: closing message, ready to send
@@ -161,6 +163,27 @@ if ($pdo !== null) {
     try { $sentToday += (int)$pdo->query("SELECT COUNT(*) FROM email_log WHERE kind != 'digest' AND ok=1 AND sent_at >= CURDATE()")->fetchColumn(); } catch (PDOException) {}
 }
 $dailyGoal = 10;
+
+// ── Mission telemetry — the clock starts when the first lead entered the
+// machine; the mission ends when the Eagle lands (first conversion).
+$convertedCount = 0; $missionStart = null;
+if ($pdo !== null) {
+    try { $convertedCount = (int)$pdo->query("SELECT COUNT(*) FROM businesses WHERE pipeline_status='converted'")->fetchColumn(); } catch (PDOException) {}
+    try { $missionStart = (string)($pdo->query("SELECT MIN(created_at) FROM businesses")->fetchColumn() ?: ''); } catch (PDOException) {}
+}
+$missionEpoch = $missionStart ? (strtotime($missionStart) ?: time()) : time();
+$eagleLanded  = $convertedCount > 0;
+
+// Flight controller callsign per move type — every card is a station calling
+// FLIGHT with a GO.
+$stations = [
+    'capture'  => 'RECOVERY',
+    'close'    => 'CAPCOM',
+    'hot'      => 'FIDO',
+    'followup' => 'GUIDO',
+    'pitch'    => 'BOOSTER',
+    'triage'   => 'SURGEON',
+];
 
 // ── CUSTOMER CAUGHT (priority 2000) — the near-guaranteed close ──────────────
 // A real customer tried to reach this business through the page. Deliver the
@@ -333,17 +356,27 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
-  <title>The Money Floor</title>
+  <title>Mission Control — Hoosier Online</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/money.css?v=1">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/money.css?v=<?= filemtime(__DIR__ . '/assets/css/money.css') ?>">
 </head>
 <body class="mf">
 
 <header class="mf-top">
-  <div class="mf-brand">💵 THE FLOOR</div>
+  <div class="mf-brand"><span class="mf-live-dot"></span>MISSION CONTROL</div>
+  <div class="mf-clock" id="mfClock">T+ --:--:--:--</div>
   <a class="mf-cockpit-link" href="/app.php">cockpit →</a>
 </header>
+
+<div class="mf-missionline">
+  <?php if ($eagleLanded): ?>
+    <span class="mf-mission-eagle">🦅 The Eagle has landed &middot; <?= $convertedCount ?> converted &middot; next: orbit</span>
+  <?php else: ?>
+    <span>Mission: first revenue</span>
+    <span class="mf-go">Status: GO</span>
+  <?php endif; ?>
+</div>
 
 <?php if (!empty($dbError)): ?>
   <div class="mf-shell"><div class="mf-card"><p><?= ho_h($dbError) ?></p></div></div>
@@ -352,16 +385,16 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
 <section class="mf-score">
   <div class="mf-score-main">
     <span class="mf-score-num">$<?= number_format($pipelineValue) ?></span>
-    <span class="mf-score-lbl">sitting on the floor right now</span>
+    <span class="mf-score-lbl">payload on the pad</span>
   </div>
   <div class="mf-score-row">
-    <span class="mf-stat"><em id="mfSent"><?= $sentToday ?></em> sent today</span>
+    <span class="mf-stat"><em id="mfSent"><?= $sentToday ?></em> transmissions</span>
     <span class="mf-stat"><em><?= $hotCount ?></em> 🔥 hot</span>
     <span class="mf-stat"><em><?= $inPlay ?></em> in play</span>
   </div>
   <div class="mf-goal">
     <div class="mf-goal-bar"><div class="mf-goal-fill" id="mfGoalFill" style="width:<?= min(100, (int)($sentToday / $dailyGoal * 100)) ?>%"></div></div>
-    <span class="mf-goal-lbl" id="mfGoalLbl"><?= $sentToday >= $dailyGoal ? '🏆 Daily print complete' : ($dailyGoal - $sentToday) . ' moves to a full print' ?></span>
+    <span class="mf-goal-lbl" id="mfGoalLbl"><?= $sentToday >= $dailyGoal ? '🚀 Full burn complete — all engines fired' : ($dailyGoal - $sentToday) . ' burns to a full launch' ?></span>
   </div>
 </section>
 
@@ -370,8 +403,8 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
   <?php if (empty($moves) && empty($triage)): ?>
     <div class="mf-card mf-empty">
       <div class="mf-empty-icon">🌙</div>
-      <h2>Floor&rsquo;s clear.</h2>
-      <p>Nothing needs you. The machine is hunting — fresh leads land after the next sourcing run, and follow-ups fire when they&rsquo;re due. Go live your life.</p>
+      <h2>All systems nominal.</h2>
+      <p>No station needs FLIGHT. The machine is hunting on its own — fresh leads land after the next sourcing run, and follow-ups fire when they&rsquo;re due. Go live your life; Houston has the watch.</p>
       <a class="mf-btn mf-btn-ghost" href="/app.php?tab=send">open the cockpit anyway →</a>
     </div>
   <?php endif; ?>
@@ -382,7 +415,9 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
     $idx++;
   ?>
   <article class="mf-card mf-type-<?= $m['type'] ?><?= $idx === 1 ? ' mf-first' : '' ?>" data-biz="<?= (int)$b['id'] ?>">
+    <span class="mf-next-flag">▶ Next action</span>
     <div class="mf-card-tag-row">
+      <span class="mf-station"><?= $stations[$m['type']] ?? 'FLIGHT' ?></span>
       <span class="mf-tag mf-tag-<?= $m['type'] ?>"><?= $m['tag'] ?></span>
       <?php if ($m['value'] !== ''): ?><span class="mf-value"><?= ho_h($m['value']) ?></span><?php endif; ?>
     </div>
@@ -428,6 +463,7 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
   <?php if (!empty($triage)): ?>
   <article class="mf-card mf-type-triage" id="mfTriageCard">
     <div class="mf-card-tag-row">
+      <span class="mf-station"><?= $stations['triage'] ?></span>
       <span class="mf-tag mf-tag-triage">👁 QUALITY GATE</span>
       <span class="mf-value" id="mfTriageCount"><?= count($triage) ?> waiting</span>
     </div>
@@ -446,7 +482,7 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
     <p class="mf-overflow">+<?= $pitchOverflow ?> more fresh leads queued behind these — clear the deck and they rise.</p>
   <?php endif; ?>
 
-  <p class="mf-footer">Top card first. Every send is a lottery ticket you printed for free.</p>
+  <p class="mf-footer">Flight, we are GO. Top card first — every transmission is free fuel.</p>
 </main>
 
 <script>
@@ -460,6 +496,18 @@ var TRIAGE = <?= json_encode(array_map(fn($t) => [
 ], $triage), JSON_UNESCAPED_SLASHES) ?>;
 var tIdx = 0, movesDone = 0;
 var SENT = <?= (int)$sentToday ?>, GOAL = <?= (int)$dailyGoal ?>;
+
+// Mission clock — T+ since the first lead entered the machine, live.
+var T0 = <?= (int)$missionEpoch ?> * 1000;
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function mfTick() {
+  var el = document.getElementById('mfClock');
+  if (!el) return;
+  var s = Math.max(0, Math.floor((Date.now() - T0) / 1000));
+  var d = Math.floor(s / 86400);
+  el.textContent = 'T+ ' + d + ':' + pad2(Math.floor(s % 86400 / 3600)) + ':' + pad2(Math.floor(s % 3600 / 60)) + ':' + pad2(s % 60);
+}
+setInterval(mfTick, 1000); mfTick();
 
 function post(params) {
   try {
@@ -478,7 +526,7 @@ function bumpScore() {
   var fill = document.getElementById('mfGoalFill');
   if (fill) fill.style.width = Math.min(100, Math.round(SENT / GOAL * 100)) + '%';
   var lbl = document.getElementById('mfGoalLbl');
-  if (lbl) lbl.textContent = SENT >= GOAL ? '🏆 Daily print complete' : (GOAL - SENT) + ' moves to a full print';
+  if (lbl) lbl.textContent = SENT >= GOAL ? '🚀 Full burn complete — all engines fired' : (GOAL - SENT) + ' burns to a full launch';
 }
 function slideOut(card) {
   if (!card) return;
@@ -500,8 +548,9 @@ function moveDone(btn) {
     if (extra) { var ex = JSON.parse(extra); for (var k in ex) params[k] = ex[k]; }
     post(params);
   }
+  if (card) card.classList.add('mf-sent'); // ✓ TRANSMITTED stamp
   bumpScore();
-  setTimeout(function(){ slideOut(card); }, 600);
+  setTimeout(function(){ slideOut(card); }, 900);
 }
 function skipMove(btn) { slideOut(btn.closest('.mf-card')); }
 function copyMsg(btn) {

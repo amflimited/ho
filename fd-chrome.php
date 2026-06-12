@@ -30,6 +30,70 @@ function ho_fd_nav(array $opts = []): void {
 }
 
 /**
+ * THE BOOT SEQUENCE — a 2.5-second build-console overlay that types out what
+ * the machine actually did for this business (real review counts, the real
+ * competitor, their town) before the page lifts into view. The prospect's
+ * first impression is the machine working for them, live.
+ *
+ * Plays once per browser session per $key (sessionStorage). Self-disables for
+ * repeat views, JS-off (markup is hidden until JS reveals it), and
+ * prefers-reduced-motion. A tap skips it instantly. Callers must NOT render
+ * it on paid/error views — never stand between a buyer and the page.
+ *
+ *   $lines — console lines in order; empty/blank entries are dropped.
+ *   $key   — sessionStorage discriminator, usually the business slug.
+ */
+function ho_fd_boot(array $lines, string $key): void {
+    $lines = array_values(array_filter(array_map('strval', $lines), fn($l) => trim($l) !== ''));
+    if (empty($lines)) return;
+    $storeKey = 'fdBoot-' . preg_replace('/[^a-zA-Z0-9_-]/', '', $key);
+    ?>
+<div class="fd-boot" id="fdBoot" hidden>
+  <div class="fd-boot-inner">
+    <p class="fd-boot-brand">&#x2B22; HOOSIER ONLINE &middot; BUILD CONSOLE</p>
+    <div class="fd-boot-lines" id="fdBootLines"></div>
+    <p class="fd-boot-skip">tap anywhere to skip</p>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY = <?= json_encode($storeKey) ?>;
+  try { if (sessionStorage.getItem(KEY)) return; } catch (e) { return; }
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var boot = document.getElementById('fdBoot');
+  if (!boot) return;
+  var LINES = <?= json_encode($lines, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  boot.hidden = false;
+  document.documentElement.classList.add('fd-boot-lock');
+  var box = document.getElementById('fdBootLines'), i = 0, finished = false;
+  function fin() {
+    if (finished) return;
+    finished = true;
+    try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+    boot.classList.add('fd-boot-done');
+    document.documentElement.classList.remove('fd-boot-lock');
+    document.documentElement.classList.add('fd-landed');
+    setTimeout(function(){ boot.remove(); }, 700);
+  }
+  function step() {
+    if (finished) return;
+    if (i >= LINES.length) { setTimeout(fin, 480); return; }
+    var p = document.createElement('p');
+    p.className = 'fd-boot-line';
+    p.textContent = LINES[i];
+    box.appendChild(p);
+    i++;
+    setTimeout(step, i === LINES.length ? 560 : 400);
+  }
+  boot.addEventListener('click', fin);
+  setTimeout(step, 280);
+  setTimeout(fin, 7000); // hard ceiling — never trap anyone
+})();
+</script>
+<?php
+}
+
+/**
  * Render the footer.
  *   $opts['tagline']    — brand line (default: the hardest-working tagline).
  *   $opts['email']      — contact email (default adam@hoosieronline.com).
