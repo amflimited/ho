@@ -229,6 +229,28 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=send&flash=' . urlencode('Autopilot settings saved.'));
                 exit;
 
+            case 'save_gap_prices':
+                $gapOrder = ['tech_issues','contact_form','online_booking','site_outdated','paid_leads',
+                             'google_business','gbp_incomplete','gbp_photos','stale_reviews','no_before_after',
+                             'no_gallery','no_testimonials','dead_facebook','freemail','no_trust_signals','yelp_unclaimed'];
+                $gapLbls  = ['tech_issues'=>'Mobile & SSL Fix','contact_form'=>'Contact & Quote Form',
+                             'online_booking'=>'Online Booking System','site_outdated'=>'Site Redesign / Refresh',
+                             'paid_leads'=>'Lead Capture Landing Page','google_business'=>'Google Business Profile Setup',
+                             'gbp_incomplete'=>'GBP Profile Completion','gbp_photos'=>'Photo Shoot & GBP Upload',
+                             'stale_reviews'=>'Review Request Campaign','no_before_after'=>'Before & After Photos',
+                             'no_gallery'=>'Photo Gallery','no_testimonials'=>'Testimonials Section',
+                             'dead_facebook'=>'Facebook Page & Content','freemail'=>'Professional Email Setup',
+                             'no_trust_signals'=>'License & Insurance Display','yelp_unclaimed'=>'Claim & Optimize Yelp'];
+                foreach ($gapOrder as $sort => $gk) {
+                    $price = max(0, (float)($_POST['price_' . $gk] ?? 0));
+                    $pdo->prepare("INSERT INTO gap_prices (gap_key, label, price, active, sort_order)
+                        VALUES (?, ?, ?, 1, ?)
+                        ON DUPLICATE KEY UPDATE price=VALUES(price), label=VALUES(label), sort_order=VALUES(sort_order)")
+                        ->execute([$gk, $gapLbls[$gk] ?? $gk, $price, $sort]);
+                }
+                header('Location: ?tab=send&flash=' . urlencode('Gap prices saved.'));
+                exit;
+
             case 'record_followup_sent':
                 $logId   = (int)($_POST['log_id'] ?? 0);
                 $bizId   = (int)($_POST['business_id'] ?? 0);
@@ -1440,6 +1462,54 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           <p class="cp-hint">Generate an import key first (Research tab → settings) — the cron URL is protected by it.</p>
           <?php endif; ?>
         </div>
+      </div>
+    </details>
+  </section>
+
+  <?php
+  // Load current gap prices for the editor
+  $editorPrices = [];
+  if ($pdo) {
+    try {
+      foreach (ho_gap_prices($pdo) as $k => $v) $editorPrices[$k] = (float)$v['price'];
+    } catch (Throwable) {}
+  }
+  $editorGaps = [
+    'tech_issues'     => 'Mobile & SSL Fix',
+    'contact_form'    => 'Contact & Quote Form',
+    'online_booking'  => 'Online Booking System',
+    'site_outdated'   => 'Site Redesign / Refresh',
+    'paid_leads'      => 'Lead Capture Landing Page',
+    'google_business' => 'Google Business Profile Setup',
+    'gbp_incomplete'  => 'GBP Profile Completion',
+    'gbp_photos'      => 'Photo Shoot & GBP Upload',
+    'stale_reviews'   => 'Review Request Campaign',
+    'no_before_after' => 'Before & After Photos',
+    'no_gallery'      => 'Photo Gallery',
+    'no_testimonials' => 'Testimonials Section',
+    'dead_facebook'   => 'Facebook Page & Content',
+    'freemail'        => 'Professional Email Setup',
+    'no_trust_signals'=> 'License & Insurance Display',
+    'yelp_unclaimed'  => 'Claim & Optimize Yelp',
+  ];
+  ?>
+  <section class="cp-section">
+    <details class="cp-ap-wrap">
+      <summary class="cp-ap-summary">💰 Enhancement gap prices</summary>
+      <div class="cp-ap-body">
+        <p class="cp-hint">These prices appear on every enhancement preview page and drive the bundle total. Changes apply to new leads routed after saving; to rebuild an existing lead&rsquo;s offer, use the re-route button in the Research tab.</p>
+        <form method="POST" class="cp-ap-form">
+          <input type="hidden" name="action" value="save_gap_prices">
+          <input type="hidden" name="tab" value="send">
+          <div style="display:grid;grid-template-columns:1fr 90px;gap:6px 12px;align-items:center;margin-bottom:14px">
+            <?php foreach ($editorGaps as $gk => $gl): ?>
+            <label style="font-size:14px;margin:0;color:var(--ink1)"><?= ho_h($gl) ?></label>
+            <input class="cp-input" type="number" name="price_<?= ho_h($gk) ?>" min="0" step="1"
+                   value="<?= (int)($editorPrices[$gk] ?? 0) ?>" style="text-align:right;padding:4px 8px">
+            <?php endforeach; ?>
+          </div>
+          <button type="submit" class="cp-btn-primary">Save prices</button>
+        </form>
       </div>
     </details>
   </section>

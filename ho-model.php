@@ -1483,9 +1483,14 @@ function ho_enhancement_gaps(array $row): array {
     // Technical site issues (SSL/mobile)
     if ($notMobile || $noSsl) $found[] = 'tech_issues';
 
-    // No contact/quote form — leads can only call or DM
+    // No contact/quote form — use direct column when available, fall back to booking_method
+    $hasContactForm = (isset($row['has_contact_form']) && $row['has_contact_form'] !== null)
+        ? (string)$row['has_contact_form'] === '1'
+        : null;
     $booking = (string)($row['booking_method'] ?? 'unknown');
-    if (in_array($booking, ['phone','facebook','email'], true)) $found[] = 'contact_form';
+    if ($hasContactForm === false || ($hasContactForm === null && in_array($booking, ['phone','facebook','email'], true))) {
+        $found[] = 'contact_form';
+    }
 
     // No online booking/scheduling system
     if (isset($row['has_online_booking']) && (string)$row['has_online_booking'] === '0') $found[] = 'online_booking';

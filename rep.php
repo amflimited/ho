@@ -78,7 +78,20 @@ $worst      = $drafts[0] ?? null;
   <section class="fd-card fd-paid-banner">
     <p class="fd-kicker">Payment received</p>
     <h2>You&rsquo;re in. Here&rsquo;s what happens now.</h2>
-    <p>I&rsquo;ll email you within a few hours with two options: add me as a manager on your Google Business Profile (two taps, I send exact instructions) and I post every reply for you &mdash; or I send the full copy-paste pack if you&rsquo;d rather do it yourself. Either way, all <?= $nDrafts ?> replies are live this week.</p>
+    <p>Pick whichever path fits &mdash; both get all <?= $nDrafts ?> replies live this week.</p>
+    <div style="margin:14px 0;padding:14px;background:rgba(255,255,255,.06);border-radius:12px;border-left:3px solid var(--fd-green)">
+      <strong style="display:block;margin-bottom:8px">Option A &mdash; I post every reply for you (recommended)</strong>
+      <ol style="margin:0;padding-left:20px;font-size:15px;line-height:1.8">
+        <li>Go to <a href="https://business.google.com" target="_blank" rel="noopener" style="color:var(--fd-green)">business.google.com</a> and open your business.</li>
+        <li>Tap the three-dot menu &rarr; <strong>Business Profile settings</strong> &rarr; <strong>Managers</strong>.</li>
+        <li>Click <strong>Add</strong>, enter <code style="background:rgba(255,255,255,.12);padding:1px 5px;border-radius:4px">adam@hoosieronline.com</code>, set role to <strong>Manager</strong> (not Owner), click <strong>Invite</strong>.</li>
+        <li>I&rsquo;ll accept within the hour and start posting. Done.</li>
+      </ol>
+    </div>
+    <div style="margin:14px 0;padding:14px;background:rgba(255,255,255,.04);border-radius:12px;border-left:3px solid rgba(255,255,255,.15)">
+      <strong>Option B &mdash; copy-paste pack</strong><br>
+      <span style="font-size:15px">Reply to your confirmation email asking for the pack. I&rsquo;ll send a doc with every review quoted and your reply written below it &mdash; you paste each one into Google yourself.</span>
+    </div>
     <p class="fd-referral-note">🤝 Know another business drowning in unanswered reviews? $50 for every referral that signs up. Just have them mention <?= ho_h($name) ?>.</p>
     <p class="fd-muted">Questions? <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a> &middot; <a href="tel:+17654434321">(765) 443-4321</a></p>
   </section>

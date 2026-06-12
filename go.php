@@ -1062,7 +1062,7 @@ endif; ?>
       <input type="hidden" name="pkg"  value="enhancement">
       <label class="fd-care-opt">
         <input type="checkbox" name="care" value="1">
-        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> I keep everything I fix working: hosting help, security, unlimited small edits, and a fresh post on your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
+        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> Everything I fix stays current: I make unlimited small edits (new number, updated hours, added service), keep the site secure and backed up, and post once a month to your Google Business Profile. Cancel any time with one email &mdash; or uncheck it now. $0 extra today either way.</span>
       </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
         Yes &mdash; fix it &rarr; $<?= number_format($fixItemsTotal) ?>
@@ -1083,7 +1083,7 @@ endif; ?>
       <input type="hidden" name="pkg"  value="enhancement">
       <label class="fd-care-opt">
         <input type="checkbox" name="care" value="1">
-        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> I keep everything I fix working: hosting help, security, unlimited small edits, and a fresh post on your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
+        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> Everything I fix stays current: I make unlimited small edits (new number, updated hours, added service), keep the site secure and backed up, and post once a month to your Google Business Profile. Cancel any time with one email &mdash; or uncheck it now. $0 extra today either way.</span>
       </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
         Yes &mdash; get it done &rarr;
@@ -1437,7 +1437,7 @@ endif; ?>
       <input type="hidden" name="chosen_com"   id="fd-h-chosen-com" value="<?= ho_h($ownDotCom) ?>">
       <label class="fd-care-opt">
         <input type="checkbox" name="care" value="1">
-        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> The site is yours forever either way. This adds: I host it, keep it secure, make unlimited small edits, and post to your Google profile every month. Cancel anytime with one email &mdash; or uncheck it now. $0 extra today either way.</span>
+        <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> The site is yours to keep either way. This adds: I handle hosting (no account for you to manage, no renewal to miss), keep it secure and backed up, make unlimited small edits, and post once a month to your Google Business Profile. Cancel any time with one email &mdash; or uncheck it now. $0 extra today either way.</span>
       </label>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
         Yes &mdash; build <?= ho_h($name) ?>&rsquo;s site &rarr; $199
