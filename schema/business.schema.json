@@ -1,0 +1,112 @@
+{
+  "$comment": "HO v2 SINGLE SOURCE OF TRUTH. Edit this file, run bin/codegen.php. Never hand-edit generated files. Field source: docs/SALVAGE.md section 1.",
+  "version": 1,
+  "table": "business_profile",
+  "groups": {
+
+    "website_audit": {
+      "has_website":              {"type": "bool",   "required": true},
+      "website_quality":          {"type": "enum",   "values": ["none", "poor", "basic", "decent"], "required": true, "note": "'good' is DEAD - never use"},
+      "website_notes":            {"type": "text"},
+      "website_confidence":       {"type": "enum",   "values": ["high", "medium", "low"], "note": "low blanks the URL on import"},
+      "has_contact_form":         {"type": "bool",   "null_when": "has_website=false"},
+      "has_online_booking":       {"type": "bool",   "null_when": "has_website=false"},
+      "has_photo_gallery":        {"type": "bool",   "null_when": "has_website=false"},
+      "has_about_page":           {"type": "bool",   "null_when": "has_website=false"},
+      "has_faq_page":             {"type": "bool",   "null_when": "has_website=false"},
+      "has_pricing_page":         {"type": "bool",   "null_when": "has_website=false"},
+      "has_video_on_site":        {"type": "bool",   "null_when": "has_website=false"},
+      "has_online_payment":       {"type": "bool",   "null_when": "has_website=false"},
+      "site_appears_outdated":    {"type": "bool",   "null_when": "has_website=false"},
+      "has_blog":                 {"type": "bool",   "null_when": "has_website=false"},
+      "has_testimonials_section": {"type": "bool",   "null_when": "has_website=false"},
+      "has_live_chat":            {"type": "bool",   "null_when": "has_website=false"},
+      "mobile_friendly":          {"type": "bool",   "null_when": "has_website=false"},
+      "has_ssl":                  {"type": "bool",   "null_when": "has_website=false"}
+    },
+
+    "google_business": {
+      "has_google_business":  {"type": "bool", "required": true},
+      "google_review_count":  {"type": "int",  "min": 0},
+      "google_rating":        {"type": "decimal", "min": 0.0, "max": 5.0, "note": "clamped on import"},
+      "google_notes":         {"type": "text"},
+      "has_gbp_posts":        {"type": "bool", "nullable": true},
+      "gbp_services_listed":  {"type": "bool", "nullable": true},
+      "gbp_hours_listed":     {"type": "bool", "nullable": true},
+      "gbp_photo_count":      {"type": "int",  "nullable": true, "note": "< 10 = gap"},
+      "responds_to_reviews":  {"type": "bool"},
+      "last_review_date":     {"type": "yearmonth", "note": "stale if 6+ months old AND count >= 3"},
+      "review_quote_1":        {"type": "text", "max_words": 40, "note": "VERBATIM only, no paraphrase, no leading ellipses - LEGAL BOUNDARY"},
+      "review_quote_1_author": {"type": "string", "note": "first name only"},
+      "review_quote_1_date":   {"type": "yearmonth"},
+      "review_quote_2":        {"type": "text", "max_words": 40, "note": "VERBATIM only - LEGAL BOUNDARY"},
+      "review_quote_2_author": {"type": "string"},
+      "review_quote_2_date":   {"type": "yearmonth"}
+    },
+
+    "social": {
+      "has_facebook":               {"type": "bool", "required": true},
+      "facebook_activity":          {"type": "enum", "values": ["none", "dormant", "active"]},
+      "facebook_notes":             {"type": "text"},
+      "facebook_page_type":         {"type": "enum", "values": ["none", "personal", "business"]},
+      "facebook_last_post_months":  {"type": "int",  "nullable": true},
+      "facebook_follower_band":     {"type": "enum", "values": ["micro", "small", "medium", "large"], "note": "micro 1-200, small 201-1K, medium 1K-5K, large 5K+"},
+      "facebook_has_cta_button":    {"type": "bool", "nullable": true},
+      "has_instagram":              {"type": "bool", "required": true},
+      "instagram_activity":         {"type": "enum", "values": ["none", "dormant", "active"]},
+      "instagram_is_business":      {"type": "bool", "nullable": true},
+      "instagram_follower_band":    {"type": "enum", "values": ["micro", "small", "medium", "large"]},
+      "instagram_last_post_months": {"type": "int",  "nullable": true}
+    },
+
+    "directories": {
+      "has_yelp":             {"type": "bool"},
+      "yelp_claimed":         {"type": "bool", "nullable": true, "note": "unclaimed = gap"},
+      "yelp_review_count":    {"type": "int",  "nullable": true},
+      "yelp_rating":          {"type": "decimal", "nullable": true, "min": 0.0, "max": 5.0},
+      "has_angi":             {"type": "bool", "note": "paying per lead = ROI angle"},
+      "has_thumbtack":        {"type": "bool", "note": "same"},
+      "has_youtube":          {"type": "bool"},
+      "has_nextdoor_listing": {"type": "bool"},
+      "has_bbb_listing":      {"type": "bool"}
+    },
+
+    "trust_signals": {
+      "logo_quality":                {"type": "enum", "values": ["none", "basic", "professional"]},
+      "has_before_after_photos":     {"type": "bool"},
+      "has_professional_email":      {"type": "bool", "note": "freemail (gmail/yahoo) = false"},
+      "is_licensed_insured_visible": {"type": "bool"},
+      "has_service_guarantee":       {"type": "bool"}
+    },
+
+    "business_intel": {
+      "services_list":        {"type": "json_array"},
+      "service_area_text":    {"type": "string", "max_len": 500},
+      "booking_method":       {"type": "enum", "values": ["phone", "facebook", "email", "form", "app", "unknown"]},
+      "years_in_business":    {"type": "int",  "nullable": true},
+      "owner_age_band":       {"type": "enum", "values": ["unknown", "under35", "35-55", "55plus"]},
+      "target_customer_type": {"type": "enum", "values": ["unknown", "residential", "commercial", "both"]},
+      "is_franchise":         {"type": "bool", "note": "true = auto-excluded on import"}
+    },
+
+    "competitor": {
+      "competitor_has_website":   {"type": "bool"},
+      "competitor_name":          {"type": "string"},
+      "competitor_website":       {"type": "string"},
+      "competitor_google_rating": {"type": "decimal", "nullable": true, "min": 0.0, "max": 5.0},
+      "competitor_review_count":  {"type": "int", "nullable": true}
+    },
+
+    "ai_assessment": {
+      "opportunity_summary":  {"type": "text", "max_len": 1000, "note": "1-2 sentences to the owner using you/your; specific gap; never state review count as a number"},
+      "strengths":            {"type": "json_array"},
+      "gaps":                 {"type": "json_array", "note": "natural language; used in pitch copy"},
+      "recommended_package":  {"type": "enum", "values": ["standard", "managed"], "note": "LLM decision; copy only, does not change routing"}
+    },
+
+    "verification": {
+      "verified_at":       {"type": "datetime", "nullable": true, "system": true, "note": "stamped by Truth Gate; NULL = unverified = cannot be pitched"},
+      "verification_json": {"type": "text", "system": true, "max_len": 60000}
+    }
+  }
+}
