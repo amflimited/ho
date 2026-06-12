@@ -37,18 +37,18 @@ framework, no Composer · GitHub Actions FTP auto-deploy.
 
 ---
 
-## Security Constraints (PERMANENT — never violate)
+## Security Constraints
+
+These are about not leaking credentials — everything else is fair game.
 
 - `database.php`, `admin-secrets.php`, `porkbun-config.php` — **NEVER commit**.
-- `stripe-config.php` lives at `/home1/spofnkte/stripe-config.php` (outside
-  public_html) — **NEVER commit**.
-- `/home1/spofnkte/llm-config.php` (`LLM_API_KEY`, optional `LLM_MODEL`) —
-  **NEVER commit**.
-- Database schema changes: write the SQL, but Adam runs it via phpMyAdmin (no direct DB access from here).
-- Adam works exclusively on **iPhone** — never instruct file downloads,
-  terminal commands, git pulls, or multi-step desktop flows.
-- Secrets discipline absorbed from the old SECURITY_NOTES.txt: never commit
-  DB credentials, admin secrets, logs, backups, SQL dumps, or generated ZIPs.
+- `stripe-config.php` at `/home1/spofnkte/stripe-config.php` — **NEVER commit**.
+- `/home1/spofnkte/llm-config.php` — **NEVER commit**.
+- Never commit DB credentials, admin secrets, logs, backups, SQL dumps, or ZIPs.
+
+Schema SQL: write it freely; Adam pastes into phpMyAdmin (no live DB connection available).
+
+Adam is on **iPhone** — instructions that need a desktop/terminal won't land.
 
 ---
 
