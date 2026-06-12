@@ -34,11 +34,27 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=source&run_id=' . $runId);
                 exit;
 
+            case 'import_hunt':
+                $runId   = (int)($_POST['run_id'] ?? 0);
+                $rawJson = trim((string)($_POST['result_json'] ?? ''));
+                if ($runId === 0) throw new RuntimeException('Missing source run ID.');
+                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from Claude.');
+                $r = ho_import_hunt_json($pdo, $runId, $rawJson);
+                $bits = [];
+                if ($r['created']   > 0) $bits[] = "{$r['created']} new lead" . ($r['created'] === 1 ? '' : 's');
+                if ($r['refreshed'] > 0) $bits[] = "{$r['refreshed']} refreshed";
+                if ($r['skipped']   > 0) $bits[] = "{$r['skipped']} skipped";
+                $msg = '🎯 Hunt landed: ' . ($bits ? implode(', ', $bits) : 'nothing imported')
+                     . ". {$r['researched']} fully researched — previews built, pitch-ready on the Floor.";
+                if (!empty($r['errors'])) $msg .= ' Issues: ' . implode('; ', array_slice($r['errors'], 0, 3));
+                header('Location: ?tab=source&flash=' . urlencode($msg));
+                exit;
+
             case 'import_sourcing':
                 $runId   = (int)($_POST['run_id'] ?? 0);
                 $rawJson = trim((string)($_POST['result_json'] ?? ''));
                 if ($runId === 0) throw new RuntimeException('Missing source run ID.');
-                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
+                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from Claude.');
                 $result   = ho_import_sourcing_json($pdo, $runId, $rawJson);
                 $promoted = ho_promote_candidates($pdo, $runId);
                 $deadNote = ($result['dead_urls'] ?? 0) > 0 ? " {$result['dead_urls']} dead website URL(s) auto-cleared." : '';
@@ -47,7 +63,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             case 'import_research':
                 $rawJson = trim((string)($_POST['result_json'] ?? ''));
-                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
+                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from Claude.');
                 $result = ho_import_research_json($pdo, $rawJson);
                 $n = $result['updated'];
                 $msg = $n > 0
@@ -68,7 +84,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             case 'import_contact_research':
                 $rawJson = trim((string)($_POST['result_json'] ?? ''));
-                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
+                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from Claude.');
                 $result = ho_import_contact_json($pdo, $rawJson);
                 $msg    = "Updated {$result['updated']} businesses.";
                 if (!empty($result['errors'])) $msg .= ' Issues: ' . implode('; ', $result['errors']);
@@ -113,7 +129,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             case 'import_enrichment':
                 $rawJson = trim((string)($_POST['result_json'] ?? ''));
-                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from ChatGPT.');
+                if ($rawJson === '') throw new RuntimeException('Paste the JSON result from Claude.');
                 $result = ho_import_enrichment_json($pdo, $rawJson);
                 $msg    = "Enriched {$result['updated']} businesses.";
                 if (!empty($result['errors'])) $msg .= ' Issues: ' . implode('; ', $result['errors']);
@@ -260,17 +276,18 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// ─── One-tap GPT round trip ───────────────────────────────────────────────────
-// Renders an "Ask ChatGPT" deep link that opens the ChatGPT app with the prompt
-// already typed into the composer (universal link ?q=). Falls back to copy-only
-// guidance when the encoded prompt exceeds a safe URL length.
-function cp_gpt_row(string $prompt): string {
-    $url = 'https://chatgpt.com/?hints=search&q=' . rawurlencode($prompt);
-    if (strlen($url) > 30000) {
-        return '<p class="cp-hint" style="margin-top:6px">This batch is too big for one-tap send &mdash; tap Copy, then paste into ChatGPT.</p>';
+// ─── One-tap Claude round trip ────────────────────────────────────────────────
+// Renders an "Ask Claude" deep link that opens the Claude app/site with the
+// prompt pre-filled. Runs on Adam's Max plan — web search included, no API
+// spend. Long prompts exceed what an iOS deep link survives, so those fall
+// back to Copy → paste with instructions.
+function cp_claude_row(string $prompt): string {
+    $url = 'https://claude.ai/new?q=' . rawurlencode($prompt);
+    if (strlen($url) > 6000) {
+        return '<p class="cp-hint" style="margin-top:6px">Tap Copy, open the <strong>Claude app</strong>, turn on <strong>Web Search</strong> (or tap <strong>Research</strong> for the deepest sweep), paste, send. Copy its JSON reply and come back.</p>';
     }
-    return '<a class="cp-gpt-btn" href="' . ho_h($url) . '" target="_blank" rel="noopener">🚀 Ask ChatGPT &mdash; one tap, nothing to copy</a>'
-         . '<p class="cp-hint" style="margin-top:4px;text-align:center">Opens ChatGPT with the prompt pre-filled &mdash; just hit send. If it arrives cut off, use Copy.</p>';
+    return '<a class="cp-gpt-btn" href="' . ho_h($url) . '" target="_blank" rel="noopener">✴️ Ask Claude &mdash; one tap, nothing to copy</a>'
+         . '<p class="cp-hint" style="margin-top:4px;text-align:center">Opens Claude with the prompt pre-filled &mdash; turn on Web Search and hit send. If it arrives cut off, use Copy.</p>';
 }
 
 // ─── Load state ───────────────────────────────────────────────────────────────
@@ -463,9 +480,13 @@ foreach (ho_indiana_regions() as $region => $cities) {
     }
 }
 
-// Rebuild source prompt from active run
+// Rebuild source prompts from active run. The DEEP HUNT (source + research in
+// one Claude pass) is the default; the classic two-step sweep stays reachable
+// via ?mode=sweep for when a lighter candidates-only run is wanted.
 $activeRun    = null;
 $sourcePrompt = '';
+$huntPrompt   = '';
+$srcMode      = (($_GET['mode'] ?? '') === 'sweep') ? 'sweep' : 'hunt';
 if ($runId > 0 && $pdo) {
     $s = $pdo->prepare("
         SELECT sr.*, c.name AS cat_name, c.typical_services
@@ -479,6 +500,7 @@ if ($runId > 0 && $pdo) {
         $catForPrompt = ['name' => $activeRun['cat_name'], 'typical_services' => $activeRun['typical_services']];
         $exclusions   = ho_get_known_business_names($pdo, (int)$activeRun['category_id'], (string)$activeRun['area_query']);
         $sourcePrompt = ho_generate_sourcing_prompt($catForPrompt, (string)$activeRun['area_query'], (int)$activeRun['target_count'], $exclusions, $runId);
+        $huntPrompt   = ho_generate_hunt_prompt($catForPrompt, (string)$activeRun['area_query'], (int)$activeRun['target_count'], $exclusions, $runId);
     }
 }
 
@@ -685,20 +707,52 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
   <?php if ($activeRun && $sourcePrompt !== ''): ?>
 
+    <?php if ($srcMode === 'hunt'): ?>
+
+    <!-- ── THE DEEP HUNT — one Claude pass: found, researched, preview built ── -->
     <section class="cp-section">
-      <div class="cp-step">Step 1</div>
+      <div class="cp-step">🎯 Deep Hunt &middot; Step 1</div>
+      <h2 class="cp-sh">Copy the hunt prompt</h2>
+      <p class="cp-hint">Run #<?= $runId ?> &mdash; <?= ho_h((string)$activeRun['cat_name']) ?> in <?= ho_h((string)$activeRun['area_query']) ?>. One paste does it all: leads land <strong>fully researched with previews built</strong> &mdash; no triage leg, no second prompt.</p>
+      <div class="cp-prompt-box">
+        <pre id="srcPrompt" class="cp-prompt"><?= ho_h($huntPrompt) ?></pre>
+        <button class="cp-copy" onclick="doCopy('srcPrompt',this)">Copy</button>
+      </div>
+      <p class="cp-hint" style="margin-top:6px">Open the <strong>Claude app</strong> &rarr; turn on <strong>Web Search</strong> &mdash; or tap <strong>Research</strong> for the deepest sweep (your Max plan covers it, takes ~5&ndash;10 min) &rarr; paste &rarr; send. When it finishes, copy the JSON reply.</p>
+    </section>
+
+    <section class="cp-section">
+      <div class="cp-step">🎯 Deep Hunt &middot; Step 2</div>
+      <h2 class="cp-sh">Paste Claude&rsquo;s result</h2>
+      <form method="POST">
+        <input type="hidden" name="action" value="import_hunt">
+        <input type="hidden" name="tab" value="source">
+        <input type="hidden" name="run_id" value="<?= $runId ?>">
+        <button class="cp-paste-btn" type="button" onclick="hoPasteImport(this,'hunt_results','lead')">📋 Paste &amp; Import &mdash; one tap</button>
+        <div class="cp-paste-note" hidden></div>
+        <textarea class="cp-textarea" name="result_json" rows="7" placeholder='{"run_id":<?= $runId ?>,"hunt_results":[{"raw_name":"…","city":"…",…}]}'></textarea>
+        <button class="cp-btn-primary" type="submit">Land the Hunt &rarr; Pitch-Ready</button>
+      </form>
+      <a class="cp-back" href="?tab=source&run_id=<?= $runId ?>&mode=sweep">Use the classic two-step sweep instead &rarr;</a>
+      <a class="cp-back" href="?tab=source">&larr; Start a new run</a>
+    </section>
+
+    <?php else: ?>
+
+    <section class="cp-section">
+      <div class="cp-step">Sweep &middot; Step 1</div>
       <h2 class="cp-sh">Copy this prompt</h2>
-      <p class="cp-hint">Run #<?= $runId ?> &mdash; <?= ho_h((string)$activeRun['cat_name']) ?> in <?= ho_h((string)$activeRun['area_query']) ?></p>
+      <p class="cp-hint">Run #<?= $runId ?> &mdash; <?= ho_h((string)$activeRun['cat_name']) ?> in <?= ho_h((string)$activeRun['area_query']) ?>. Candidates only &mdash; they queue for triage + research after import.</p>
       <div class="cp-prompt-box">
         <pre id="srcPrompt" class="cp-prompt"><?= ho_h($sourcePrompt) ?></pre>
         <button class="cp-copy" onclick="doCopy('srcPrompt',this)">Copy</button>
       </div>
-      <?= cp_gpt_row($sourcePrompt) ?>
+      <?= cp_claude_row($sourcePrompt) ?>
     </section>
 
     <section class="cp-section">
-      <div class="cp-step">Step 2</div>
-      <h2 class="cp-sh">Paste ChatGPT result</h2>
+      <div class="cp-step">Sweep &middot; Step 2</div>
+      <h2 class="cp-sh">Paste Claude&rsquo;s result</h2>
       <form method="POST">
         <input type="hidden" name="action" value="import_sourcing">
         <input type="hidden" name="tab" value="source">
@@ -708,8 +762,11 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
         <textarea class="cp-textarea" name="result_json" rows="7" placeholder='{"candidates":[{"raw_name":"…","city":"…","state":"IN",…}]}'></textarea>
         <button class="cp-btn-primary" type="submit">Import &amp; Add to Pipeline</button>
       </form>
-      <a class="cp-back" href="?tab=source">← Start a new run</a>
+      <a class="cp-back" href="?tab=source&run_id=<?= $runId ?>">&larr; Back to the Deep Hunt</a>
+      <a class="cp-back" href="?tab=source">&larr; Start a new run</a>
     </section>
+
+    <?php endif; ?>
 
   <?php else: ?>
 
@@ -721,7 +778,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
         <input type="hidden" name="tab" value="source">
         <input type="hidden" name="category_id" value="<?= $smartNextCatId ?>">
         <input type="hidden" name="area" value="<?= ho_h($smartNextRegion) ?>">
-        <input type="hidden" name="count" value="19">
+        <input type="hidden" name="count" value="12"><!-- deep-hunt sized: 12 fully-researched per Claude run -->
         <div class="cp-src-rec-badge">Best next run</div>
         <div class="cp-src-rec-target">
           <strong><?= ho_h($smartNextCat) ?></strong>
@@ -1039,7 +1096,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   // Research, contact-finding and enrichment are now a SINGLE comprehensive
   // prompt: research the lead, find its contact path, capture competitor +
   // quote data — all in one pass. No hidden multi-step chain, no Custom GPT
-  // webhook. Copy → ChatGPT → paste back. That's the whole flow.
+  // webhook. Copy → Claude (web search on) → paste back. That's the whole flow.
   $hoPrompts = [];
   if (!empty($researchBatch) && $researchPrompt !== '') {
       $staleCount = count(array_filter($researchBatch, fn($b) => ($b['research_queue_reason'] ?? 'new') === 'stale'));
@@ -1047,7 +1104,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       $hintParts  = [];
       if ($newCount   > 0) $hintParts[] = $newCount . ' new';
       if ($staleCount > 0) $hintParts[] = $staleCount . ' to update';
-      $gUrl = 'https://chatgpt.com/?hints=search&q=' . rawurlencode($researchPrompt);
+      $gUrl = 'https://claude.ai/new?q=' . rawurlencode($researchPrompt);
       $hoPrompts[] = [
           'label'    => 'Research',
           'step'     => count($researchBatch) . ' businesses' . ($hintParts ? ' — ' . implode(', ', $hintParts) : ''),
@@ -1056,7 +1113,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           'key'      => 'research_results',
           'noun'     => 'business',
           'gptUrl'   => strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => 'Ask ChatGPT — one tap, nothing to copy',
+          'gptLabel' => '✴️ Ask Claude — one tap, nothing to copy',
       ];
   }
   ?>
@@ -1079,8 +1136,8 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
     <?php if ($hoPrompts[0]['gptUrl'] !== ''): ?>
     <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener" onclick="hoAfterGpt()"><?= ho_h($hoPrompts[0]['gptLabel']) ?></a>
     <?php else: ?>
-    <a id="hoGptLink" class="cp-gpt-btn" href="#" hidden>Ask ChatGPT</a>
-    <p class="cp-hint" style="text-align:center;margin-top:4px">Batch too big for one-tap &mdash; use Copy above, then paste into ChatGPT.</p>
+    <a id="hoGptLink" class="cp-gpt-btn" href="#" hidden>Ask Claude</a>
+    <p class="cp-hint" style="text-align:center;margin-top:4px">Batch too big for one-tap &mdash; use Copy above, then paste into Claude (Web Search on).</p>
     <?php endif; ?>
   </section>
 
@@ -1096,7 +1153,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       <button type="button" class="cp-paste-btn cp-paste-btn-alt" onclick="document.getElementById('hoFile').click()">&#x1F4C1; Import a results.json file</button>
       <p id="hoPasteNote" class="cp-paste-note" hidden></p>
       <textarea id="hoResult" class="cp-textarea" name="result_json" rows="6"
-                placeholder="Paste ChatGPT&#x2019;s response here&#x2026;"></textarea>
+                placeholder="Paste Claude&#x2019;s response here&#x2026;"></textarea>
       <button type="submit" class="cp-btn-primary">Import</button>
     </form>
   </section>
@@ -2328,8 +2385,8 @@ function hoGoStep(n) {
 }
 
 // Copy current prompt to clipboard then advance the step.
-// Custom GPT pages don't auto-submit from ?q=, so the user needs to paste —
-// copying here means the clipboard is ready the moment the GPT tab opens.
+// Claude doesn't auto-submit from ?q=, so the user may need to paste —
+// copying here means the clipboard is ready the moment the Claude tab opens.
 function hoAfterGpt() {
   var el = document.getElementById('hoPrompt');
   if (el && navigator.clipboard) {
@@ -2403,13 +2460,13 @@ async function hoPaste(btn) {
   }
   txt = (txt || '').trim();
   if (!txt) {
-    note.textContent = "Clipboard is empty — copy ChatGPT's reply first.";
+    note.textContent = "Clipboard is empty — copy Claude's reply first.";
     note.style.color = '#a33327'; note.hidden = false; return;
   }
   hoIngest(txt, btn);
 }
 
-// File path: ChatGPT saves results.json → pick it from Files. Avoids the
+// File path: Claude saves results.json → pick it from Files. Avoids the
 // giant-clipboard freeze entirely; same detection + auto-import as paste.
 function hoFileImport(input) {
   var btn  = document.getElementById('hoPasteBtn');
@@ -2448,7 +2505,8 @@ function hoIngest(txt, btn) {
     'research_results':  'import_research',
     'contacts':          'import_contact_research',
     'enrichment_results':'import_enrichment',
-    'candidates':        'import_sourcing'
+    'candidates':        'import_sourcing',
+    'hunt_results':      'import_hunt'
   };
   var n = null, detectedAction = null;
 
@@ -2489,7 +2547,7 @@ function hoIngest(txt, btn) {
       btn.disabled = true;
       setTimeout(function() { form.submit(); }, 1500);
     } else {
-      note.textContent = 'No JSON found in pasted text — copy the full ChatGPT reply and try again.';
+      note.textContent = 'No JSON found in pasted text — copy the full Claude reply and try again.';
       note.style.color = '#a33327'; note.hidden = false;
     }
   }
@@ -2509,7 +2567,7 @@ async function hoPasteImport(btn, key, noun) {
   try { txt = await navigator.clipboard.readText(); }
   catch (e) { say('Clipboard unavailable — paste manually below.', false); if (ta) ta.focus(); return; }
   txt = (txt || '').trim();
-  if (!txt) { say("Clipboard is empty — copy ChatGPT's reply first.", false); return; }
+  if (!txt) { say("Clipboard is empty — copy Claude's reply first.", false); return; }
   if (ta) ta.value = txt;
   var clean = txt.replace(/```[a-zA-Z]*\n?/g, '').trim();
   var parsed = null;
@@ -2530,36 +2588,6 @@ async function hoPasteImport(btn, key, noun) {
   btn.disabled = true;
   btn.textContent = '✓ ' + n + ' ' + noun + (n !== 1 ? 's' : '') + ' — importing…';
   form.submit();
-}
-
-function testGptEndpoint(btn) {
-  var res = document.getElementById('gptTestResult');
-  if (!res) return;
-  if (btn) { btn.disabled = true; btn.textContent = 'Testing…'; }
-  res.textContent = ''; res.style.color = '';
-  fetch('/gpt-import.php', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-Api-Key': <?= json_encode($gptImportKey ?? '') ?>},
-    body: '{}'
-  })
-  .then(function(r) { return r.json().then(function(d) { return {status: r.status, data: d}; }); })
-  .then(function(r) {
-    var d = r.data;
-    if (!d.ok && typeof d.error === 'string' && d.error.indexOf('No recognized') !== -1) {
-      res.textContent = '✓ Endpoint reachable, key valid'; res.style.color = '#2a7a35';
-    } else if (r.status === 401) {
-      res.textContent = '✗ Key mismatch — re-paste the key in your GPT Action'; res.style.color = '#a33327';
-    } else if (r.status === 503 && d.error && d.error.indexOf('not configured') !== -1) {
-      res.textContent = '✗ Key not saved — generate one first'; res.style.color = '#a33327';
-    } else {
-      res.textContent = JSON.stringify(d); res.style.color = d.ok ? '#2a7a35' : '#a33327';
-    }
-    if (btn) { btn.disabled = false; btn.textContent = 'Test endpoint'; }
-  })
-  .catch(function(e) {
-    res.textContent = '✗ ' + e.message; res.style.color = '#a33327';
-    if (btn) { btn.disabled = false; btn.textContent = 'Test endpoint'; }
-  });
 }
 
 function doCopy(id, btn) {
