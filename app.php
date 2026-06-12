@@ -639,6 +639,42 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   <div class="cp-alert cp-alert-ok"><?= ho_h($flashMsg) ?></div>
 <?php endif; ?>
 
+<?php if ($llmAvailable): ?>
+<!-- ═══ AUTOPILOT CONSOLE — always visible, polled every 5–12s ══════════════ -->
+<section class="cp-section cp-apc-wrap" id="apConsole">
+  <div class="cp-apc-header">
+    <span class="cp-apc-title">Autopilot</span>
+    <span class="cp-apc-cron" id="apcCronLbl"></span>
+  </div>
+  <div class="cp-apc-rows">
+    <div class="cp-apc-row">
+      <span class="cp-apc-label">Source</span>
+      <span class="cp-apc-dot" id="apcSrcDot" data-state="idle"></span>
+      <span class="cp-apc-msg" id="apcSrcMsg">—</span>
+    </div>
+    <div class="cp-apc-row">
+      <span class="cp-apc-label">Research</span>
+      <span class="cp-apc-dot" id="apcResDot" data-state="idle"></span>
+      <span class="cp-apc-msg" id="apcResMsg">—</span>
+    </div>
+  </div>
+  <div class="cp-apc-next" id="apcNextWrap" style="display:none">
+    <div class="cp-apc-next-row">
+      <span class="cp-apc-next-label">Next up</span>
+      <span class="cp-apc-next-desc" id="apcNextDesc"></span>
+    </div>
+    <div class="cp-apc-next-actions">
+      <button class="cp-btn-ghost cp-btn-xs" id="apcSrcBtn" onclick="apcStartSource()" style="display:none">Source →</button>
+      <a class="cp-btn-ghost cp-btn-xs" id="apcResLink" href="?tab=research" style="display:none">Research <span id="apcResCount"></span> leads →</a>
+    </div>
+  </div>
+  <!-- data embedded for the quick-source trigger -->
+  <input type="hidden" id="apcApiKey"  value="<?= ho_h($gptImportKey) ?>">
+  <input type="hidden" id="apcCatId"   value="<?= (int)$smartNextCatId ?>">
+  <input type="hidden" id="apcArea"    value="<?= ho_h($smartNextRegion) ?>">
+</section>
+<?php endif; ?>
+
 <?php if ($job === $tab): ?>
   <div class="cp-job-flag">
     <?php if ($tab === 'source'): ?>Find leads<?php endif; ?>
@@ -3068,6 +3104,174 @@ document.addEventListener('visibilitychange', function() {
   if (document.visibilityState !== 'visible' || !llmRunning || !llmPollArgs) return;
   clearTimeout(llmPollTimer);
   llmPoll(llmPollArgs.bizId, llmPollArgs.total, llmPollArgs.apiKey);
+});
+
+// ── Autopilot Console ────────────────────────────────────────────────────────
+// Polls apstat.php every 5s when active, 12s when idle.
+// Updates the Source + Research rows and the "Next up" section in real time.
+
+var apcTimer     = null;
+var apcRunning   = false; // true while console itself has started a sourcing job
+var APC_FAST_MS  = 5000;
+var APC_SLOW_MS  = 12000;
+
+function apcInit() {
+  if (!document.getElementById('apConsole')) return;
+  apcPoll();
+}
+
+function apcSchedule(fast) {
+  clearTimeout(apcTimer);
+  apcTimer = setTimeout(apcPoll, fast ? APC_FAST_MS : APC_SLOW_MS);
+}
+
+function apcPoll() {
+  var key = (document.getElementById('apcApiKey') || {}).value || '';
+  fetch('/apstat.php?key=' + encodeURIComponent(key))
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok) { apcSchedule(false); return; }
+    apcUpdate(d);
+    var busy = (d.source && !d.source.done) || (d.research && !d.research.done) || apcRunning;
+    apcSchedule(busy);
+  })
+  .catch(function() { apcSchedule(false); });
+}
+
+function apcDot(id, state) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.setAttribute('data-state', state);
+}
+
+function apcMsg(id, text) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function apcRelTime(secs) {
+  if (secs === null || secs === undefined) return '';
+  if (secs < 60)  return secs + 's ago';
+  if (secs < 3600) return Math.round(secs / 60) + 'm ago';
+  return Math.round(secs / 3600) + 'h ago';
+}
+
+function apcUpdate(d) {
+  // ── Source row ──
+  var src = d.source;
+  if (!src) {
+    apcDot('apcSrcDot', 'idle'); apcMsg('apcSrcMsg', 'Idle');
+  } else if (!src.done) {
+    apcDot('apcSrcDot', 'running');
+    apcMsg('apcSrcMsg', (src.cat || '') + (src.area ? ' / ' + src.area : '') + '…');
+  } else if (src.ok) {
+    apcDot('apcSrcDot', 'ok');
+    apcMsg('apcSrcMsg', (src.msg || 'Done') + ' · ' + apcRelTime(src.age_secs || (d.ts - src.at)));
+  } else {
+    apcDot('apcSrcDot', 'error');
+    apcMsg('apcSrcMsg', src.msg || 'Failed');
+  }
+
+  // ── Research row ──
+  var res = d.research;
+  if (!res) {
+    apcDot('apcResDot', 'idle'); apcMsg('apcResMsg', 'Idle');
+  } else if (!res.done) {
+    apcDot('apcResDot', 'running');
+    apcMsg('apcResMsg', 'Researching ' + (res.biz_name || '…'));
+  } else if (res.ok) {
+    apcDot('apcResDot', 'ok');
+    apcMsg('apcResMsg', res.biz_name ? res.biz_name + ' — done' : 'Done');
+  } else {
+    apcDot('apcResDot', 'error');
+    apcMsg('apcResMsg', res.biz_name ? res.biz_name + ' — ' + (res.msg || 'failed') : (res.msg || 'Failed'));
+  }
+
+  // ── Cron label ──
+  var cronEl = document.getElementById('apcCronLbl');
+  if (cronEl && d.cron_secs !== null && d.cron_secs !== undefined) {
+    cronEl.textContent = 'Cron ' + apcRelTime(d.cron_secs);
+  }
+
+  // ── Next up section ──
+  var nw = document.getElementById('apcNextWrap');
+  if (!nw) return;
+  var srcActive = src && !src.done;
+  var resActive = res && !res.done;
+  var hasNext   = d.next || (d.res_queue > 0);
+  if (!srcActive && !resActive && hasNext) {
+    nw.style.display = '';
+    var desc = document.getElementById('apcNextDesc');
+    var sb   = document.getElementById('apcSrcBtn');
+    var rl   = document.getElementById('apcResLink');
+    var rc   = document.getElementById('apcResCount');
+
+    if (d.next) {
+      if (desc) desc.textContent = d.next.cat + ' / ' + d.next.area + (d.next.fresh ? ' — fresh territory' : '');
+      // Update hidden inputs so apcStartSource picks up the fresh recommendation
+      var ci = document.getElementById('apcCatId');
+      var ai = document.getElementById('apcArea');
+      if (ci) ci.value = d.next.cat_id;
+      if (ai) ai.value = d.next.area;
+      if (sb) sb.style.display = 'inline-flex';
+    } else {
+      if (desc) desc.textContent = '';
+      if (sb) sb.style.display = 'none';
+    }
+    if (d.res_queue > 0) {
+      if (rc) rc.textContent = d.res_queue;
+      if (rl) rl.style.display = 'inline-flex';
+    } else {
+      if (rl) rl.style.display = 'none';
+    }
+  } else {
+    nw.style.display = srcActive || resActive ? 'none' : (hasNext ? '' : 'none');
+  }
+}
+
+function apcStartSource() {
+  var catId  = (document.getElementById('apcCatId')  || {}).value || '';
+  var area   = (document.getElementById('apcArea')   || {}).value || '';
+  var apiKey = (document.getElementById('apcApiKey') || {}).value || '';
+  if (!catId || !area) return;
+
+  var btn = document.getElementById('apcSrcBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting…'; }
+  apcDot('apcSrcDot', 'running');
+  apcMsg('apcSrcMsg', 'Starting…');
+  apcRunning = true;
+
+  fetch('/llm-source.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ category_id: parseInt(catId, 10), area: area, count: 10 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok && d.run_id) {
+      apcMsg('apcSrcMsg', d.message || 'Sourcing…');
+      apcRunning = false; // the apstat poll will track it from llmsrc_active
+      apcSchedule(true); // switch to fast polling
+    } else {
+      apcDot('apcSrcDot', 'error');
+      apcMsg('apcSrcMsg', d.error || 'Failed to start.');
+      apcRunning = false;
+      if (btn) { btn.disabled = false; btn.textContent = 'Source →'; }
+    }
+  })
+  .catch(function() {
+    apcDot('apcSrcDot', 'error');
+    apcMsg('apcSrcMsg', 'Network error — try again.');
+    apcRunning = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Source →'; }
+  });
+}
+
+// Start polling on page load
+document.addEventListener('DOMContentLoaded', apcInit);
+// Resume immediately on tab focus (iOS background throttling)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') { clearTimeout(apcTimer); apcPoll(); }
 });
 
 // ── Zero-touch sourcing ──────────────────────────────────────────────────────

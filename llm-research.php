@@ -144,6 +144,9 @@ elseif (function_exists('litespeed_finish_request')) { litespeed_finish_request(
 // ── Background work (client already has its response) ─────────────────────────
 @set_time_limit(420); // 280 work + up to 2×62s Gemini rate-limit waits
 
+// Tell the console what's being researched right now
+ho_set_setting($pdo, 'llmres_active', json_encode(['biz_id' => $bizId, 'biz_name' => $biz['business_name'], 'done' => false, 'at' => time()]));
+
 $prompt = ho_generate_research_prompt([$biz]);
 $prompt = preg_replace(
     '/DELIVERY:.*$/s',
@@ -176,6 +179,7 @@ try {
     $msg = 'Failed: ' . $e->getMessage();
 }
 
-// Stash the outcome for the status poll to read.
+// Stash the outcome for the status poll and the console.
 ho_set_setting($pdo, 'llmres_' . $bizId, json_encode(['done' => true, 'ok' => $ok, 'msg' => $msg, 'at' => time()]));
+ho_set_setting($pdo, 'llmres_active', json_encode(['biz_id' => $bizId, 'biz_name' => $biz['business_name'], 'done' => true, 'ok' => $ok, 'msg' => $msg, 'at' => time()]));
 exit;

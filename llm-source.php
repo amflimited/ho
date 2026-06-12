@@ -111,9 +111,10 @@ if (!in_array($area, $validRegions, true)) {
     ls_out(400, ['ok' => false, 'error' => 'Invalid region.']);
 }
 
-// Create the source_run record; mark in-progress for the poll
+// Create the source_run record; mark in-progress for the poll and the console
 $runId = ho_create_source_run($pdo, $catId, $area, $count);
 ho_set_setting($pdo, 'llmsrc_' . $runId, json_encode(['done' => false, 'at' => time()]));
+ho_set_setting($pdo, 'llmsrc_active', json_encode(['run_id' => $runId, 'cat' => $category['name'], 'area' => $area, 'done' => false, 'at' => time()]));
 
 // Respond to the browser NOW then research in the background
 $startedPayload = json_encode([
@@ -190,12 +191,8 @@ try {
     $msg = 'Failed: ' . $e->getMessage();
 }
 
-ho_set_setting($pdo, 'llmsrc_' . $runId, json_encode([
-    'done'    => true,
-    'ok'      => $ok,
-    'msg'     => $msg,
-    'created' => $created,
-    'skipped' => $skipped,
-    'at'      => time(),
-]));
+$donePayload = ['done' => true, 'ok' => $ok, 'msg' => $msg, 'created' => $created, 'skipped' => $skipped, 'at' => time()];
+ho_set_setting($pdo, 'llmsrc_' . $runId, json_encode($donePayload));
+// Update the console stash with cat/area so the activity row stays readable
+ho_set_setting($pdo, 'llmsrc_active', json_encode(array_merge($donePayload, ['cat' => $category['name'], 'area' => $area])));
 exit;
