@@ -1737,38 +1737,58 @@ function ho_quote_inline(string $raw, int $max = 165): string {
 }
 
 /**
+ * Common signal reads shared verbatim by the site-build and enhancement pitch
+ * builders — name/city/category, review + rating numbers, competitor parsing,
+ * the default-length review quote, and the verified-vs-floored "40+" review
+ * count. Each builder still computes its own channel-specific bits (noSite,
+ * shorter quote lengths, branch thresholds, copy). Behavior-preserving: the
+ * expressions here are byte-identical to what each builder used inline.
+ */
+function ho_msg_base(array $biz): array {
+    $reviews    = (int)($biz['google_review_count'] ?? 0);
+    $isVerified = !empty($biz['verified_at']);
+    return [
+        'name'        => (string)$biz['business_name'],
+        'city'        => (string)$biz['location_city'],
+        'catLower'    => strtolower((string)$biz['category_name']),
+        'catSlug'     => (string)($biz['category_slug'] ?? ''),
+        'firstName'   => trim((string)($biz['owner_first_name'] ?? '')),
+        'reviews'     => $reviews,
+        'rating'      => (float)($biz['google_rating'] ?? 0),
+        'years'       => (int)($biz['years_in_business'] ?? 0),
+        'hasSite'     => (bool)($biz['has_website'] ?? false),
+        'siteQual'    => (string)($biz['website_quality'] ?? 'none'),
+        'quote'       => ho_quote_inline((string)($biz['review_quote_1'] ?? '')),
+        'quoteAuthor' => trim((string)($biz['review_quote_1_author'] ?? '')),
+        'compName'    => trim((string)($biz['competitor_name'] ?? '')),
+        'compRating'  => isset($biz['competitor_google_rating']) && $biz['competitor_google_rating'] !== null ? (float)$biz['competitor_google_rating'] : null,
+        'compReviews' => isset($biz['competitor_review_count'])  && $biz['competitor_review_count']  !== null ? (int)$biz['competitor_review_count']   : null,
+        'hasAngi'     => (bool)($biz['has_angi']      ?? false),
+        'hasThumb'    => (bool)($biz['has_thumbtack'] ?? false),
+        'isVerified'  => $isVerified,
+        'revShown'    => (!$isVerified && $reviews >= 15) ? (string)(int)(floor($reviews / 10) * 10) . '+' : (string)$reviews,
+    ];
+}
+
+/**
  * Single source of truth for the enhancement-track outreach message.
  * Returns ['subject' => ..., 'body' => ...] in plain text — consumed by
  * both the mailto link and the copy-to-paste (contact form) path so the
  * email and the pasted message are always identical and equally personal.
  */
 function ho_pitch_message_enhancement(array $biz, string $previewUrl): array {
-    $name      = (string)$biz['business_name'];
-    $city      = (string)$biz['location_city'];
-    $catLower  = strtolower((string)$biz['category_name']);
-    $catSlug   = (string)($biz['category_slug'] ?? '');
-    $firstName = trim((string)($biz['owner_first_name'] ?? ''));
-    $gaps      = $biz['enhancement_gaps'] ?? ho_enhancement_gaps($biz);
+    [
+        'name' => $name, 'city' => $city, 'catLower' => $catLower, 'catSlug' => $catSlug,
+        'firstName' => $firstName, 'reviews' => $reviews, 'rating' => $rating,
+        'compName' => $compName, 'compRating' => $compRating, 'compReviews' => $compReviews,
+        'quote' => $quote, 'quoteAuthor' => $quoteAuthor, 'hasAngi' => $hasAngi,
+        'hasThumb' => $hasThumb, 'revShown' => $revShown,
+    ] = ho_msg_base($biz);
 
-    $hasAngi   = (bool)($biz['has_angi']      ?? false);
-    $hasThumb  = (bool)($biz['has_thumbtack'] ?? false);
-    $platform  = $hasAngi ? 'Angi' : 'Thumbtack';
-    $reviews   = (int)($biz['google_review_count'] ?? 0);
-    $rating    = (float)($biz['google_rating'] ?? 0);
-
-    $compName    = trim((string)($biz['competitor_name'] ?? ''));
-    $compRating  = isset($biz['competitor_google_rating']) && $biz['competitor_google_rating'] !== null ? (float)$biz['competitor_google_rating'] : null;
-    $compReviews = isset($biz['competitor_review_count'])  && $biz['competitor_review_count']  !== null ? (int)$biz['competitor_review_count']   : null;
-
-    $quote       = ho_quote_inline((string)($biz['review_quote_1'] ?? ''));
-    $quoteAuthor = trim((string)($biz['review_quote_1_author'] ?? ''));
-
+    $gaps        = $biz['enhancement_gaps'] ?? ho_enhancement_gaps($biz);
+    $platform    = $hasAngi ? 'Angi' : 'Thumbtack';
     $bundleTotal = (int)round((float)($biz['bundle_total'] ?? 0));
-
-    $topGap = $gaps[0] ?? '';
-
-    $isVerified = !empty($biz['verified_at']);
-    $revShown   = (!$isVerified && $reviews >= 15) ? (string)(int)(floor($reviews / 10) * 10) . '+' : (string)$reviews;
+    $topGap      = $gaps[0] ?? '';
 
     // ── Same rule as the site-build email: one observation, one link, one
     // low-pressure ask, under 90 words. The page carries prices, the bundle
@@ -1991,32 +2011,23 @@ function ho_requeue_no_contact_leads(PDO $pdo): int {
  * email and the pasted message are always identical and equally personal.
  */
 function ho_pitch_message(array $biz, string $previewUrl): array {
-    $name     = (string)$biz['business_name'];
-    $city     = (string)$biz['location_city'];
-    $catLower = strtolower((string)$biz['category_name']);
-    $catSlug  = (string)($biz['category_slug'] ?? '');
+    // Shared signal reads (see ho_msg_base); hedged "40+" review count lives there too.
+    [
+        'name' => $name, 'city' => $city, 'catLower' => $catLower, 'catSlug' => $catSlug,
+        'reviews' => $reviews, 'rating' => $rating, 'years' => $years,
+        'hasSite' => $hasSite, 'siteQual' => $siteQual, 'quote' => $quote,
+        'quoteAuthor' => $quoteAuthor, 'compName' => $compName, 'compRating' => $compRating,
+        'compReviews' => $compReviews, 'hasAngi' => $hasAngi, 'hasThumb' => $hasThumb,
+        'revShown' => $revShown,
+    ] = ho_msg_base($biz);
 
-    $strengths = json_decode((string)($biz['strengths'] ?? '[]'), true);
-    $gaps      = json_decode((string)($biz['gaps']      ?? '[]'), true);
-    $opSum     = trim((string)($biz['opportunity_summary'] ?? ''));
-    $hasSite   = (bool)($biz['has_website'] ?? false);
-    $siteQual  = (string)($biz['website_quality'] ?? 'none');
-    $reviews   = (int)($biz['google_review_count'] ?? 0);
-    $rating    = (float)($biz['google_rating'] ?? 0);
-
+    $strengths   = json_decode((string)($biz['strengths'] ?? '[]'), true);
+    $gaps        = json_decode((string)($biz['gaps']      ?? '[]'), true);
+    $opSum       = trim((string)($biz['opportunity_summary'] ?? ''));
     $compHasSite = (bool)($biz['competitor_has_website'] ?? false);
-    $compName    = trim((string)($biz['competitor_name'] ?? ''));
-    $compRating  = isset($biz['competitor_google_rating']) && $biz['competitor_google_rating'] !== null ? (float)$biz['competitor_google_rating'] : null;
-    $compReviews = isset($biz['competitor_review_count'])  && $biz['competitor_review_count']  !== null ? (int)$biz['competitor_review_count']   : null;
-    $hasAngi     = (bool)($biz['has_angi']      ?? false);
-    $hasThumb    = (bool)($biz['has_thumbtack'] ?? false);
     $booking     = (string)($biz['booking_method'] ?? 'unknown');
-    $years       = (int)($biz['years_in_business'] ?? 0);
     $ageBand     = trim((string)($biz['owner_age_band'] ?? ''));
     $noSite      = !$hasSite || $siteQual === 'none';
-
-    $quote       = ho_quote_inline((string)($biz['review_quote_1'] ?? ''));
-    $quoteAuthor = trim((string)($biz['review_quote_1_author'] ?? ''));
 
     // Review age
     $reviewAgeMonths = null;
@@ -2024,12 +2035,6 @@ function ho_pitch_message(array $biz, string $previewUrl): array {
     if ($lastReviewRaw !== '' && preg_match('/^(\d{4})-(\d{2})$/', $lastReviewRaw, $lm)) {
         $reviewAgeMonths = ((int)date('Y') - (int)$lm[1]) * 12 + ((int)date('n') - (int)$lm[2]);
     }
-
-    // Unverified data gets hedged: exact review counts become a floored
-    // "40+" so a drifted number can never be wrong in the embarrassing
-    // direction. Verified rows (truth gate) speak precisely.
-    $isVerified = !empty($biz['verified_at']);
-    $revShown   = (!$isVerified && $reviews >= 15) ? (string)(int)(floor($reviews / 10) * 10) . '+' : (string)$reviews;
 
     // ── The email has ONE job: earn the click. Price, guarantee, ROI,
     // timeline, credibility — all of that lives on the page, with full
