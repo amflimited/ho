@@ -301,7 +301,22 @@ endif; ?>
 </head>
 <body class="front-door-preview-page">
 
-
+<?php if ($row && !$paid && !$stripeErr):
+    // The boot sequence — the machine shows its work before the curtain lifts.
+    // Every line is real data; that's the whole trick.
+    $bootLines = ['→ Researching ' . $name . '…'];
+    if ($googleCount > 0) {
+        $bootLines[] = '→ Found ' . $googleCount . ' Google review' . ($googleCount === 1 ? '' : 's')
+                     . ($googleRating > 0 ? ' · ' . number_format($googleRating, 1) . '★' : '');
+    }
+    $bootLines[] = '→ Scanning the ' . ($city !== '' ? $city : 'Indiana') . ' market…';
+    if ($compName !== '') $bootLines[] = '→ Sizing up ' . $compName . '…';
+    $bootLines[] = $isEnhancement
+        ? '→ Measuring what your current site is missing…'
+        : '→ Choosing a design that fits ' . ($catName !== '' ? strtolower($catName) : 'your trade') . '…';
+    $bootLines[] = '✓ Done. Built for ' . ($ownerFirst !== '' ? $ownerFirst : $name) . '.';
+    ho_fd_boot($bootLines, $slug);
+endif; ?>
 
 <main class="fd-shell">
 

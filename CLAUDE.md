@@ -86,14 +86,14 @@ framework, no Composer · GitHub Actions FTP auto-deploy.
 |---|---|
 | `ho-model.php` | The business brain — all DB/pipeline/research/routing/pricing/email/SMS/autopilot/reputation/capture logic (~4,500 lines). |
 | `app.php` | Admin cockpit (Source / Research / Send / Sales tabs). Login-gated. |
-| `money.php` | The Money Floor — one-feed "moves" execution UI. Login-gated. |
+| `money.php` | Mission Control — one-feed "moves" execution UI, Apollo console theme (station callsigns, T+ mission clock, "Eagle has landed" on first conversion). Login-gated. JS binds to `mf-*` classes/ids — keep them when restyling. |
 | `go.php` | Public preview/pitch page (`/go/{slug}`), site-build + enhancement tracks. |
 | `rep.php` | Public Review Concierge page (`/rep.php?slug=`). |
 | `start.php` | Public self-serve inbound funnel (`/start.php`). |
 | `checkout.php` / `webhook.php` | Stripe checkout session + fulfillment webhook. |
 | `cron.php` | Autopilot heartbeat (15-min cron). |
 | `llm-research.php` | Key-authed Claude+web-search research endpoint (uses `ho_llm_call`). |
-| `fd-chrome.php` | Shared `ho_fd_nav()` / `ho_fd_footer()` for go/rep/start. |
+| `fd-chrome.php` | Shared `ho_fd_nav()` / `ho_fd_footer()` for go/rep/start, plus `ho_fd_boot()` — the once-per-session build-console boot overlay on go + rep (real-data lines, tap-to-skip, reduced-motion/JS-off safe; never rendered on paid/error views). |
 | `ho-enhancement-packages.php` | Enhancement bundle helpers (used by go + checkout). |
 | `index.php` | Public marketing homepage. |
 | `status.php` | Token-gated customer order-status page. |

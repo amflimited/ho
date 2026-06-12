@@ -65,6 +65,19 @@ $worst      = $drafts[0] ?? null;
 </head>
 <body class="front-door-preview-page">
 
+<?php if ($row && !$paid):
+    // Boot sequence — the concierge shows its work before the reveal.
+    $bootLines = ['→ Reading ' . $name . '’s Google reviews…'];
+    if ($revCount > 0) {
+        $bootLines[] = '→ ' . $revCount . ' review' . ($revCount === 1 ? '' : 's')
+                     . ($rating > 0 ? ' · ' . number_format($rating, 1) . '★' : '');
+    }
+    $bootLines[] = '→ Found ' . $nDrafts . ' with no reply from the owner…';
+    $bootLines[] = '→ Writing the replies in your voice…';
+    $bootLines[] = '✓ Done. Read them below' . ($ownerFirst !== '' ? ', ' . $ownerFirst : '') . '.';
+    ho_fd_boot($bootLines, 'rep-' . $slug);
+endif; ?>
+
 <?php ho_fd_nav($row ? ['cta_href' => '#offer', 'cta_label' => 'Get them posted'] : []); ?>
 
 <main class="fd-shell">
