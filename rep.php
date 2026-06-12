@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
+require_once __DIR__ . '/fd-chrome.php';
 
 $slug = trim((string)($_GET['slug'] ?? ''));
 $row  = null; $drafts = []; $err = null;
@@ -64,10 +65,7 @@ $worst      = $drafts[0] ?? null;
 </head>
 <body class="front-door-preview-page">
 
-<nav class="fd-nav">
-  <a class="fd-nav-brand" href="/">HOOSIER ONLINE</a>
-  <?php if ($row): ?><a class="fd-nav-cta" href="#offer">Get them posted &rarr;</a><?php endif; ?>
-</nav>
+<?php ho_fd_nav($row ? ['cta_href' => '#offer', 'cta_label' => 'Get them posted'] : []); ?>
 
 <main class="fd-shell">
 <?php if (!$row): ?>
@@ -178,12 +176,10 @@ $worst      = $drafts[0] ?? null;
     <p style="font-size:15px;line-height:1.65">Adam Ferree, Hoosier Online, New Castle. I build websites and online presences for Indiana service businesses &mdash; one client closed a $15k job off a clean site and logo. Reviews are the same game: trust, visible. If the replies above don&rsquo;t sound like you, tell me what to change &mdash; takes me minutes.</p>
   </section>
 
-  <footer class="fd-footer">
-    <strong><a href="/">Hoosier Online</a></strong><br>
-    Front doors for Indiana&rsquo;s hardest-working businesses.<br>
-    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></span>
-    <span class="fd-footer-viral">Run a business yourself? <a href="/start.php?src=rep">Watch your own website build itself free &rarr;</a></span>
-  </footer>
+<?php ho_fd_footer([
+    'viral_src'  => 'rep',
+    'viral_link' => 'Watch your own website build itself free',
+  ]); ?>
 <?php endif; ?>
 </main>
 </body>
