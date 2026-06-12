@@ -4049,7 +4049,9 @@ function ho_llm_call_anthropic(string $prompt, string $system, int $maxTokens, a
         'model'      => $model,
         'max_tokens' => $maxTokens,
         'system'     => $system,
-        'tools'      => [['type' => 'web_search_20250305', 'name' => 'web_search']],
+        // Cap searches per call — each result is injected as input tokens, so an
+        // uncapped call can blow past Anthropic's per-minute token limit (429).
+        'tools'      => [['type' => 'web_search_20250305', 'name' => 'web_search', 'max_uses' => 4]],
         'messages'   => [['role' => 'user', 'content' => $prompt]],
     ]);
     $ch = curl_init('https://api.anthropic.com/v1/messages');
