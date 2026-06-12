@@ -2125,3 +2125,224 @@ body.front-door-preview-page{
   font-weight:inherit;
 }
 .fd-score-comp-link:hover{ border-bottom-color:var(--fd-green);color:var(--fd-green); }
+
+/* ══ v135: Design refresh ══════════════════════════════════════════════════ */
+
+/* Font rendering — biggest invisible win on iOS / Mac */
+body.front-door-preview-page{
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+}
+
+/* Richer atmospheric background — two radial hotspots + deeper gradient */
+body.front-door-preview-page{
+  background:
+    radial-gradient(ellipse 75% 45% at 100% 0,rgba(47,94,54,.13),transparent),
+    radial-gradient(ellipse 55% 30% at 0% 90%,rgba(47,94,54,.07),transparent),
+    linear-gradient(185deg,#f8f1e3 0%,#ede0ca 55%,#e4d4b5 100%);
+}
+
+/* Card depth — inset top highlight simulates ambient light from above */
+.fd-card{
+  border-color:rgba(34,23,19,.10);
+  background:rgba(255,250,241,.97);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.82),
+    0 18px 50px rgba(34,23,19,.09),
+    0 3px 10px rgba(34,23,19,.06);
+}
+
+/* Nav — crisper */
+.fd-nav{
+  background:rgba(248,241,228,.97);
+  border-bottom-color:rgba(34,23,19,.10);
+  box-shadow:0 1px 0 rgba(255,255,255,.6),0 2px 14px rgba(34,23,19,.07);
+}
+
+/* Primary button — gradient depth, glow, 3D press */
+.fd-btn-primary{
+  background:linear-gradient(160deg,#3d7645 0%,#2f5e36 52%,#244e2a 100%);
+  box-shadow:
+    0 2px 0 rgba(0,0,0,.24),
+    0 8px 24px rgba(47,94,54,.40),
+    inset 0 1px 0 rgba(255,255,255,.13);
+  text-shadow:0 1px 2px rgba(0,0,0,.16);
+  letter-spacing:-.01em;
+  font-size:16px;
+  transition:background .15s,box-shadow .15s,transform .12s;
+}
+@media(hover:hover){
+  .fd-btn-primary:hover{
+    background:linear-gradient(160deg,#437e4c 0%,#33663e 52%,#2a5632 100%);
+    box-shadow:
+      0 2px 0 rgba(0,0,0,.24),
+      0 14px 38px rgba(47,94,54,.52),
+      inset 0 1px 0 rgba(255,255,255,.15);
+    transform:translateY(-1px);
+  }
+}
+.fd-btn-primary:active{
+  transform:translateY(1px)!important;
+  box-shadow:0 1px 0 rgba(0,0,0,.22),0 3px 10px rgba(47,94,54,.24)!important;
+  transition:none!important;
+}
+
+/* Offer card — the climax; most elevated card on the page */
+.fd-offer{
+  border-top-width:3px;
+  background:linear-gradient(165deg,rgba(47,94,54,.08) 0%,rgba(255,250,241,.98) 28%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.82),
+    0 0 0 1px rgba(47,94,54,.12),
+    0 32px 90px rgba(47,94,54,.18),
+    0 8px 24px rgba(34,23,19,.10);
+}
+
+/* Stakes card — warm red tint reinforces cost */
+.fd-stakes{
+  background:linear-gradient(165deg,rgba(181,18,34,.04) 0%,rgba(255,250,241,.97) 28%);
+}
+
+/* Hero / turn — dramatic masthead */
+.fd-turn{
+  background:
+    radial-gradient(ellipse 90% 65% at 50% 0,rgba(47,94,54,.17),transparent 72%),
+    rgba(248,242,230,.65);
+  border-radius:26px;
+  margin-bottom:16px;
+  border:1px solid rgba(34,23,19,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* Kicker — tighter, more editorial */
+.fd-kicker{
+  font-size:10.5px;
+  letter-spacing:.125em;
+}
+
+/* Chapter nav — tappable, bordered, visible */
+.fd-chapter-link{
+  border:1px solid rgba(34,23,19,.13);
+  background:rgba(255,255,255,.55);
+  color:var(--fd-muted);
+  transition:background .15s,border-color .15s,color .15s;
+}
+@media(hover:hover){
+  .fd-chapter-link:hover{
+    background:rgba(47,94,54,.09);
+    border-color:rgba(47,94,54,.24);
+    color:var(--fd-green);
+  }
+}
+
+/* Module items — lift from page */
+.fd-module{
+  border-color:rgba(34,23,19,.09);
+  background:rgba(255,250,241,.96);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.68),0 2px 8px rgba(34,23,19,.06);
+}
+
+/* Body text — more readable at narrower widths */
+.fd-card p:not([class]){
+  font-size:16.5px;
+  line-height:1.60;
+}
+
+/* Trust strip chips — more presence */
+.fd-meta span{
+  background:rgba(47,94,54,.11);
+  border:1px solid rgba(47,94,54,.16);
+}
+
+/* Bridge dividers — more visible */
+.fd-bridge-dot{background:rgba(34,23,19,.22);}
+.fd-bridge::before{background:linear-gradient(90deg,transparent,rgba(34,23,19,.18));}
+.fd-bridge::after{background:linear-gradient(270deg,transparent,rgba(34,23,19,.18));}
+
+/* Dark quote card — richer black */
+.fd-quote-card{
+  background:linear-gradient(162deg,#18100a 0%,#211508 60%,#1a1208 100%)!important;
+}
+
+/* Audit card — navy tint */
+.fd-audit{
+  background:linear-gradient(165deg,rgba(30,58,95,.045) 0%,rgba(255,250,241,.97) 28%);
+}
+
+/* Guarantee box — more visible trust signal */
+.fd-guarantee-box{
+  background:rgba(47,94,54,.07)!important;
+  border:1.5px solid rgba(47,94,54,.22)!important;
+}
+
+/* Slot note — green-tinted pill */
+.fd-slot-note{
+  background:rgba(47,94,54,.07)!important;
+  border-radius:10px;
+  border-left:3px solid rgba(47,94,54,.28)!important;
+  padding:8px 12px!important;
+  font-weight:500;
+}
+
+/* Google sim — slightly deeper shadow */
+.fd-gsim{
+  box-shadow:0 3px 30px rgba(0,0,0,.13),0 0 0 1px rgba(0,0,0,.07);
+}
+
+/* ROI input — bigger radius, rounder */
+.fd-roi-input{border-radius:12px!important;}
+
+/* Prevent iOS auto-zoom on inputs (triggers when font-size < 16px) */
+.fd-capture-form input,
+.fd-capture-form textarea,
+.fd-domain-input{
+  font-size:max(16px,1em)!important;
+  -webkit-appearance:none;
+}
+
+/* Score — "you" column subtle green wash */
+.fd-score-col.fd-score-you{
+  background:rgba(47,94,54,.07);
+  border-radius:12px;
+  padding:8px 12px;
+  margin:-8px -12px;
+}
+
+/* Missed-opportunity line — stronger red */
+.fd-stakes-missed{
+  border-radius:0 10px 10px 0;
+  margin-top:14px;
+}
+
+/* Verified note — slightly larger */
+.fd-verified-note{
+  font-size:12px;
+  margin-bottom:14px;
+}
+
+/* Footer — separator */
+.fd-footer{
+  border-top:1px solid var(--fd-line);
+  padding-top:32px;
+  margin-top:10px;
+}
+
+/* Fix-card list items on enhancement preview — lift */
+.fd-fix-card{
+  border-color:rgba(47,94,54,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 2px 8px rgba(34,23,19,.06);
+}
+
+/* Gap items — warmer border */
+.fd-gap-item{
+  border-color:rgba(192,74,0,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+/* Feature list pills — more present */
+.fd-feature-list li{
+  background:rgba(47,94,54,.09);
+  border-color:rgba(47,94,54,.16);
+  font-weight:700;
+}
