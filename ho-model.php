@@ -53,13 +53,6 @@ function ho_clean_json(string $raw): string {
     return trim($raw);
 }
 
-function ho_norm_url(string $url): string {
-    $url = strtolower(trim($url));
-    $url = preg_replace('#^https?://#', '', $url) ?? $url;
-    $url = preg_replace('#^www\.#', '', $url) ?? $url;
-    return rtrim($url, '/');
-}
-
 function ho_norm_phone(string $p): string {
     return preg_replace('/\D/', '', $p) ?? '';
 }
@@ -2728,17 +2721,6 @@ function ho_bundle_presets(): array {
     ];
 }
 
-/** Compute total price for a bundle key. */
-function ho_bundle_price(string $key): int {
-    $bundles  = ho_bundle_presets();
-    $packages = ho_package_catalog();
-    $prices   = ho_addon_price_map();
-    if (!isset($bundles[$key])) return 0;
-    $b     = $bundles[$key];
-    $total = $packages[$b['pkg']]['price'];
-    foreach ($b['addons'] as $ak) $total += $prices[$ak] ?? 0;
-    return $total;
-}
 /**
  * Generate the WHY paragraph for go.php from structured research fields.
  * Always second-person. Never references the review count (shown in the badge).
