@@ -2936,13 +2936,34 @@ function llmNext() {
   llmSetStatus((llmIdx + 1) + ' of ' + total + ' — researching…' + (llmRetries > 0 ? ' (retry ' + llmRetries + ')' : ''));
   llmSetBar();
 
+  // A grounded research call can run 30–90s. Give it room; abort at 175s.
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, 175000) : null;
+  var httpStatus = 0;
+
   fetch('/llm-research.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ business_id: bizId })
+    body: JSON.stringify({ business_id: bizId }),
+    signal: ctrl ? ctrl.signal : undefined
   })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
+  .then(function(r) {
+    httpStatus = r.status;
+    return r.text(); // read raw so a non-JSON error page is visible, not swallowed
+  })
+  .then(function(raw) {
+    if (timer) clearTimeout(timer);
+    var d;
+    try { d = JSON.parse(raw); }
+    catch (e) {
+      // Server returned non-JSON (timeout page, PHP error, etc.) — surface it.
+      var snip = (raw || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+      llmIdx++; llmRetries = 0; llmSetBar();
+      llmSetStatus('Skipped biz ' + bizId + ' — server returned ' + (httpStatus || '?') +
+                   (snip ? ' (' + snip + ')' : ' (empty response)') + ' — continuing…');
+      setTimeout(llmNext, LLM_PACE_MS);
+      return;
+    }
     if (d.ok) {
       llmIdx++; llmRetries = 0; llmSetBar();
       llmSetStatus(llmIdx + ' of ' + total + ' — ' + (d.message || 'done'));
@@ -2963,8 +2984,12 @@ function llmNext() {
     setTimeout(llmNext, LLM_PACE_MS);
   })
   .catch(function(err) {
-    llmIdx++; llmRetries = 0;
-    llmSetStatus('Network error on biz ' + bizId + ': ' + err.message + ' — continuing…');
+    if (timer) clearTimeout(timer);
+    llmIdx++; llmRetries = 0; llmSetBar();
+    var why = (err && err.name === 'AbortError')
+      ? 'request timed out after 175s (the call ran too long for shared hosting)'
+      : (err ? err.message : 'connection failed');
+    llmSetStatus('Skipped biz ' + bizId + ' — ' + why + ' — continuing…');
     setTimeout(llmNext, 2000);
   });
 }
