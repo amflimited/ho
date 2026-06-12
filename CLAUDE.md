@@ -4,7 +4,78 @@ This file is the constitution for the `ho-v2` repository. Every Claude Code sess
 starts here. If code and this file disagree, this file wins — or this file gets
 amended explicitly. No silent drift.
 
-Companion document: `/docs/SALVAGE.md` — the full autopsy of v1. Read §6 (the
+---
+
+## SESSION HANDOFF — read this first, then the rest of the file
+
+**Branch:** `v2` in `amflimited/ho`. Deploy target: `v2.hoosieronline.com` (document root `public_html/ho-v2/public`). GitHub Actions FTP deploys on every push to `v2`.
+
+**Milestone 1** (schema, codegen, importer, migrations 001–002): DONE and deployed.
+**Milestone 2** (workers, renderers, billing, public endpoints): code DONE, not yet bootstrapped on the live server.
+
+### First thing to do in this session
+
+Check whether `config/db.php` exists. If it does not, create it:
+
+```php
+<?php
+return [
+    'host'   => 'localhost',
+    'dbname' => '<ask Adam>',
+    'user'   => '<ask Adam>',
+    'pass'   => '<ask Adam>',
+];
+```
+
+Then run `php bin/setup.php` — it will apply `migrations/003_milestone2.sql`, set a fresh `admin_key` in `app_settings`, and print the key. Keep that key; it authenticates `cron.php?job=…&key=…`.
+
+### What is built (all committed, all in `src/`)
+
+| File | Purpose |
+|---|---|
+| `src/Domain/Business.php` | Typed canonical record (generated) |
+| `src/Domain/Pipeline.php` | Forward-only state machine |
+| `src/Domain/Score.php` | Fit score + route decision |
+| `src/Import/Importer.php` | THE only door for business data |
+| `src/Import/Validator.php` | Generated enum/null/clamp rules |
+| `src/Import/JsonCleaner.php` | LLM JSON repair |
+| `src/Import/V1Etl.php` | One-time v1→v2 migration |
+| `src/Llm/Client.php` | Anthropic + Gemini, 429 retry |
+| `src/Render/Preview.php` | Preview page rows + pricing |
+| `src/Render/Pitch.php` | Touch-1 email AI + fallback |
+| `src/Render/FollowUp.php` | Touches 2–4 |
+| `src/Workers/Research.php` | Batch LLM research worker |
+| `src/Workers/Verify.php` | Truth Gate batch worker |
+| `src/Workers/Personalize.php` | Preview + pitch draft per lead |
+| `src/Workers/Runner.php` | Dispatcher: all workers |
+| `src/Outreach/Sender.php` | Touch sequencer + gate enforcement |
+| `src/Outreach/Gate.php` | CAN-SPAM: master switch, window, cap, suppression |
+| `src/Outreach/Heat.php` | Visit logging + daily digest |
+| `src/Outreach/Mailer.php` | php mail() with logging |
+| `src/Outreach/Notify.php` | Operator-only transactional mail |
+| `src/Billing/StripeWebhook.php` | Webhook verify + order creation |
+| `public/go.php` | Preview pitch page + heat tracking |
+| `public/checkout.php` | Stripe Checkout Session creator |
+| `public/status.php` | Order status page |
+| `public/webhook.php` | Stripe webhook endpoint |
+| `public/cron.php` | Web worker trigger (phone-accessible) |
+| `bin/cron.php` | CLI worker trigger |
+| `bin/setup.php` | One-time bootstrap (run once per environment) |
+
+### What is NOT built yet (next priorities)
+
+1. **Cockpit UI** (`public/cockpit/`) — phone-first operator interface: triage queue, paste import box, worker run buttons, settings panel. This is the main thing blocking Adam from using the system day-to-day.
+2. **Source worker** (`src/Workers/Source.php`) — autopilot daily sourcing: picks category + area, calls LLM with `prompts/sourcing.md`, pipes result through Importer.
+3. **V1 ETL run** — needs `config/db-v1.php` pointing at the old database, then `php bin/etl-v1.php`.
+4. **Live settings** in `app_settings`: `llm_api_key`, `ap_from_email`, `ap_postal`, `ap_digest_email`.
+
+### Known issue (fixed in code, not yet live)
+
+`migrations/003_milestone2.sql` has not been applied to the live DB yet. `php bin/setup.php` handles this.
+
+---
+
+## Companion document: `/docs/SALVAGE.md` — the full autopsy of v1. Read §6 (the
 connector map) before writing any code. It is the list of mistakes you are
 forbidden to repeat.
 
@@ -100,7 +171,7 @@ ho-v2/
   CLAUDE.md                 ← this file
   docs/SALVAGE.md           ← the autopsy
   schema/business.schema.json
-  bin/codegen.php  bin/migrate.php  bin/cron.php
+  bin/codegen.php  bin/migrate.php  bin/cron.php  bin/setup.php
   migrations/
   prompts/        sourcing.md hunt.md research.md verify.md pitch.md repdraft.md
   src/
