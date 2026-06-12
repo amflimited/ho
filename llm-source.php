@@ -93,7 +93,7 @@ $raw   = (string)file_get_contents('php://input');
 $body  = json_decode($raw, true);
 $catId = (int)($body['category_id'] ?? 0);
 $area  = trim((string)($body['area'] ?? ''));
-$count = max(5, min(15, (int)($body['count'] ?? 10)));
+$count = max(5, min(12, (int)($body['count'] ?? 8)));
 
 if ($catId === 0 || $area === '') {
     ls_out(400, ['ok' => false, 'error' => 'category_id and area required.']);

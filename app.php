@@ -850,7 +850,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           </select>
         </label>
         <label class="cp-label" style="margin:0;width:70px">Count
-          <input class="cp-input" type="number" id="llmSrcCount" value="10" min="5" max="15">
+          <input class="cp-input" type="number" id="llmSrcCount" value="8" min="5" max="12">
         </label>
       </div>
       <div class="cp-llm-controls" style="margin-top:10px">

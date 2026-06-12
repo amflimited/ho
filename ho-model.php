@@ -4065,7 +4065,7 @@ function ho_llm_call_anthropic(string $prompt, string $system, int $maxTokens, a
             'anthropic-version: 2023-06-01',
             'anthropic-beta: web-search-2025-03-05',
         ],
-        CURLOPT_TIMEOUT        => 150,
+        CURLOPT_TIMEOUT        => 240,
         CURLOPT_CONNECTTIMEOUT => 15,
     ]);
     $resp     = curl_exec($ch);
