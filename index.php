@@ -1545,7 +1545,7 @@ $faqs = [
       <span>
         <a href="<?= ho_e($mailto) ?>"><?= ho_e($email) ?></a>
         &nbsp;·&nbsp;
-        <a class="staff" href="/admin.php">Staff</a>
+        <a class="staff" href="/money.php">Staff</a>
       </span>
     </div>
   </footer>

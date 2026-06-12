@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
+require_once __DIR__ . '/fd-chrome.php';
 
 $pdo = null;
 try { $pdo = ho_db(); } catch (Throwable) {}
@@ -181,13 +182,11 @@ $srcParam   = preg_replace('/[^a-z0-9_-]/', '', strtolower((string)($_GET['src']
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>See your business&rsquo;s new website — free, 60 seconds | Hoosier Online</title>
   <meta name="description" content="Type your business name and watch a personalized website preview build itself — free, no signup, built for Indiana service businesses.">
-  <link rel="stylesheet" href="/assets/css/front-door.css?v=2">
+  <link rel="stylesheet" href="/assets/css/front-door.css?v=<?= filemtime(__DIR__ . '/assets/css/front-door.css') ?>">
 </head>
 <body class="front-door-preview-page">
 
-<nav class="fd-nav">
-  <a class="fd-nav-brand" href="/">HOOSIER ONLINE</a>
-</nav>
+<?php ho_fd_nav(); ?>
 
 <main class="fd-shell">
 
@@ -302,11 +301,7 @@ $srcParam   = preg_replace('/[^a-z0-9_-]/', '', strtolower((string)($_GET['src']
   </section>
 <?php endif; ?>
 
-  <footer class="fd-footer">
-    <strong><a href="/">Hoosier Online</a></strong><br>
-    Front doors for Indiana&rsquo;s hardest-working businesses.<br>
-    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:adam@hoosieronline.com">adam@hoosieronline.com</a></span>
-  </footer>
+<?php ho_fd_footer(); ?>
 </main>
 </body>
 </html>

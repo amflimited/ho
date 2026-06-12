@@ -1,807 +1,199 @@
 # Hoosier Online — Claude Code Handoff
 
-> This file is read automatically by Claude Code on session start.
-> It captures the architectural state and pending work as of 2026-06-09.
-> Do NOT include credentials, API keys, or secret file paths here.
+> Read automatically by Claude Code on session start.
+> Rewritten 2026-06-12 after "Operation Frankenstein": the dead `sales-*`
+> generation was demolished and the live system consolidated. Do NOT add
+> credentials, API keys, or secret file paths here.
 
 ---
 
 ## Project Overview
 
-**Hoosier Online** is a B2B lead-generation and sales tool built by Adam Ferree.
-It identifies Indiana local service businesses (lawn care, cleaning, handyman, etc.)
-that lack a professional web presence, builds them a personalised preview page,
-then pitches them a website build or enhancement service via email/phone.
+**Hoosier Online** is a single-operator B2B lead-to-cash engine built by Adam
+Ferree. It finds Indiana local-service businesses (lawn care, cleaning,
+handyman, etc.) with a weak web presence, builds each a personalised "front
+door" preview page, prices one offer, and pitches them — increasingly on
+autopilot. Adam runs it from an **iPhone**: triage taps and replies only.
 
-**Stack:** PHP (no framework), MySQL, HostGator shared hosting, GitHub Actions FTP deploy.
+**Stack:** vanilla PHP 8.x · MySQL (PDO) · HostGator shared hosting · no
+framework, no Composer · GitHub Actions FTP auto-deploy.
 
-**Branch:** All active work lives on `claude/admin-site-assessment-4Zrig`.
-`SamKirkland/FTP-Deploy-Action@v4.3.5` deploys every push to this branch to production.
+---
+
+## Branches & Deploy (read before pushing)
+
+- **Production deploy branch:** `claude/admin-site-assessment-4Zrig`.
+  `SamKirkland/FTP-Deploy-Action@v4.3.5` deploys every push on it to
+  production. Code changes meant to go live push here (with explicit
+  permission per session).
+- **Operation Frankenstein lives on:** `claude/awesome-volta-03lqnp` — a
+  sandbox that does NOT auto-deploy. The demolition + consolidation was done
+  here so nothing reaches production until a deliberate merge.
+- **⚠ Merge-day warning:** the FTP action MIRRORS deletions. When this branch
+  merges to the deploy branch, every file deleted here is removed from
+  production too. Secrets are protected by the workflow `exclude` list
+  (`database.php`, `admin-secrets.php`, `stripe-config.php`,
+  `porkbun-config.php`). The whole dead generation therefore only exists in
+  git history before the merge commit.
 
 ---
 
 ## Security Constraints (PERMANENT — never violate)
 
-- `database.php` — live credentials — **NEVER commit**
-- `admin-secrets.php` — **NEVER commit**
-- `stripe-config.php` — lives at `/home1/spofnkte/stripe-config.php` (outside public_html) — **NEVER commit**
-- `porkbun-config.php` — **NEVER commit**
-- Database schema changes = **phpMyAdmin SQL tab only** (Adam runs them; do NOT repeat the reminder each session)
-- Adam works exclusively on **iPhone** — never instruct file downloads, git pulls, terminal commands, or multi-step file operations on his end
-- Code changes = push to `claude/admin-site-assessment-4Zrig` — never push to a different branch without explicit permission
+- `database.php`, `admin-secrets.php`, `porkbun-config.php` — **NEVER commit**.
+- `stripe-config.php` lives at `/home1/spofnkte/stripe-config.php` (outside
+  public_html) — **NEVER commit**.
+- `/home1/spofnkte/llm-config.php` (`LLM_API_KEY`, optional `LLM_MODEL`) —
+  **NEVER commit**.
+- Database schema changes = **phpMyAdmin SQL tab only** (Adam runs them).
+- Adam works exclusively on **iPhone** — never instruct file downloads,
+  terminal commands, git pulls, or multi-step desktop flows.
+- Secrets discipline absorbed from the old SECURITY_NOTES.txt: never commit
+  DB credentials, admin secrets, logs, backups, SQL dumps, or generated ZIPs.
 
 ---
 
-## Key Files
+## Admin Authentication (the operator lock — added in Frankenstein)
+
+`app.php`, `money.php`, and the `audit-*.php` fetch endpoints used to be
+**publicly reachable**. They are now gated.
+
+- `admin-auth.php` — session + signed remember-me cookie.
+  `ho_admin_require_login()` (HTML redirect to `/admin-login.php`) for pages;
+  `ho_admin_require_login_json()` (401 JSON) for fetch endpoints. A 60-day HMAC
+  remember cookie (keyed on the private `session_key`) means Adam logs in once.
+- `admin-login.php` — login form; when no secrets exist yet it shows a setup
+  helper that takes a chosen password and PRINTS a ready-to-paste
+  `admin-secrets.php` (hash + random session_key computed server-side).
+- **One-time setup (Adam, cPanel File Manager from the phone):** open
+  `/admin-login.php`, pick a password, copy the printed file into
+  `/home1/spofnkte/hoosier-online-private/admin-secrets.php` (preferred, outside
+  public_html) or `./admin-secrets.php` (fallback), reload, log in.
+- Shape: `['username' => ..., 'password_hash' => ..., 'session_key' => '<64 hex>']`.
+- **NOT gated (by design):** `go.php`, `rep.php`, `start.php`, `index.php`,
+  `checkout.php` (public), `webhook.php` (Stripe sig), `status.php` (token),
+  `cron.php` + `llm-research.php` (key auth — gating them breaks autopilot and
+  the inbound funnel), `domain-check.php`.
+- CSRF on app.php's POST actions is deferred: SameSite=Lax cookies block
+  cross-site POSTs and it's a single-operator tool. `ho_admin_csrf_*` helpers
+  exist if/when wanted.
+
+---
+
+## File Map (the surviving live system — ~24 root PHP files)
 
 | File | Purpose |
 |---|---|
-| `ho-model.php` | All DB/business logic — pipeline, research, preview, enhancement, emails |
-| `app.php` | Admin cockpit UI (Research, Send, Orders tabs) |
-| `go.php` | Public-facing preview/pitch page for each lead |
-| `source-model.php` | GPT prompt builder for sourcing new leads |
-| `audit-domain.php` | Technical domain/website audit tool |
-| `assets/css/front-door.css` | Styles for go.php |
+| `ho-model.php` | The business brain — all DB/pipeline/research/routing/pricing/email/SMS/autopilot/reputation/capture logic (~4,500 lines). |
+| `app.php` | Admin cockpit (Source / Research / Send / Sales tabs). Login-gated. |
+| `money.php` | The Money Floor — one-feed "moves" execution UI. Login-gated. |
+| `go.php` | Public preview/pitch page (`/go/{slug}`), site-build + enhancement tracks. |
+| `rep.php` | Public Review Concierge page (`/rep.php?slug=`). |
+| `start.php` | Public self-serve inbound funnel (`/start.php`). |
+| `checkout.php` / `webhook.php` | Stripe checkout session + fulfillment webhook. |
+| `cron.php` | Autopilot heartbeat (15-min cron). |
+| `llm-research.php` | Key-authed Claude+web-search research endpoint (uses `ho_llm_call`). |
+| `fd-chrome.php` | Shared `ho_fd_nav()` / `ho_fd_footer()` for go/rep/start. |
+| `ho-enhancement-packages.php` | Enhancement bundle helpers (used by go + checkout). |
+| `index.php` | Public marketing homepage. |
+| `status.php` | Token-gated customer order-status page. |
+| `audit-url.php` / `audit-domain.php` | Login-gated website/domain audit fetch endpoints. |
+| `porkbun.php` / `domain-check.php` | Domain availability (Porkbun). |
+| `admin-auth.php` / `admin-login.php` / `admin-logout.php` | Operator lock. |
+
+**CSS (4 sheets):** `front-door.css` (public pages), `cockpit.css` (app.php),
+`money.css` (money.php), `site.css` (index.php). `templates/previews/` holds
+the category preview templates. `db/` keeps `schema.sql`, `schema_v2.sql`,
+`install_preview_v044.sql`, `seed_categories.sql` as reference.
 
 ---
 
 ## Pipeline Architecture
 
 ```
-identified
-  → [GPT research] → researched
-    → ho_auto_generate_preview()
-      → has decent/good website → ho_route_to_enhancement()
-          → has gaps → enhancement_ready (preview_type='enhancement')
-          → no gaps  → excluded (reason='has_good_website')
-      → no/poor website → preview_ready (preview_type='site_build')
-  → no contact info found → needs_contact
-pitched → converted / not_a_fit / excluded
+identified (triaged=0) → [triage tap] → triaged=1
+  → [research: ho_generate_research_prompt → ho_import_research_json]
+    → researched → ho_auto_generate_preview()
+      → decent site + gaps → enhancement_ready (preview_type='enhancement')
+      → decent site, no gaps → excluded (has_good_website)  [rep inventory]
+      → no/poor site → preview_ready (preview_type='site_build')
+      → no contact → needs_contact
+  → [pitch] → pitched → converted / not_a_fit / excluded
 ```
 
-**`pipeline_status` ENUM values:**
-`identified`, `researched`, `preview_ready`, `pitched`, `converted`,
-`not_a_fit`, `needs_contact`, `excluded`, `enhancement_ready`
+`pipeline_status` ENUM: `identified`, `researched`, `preview_ready`,
+`enhancement_ready`, `pitched`, `converted`, `not_a_fit`, `needs_contact`,
+`excluded`. `previews.preview_type`: `site_build`, `enhancement`.
 
-**`previews.preview_type` ENUM:** `site_build`, `enhancement`
+**Two products + recurring + a second line:**
+- Site build — flat **$199**, one matched design, one Stripe checkout.
+- Enhancement — per-gap priced bundle (16 gaps, `ho_enhancement_gaps()` +
+  `ho_gap_prices()`), one total.
+- Review Concierge (`rep.php`) — **$99** catch-up + optional **$29/mo**.
+- Keep-It-Running care plan — **$29/mo**, 30-day trial, default-checked on
+  checkout. Reputation price + care terms centralized in
+  `ho_reputation_price_cents()` / `ho_care_plan($pkg)` (checkout + webhook both
+  read them — no drift).
+- $50 referral loop; inbound self-serve funnel (`start.php`); live lead
+  capture on every preview (`captured_leads`).
 
----
-
-## Core Functions in ho-model.php
-
-### Research
-- `ho_generate_research_prompt(array $businesses): string`
-  — Builds a GPT prompt capturing 69 fields per business in one pass.
-  New as of 2026-06-09 — eliminates the need for re-queuing.
-- `ho_import_research_json(PDO, string): array`
-  — Upserts research_records with all 69 fields; auto-runs tech check; calls `ho_auto_generate_preview()`.
-- `ho_generate_enrichment_prompt(array $businesses): string` / `ho_import_enrichment_json()`
-  — Fills in missing fields on previously-researched leads.
-
-### Gap Detection
-- `ho_enhancement_gaps(array $row): array`
-  — Returns sorted array of gap keys for a business that has a decent website.
-  **16 gap types:** `tech_issues`, `contact_form`, `online_booking`, `site_outdated`,
-  `paid_leads`, `google_business`, `gbp_incomplete`, `gbp_photos`, `stale_reviews`,
-  `no_before_after`, `no_gallery`, `no_testimonials`, `dead_facebook`, `freemail`,
-  `no_trust_signals`, `yelp_unclaimed`.
-  Priority: `tech_issues` is #1 when both mobile AND SSL are broken; otherwise position 2.
-
-### Routing
-- `ho_auto_generate_preview(PDO, int $bizId): bool` — Routes a just-researched business.
-- `ho_route_to_enhancement(PDO, int $bizId, array $row): bool`
-  — Upserts an enhancement preview; sets `enhancement_ready` or `needs_contact`.
-- `ho_is_lead_platform_url(string $url): bool`
-  — Blocks Angi, Thumbtack, Yelp, HomeAdvisor, Houzz, Bark, Porch, Networx, HomeGuide URLs
-  from being stored as contactable website URLs.
-
-### Send Queues
-- `ho_get_preview_ready(PDO): array` — Site-build leads ready to pitch.
-- `ho_get_enhancement_ready(PDO): array` — Enhancement leads ready to pitch.
-- `ho_count_no_contact_ready(PDO): int` / `ho_requeue_no_contact_leads(PDO): int`
-  — Detect and re-queue stuck no-contact preview_ready leads.
-
-### Email / Outreach
-- `ho_pitch_message(array $biz, string $previewUrl): array` — Site-build outreach copy (`['subject','body']`). Single source of truth.
-- `ho_pitch_message_enhancement(array $biz, string $previewUrl): array` — Enhancement outreach copy.
-- `ho_pitch_mailto()` / `ho_pitch_mailto_enhancement()` — thin wrappers that encode the message into a `mailto:` link.
-- `ho_quote_inline(string $raw): string` — cleans a verbatim review quote for inline use (whitespace, wrap-quote strip, word-boundary cap).
-- Both message builders mirror go.php's personalization: lead with a real
-  review quote → competitor scoreboard numbers → gap/strength hooks; both
-  weave a conservative `ho_stakes_estimate()` dollar line. Send-queue cards
-  expose a **Copy message** button (`copyMessage()` JS, card-scoped
-  `.cp-msg-src` textarea) so the same copy can be pasted into a lead's own
-  contact form — email and pasted message are byte-identical.
-- The two send-queue SELECTs (`ho_get_preview_ready`, `ho_get_enhancement_ready`)
-  pull `review_quote_1/_author` + `competitor_google_rating/_review_count`,
-  with a try/catch fallback so the Send tab survives a pending quote migration.
-- **Subject lines are hook-matched** (2026-06-10): each hook branch in both
-  message builders sets its own subject (quote author's name, competitor name,
-  review count, top gap…) so the inbox line and the email's first sentence
-  tell one story. `"A quick note for {name}"` survives only as the
-  no-signal fallback.
-
-### Utilities
-- `ho_is_freemail(string $email): bool` — Detects Gmail/Yahoo/Hotmail/etc. + pattern catch.
-- `ho_pipeline_counts(PDO): array` — Badge counts for admin nav tabs.
+**Autopilot** (`cron.php`, toggles `ap_*`): digest, drip, hotstrike, verify
+(truth gate), autopitch, research, repdraft, source. Every send passes
+`ho_autopilot_gate()` (master on, postal address set, 8am–6pm window, daily
+cap, email_log present).
 
 ---
 
-## go.php Key Variables
+## Key Conventions (post-consolidation)
 
-```php
-$isEnhancement  // true when preview_type='enhancement'
-$ownerFirst     // owner first name from businesses.owner_first_name
-$hi             // $ownerFirst if set, else $name (business name)
-$services       // array from services_display or typical_services
-$servicesList   // HTML <li> items for modules section
-$subhead        // from previews.subheadline — used as design picker h2
-$ratingNote     // contextualised review tier: exceptional/above average/room to grow
-```
-
-Enhancement track renders:
-- WHY I REACHED OUT card (uses signal variables: `$notMobile`, `$noSsl`, `$hasAngi`, `$hasThumbtak`, `$bookingMethod`, `$gbpPhotos`, `$reviewAgeMonths`)
-- Opportunity cards from `ho_enhancement_gaps()` — currently 4 cards max
-- Direct-contact CTA (mailto + phone, no Stripe)
-
-Site-build track renders:
-- Phone-frame design picker
-- Domain chooser
-- Package/price configurator
-- Stripe checkout form
+- **Gap labels live in `ho-model.php`:** `ho_gap_label()` = sellable product
+  name; `ho_gap_label_short()` = cockpit badge shorthand; `ho_gap_keys_ordered()`
+  = canonical key order. go.php `$fixDefs` keeps long sales copy inline (it
+  interpolates page vars) — keep it bound to `ho_gap_keys_ordered()`.
+- **Message builders share `ho_msg_base($biz)`** for the common signal reads
+  (name/city/category, review+rating numbers, competitor parsing, default-length
+  quote, the verified-vs-floored "40+" count). The seven builders'
+  **hook ladders are intentionally NOT merged** — they diverge in branches,
+  thresholds, `noSite` definition, quote length, and channel-specific copy.
+  Don't collapse them into one selector; it regresses live outreach.
+- **LLM calls go through `ho_llm_call()` + `ho_llm_extract_json()`** in
+  ho-model.php (web_search messages API). llm-research.php uses them too.
+- **Public-page chrome** is `ho_fd_nav()` / `ho_fd_footer()` in `fd-chrome.php`.
+- `ho_is_lead_platform_url()` blocks Angi/Thumbtack/Yelp/etc. as contact paths.
 
 ---
 
-## research_records Columns (as of 2026-06-09 schema migration)
+## Schema State (migrations applied via phpMyAdmin)
 
-**Must run in phpMyAdmin before new research imports work:**
-
-```sql
-ALTER TABLE research_records
-  ADD COLUMN has_contact_form TINYINT(1) NULL AFTER has_ssl,
-  ADD COLUMN has_online_booking TINYINT(1) NULL,
-  ADD COLUMN has_photo_gallery TINYINT(1) NULL,
-  ADD COLUMN has_about_page TINYINT(1) NULL,
-  ADD COLUMN has_faq_page TINYINT(1) NULL,
-  ADD COLUMN has_pricing_page TINYINT(1) NULL,
-  ADD COLUMN has_video_on_site TINYINT(1) NULL,
-  ADD COLUMN has_online_payment TINYINT(1) NULL,
-  ADD COLUMN site_appears_outdated TINYINT(1) NULL,
-  ADD COLUMN has_blog TINYINT(1) NULL,
-  ADD COLUMN has_testimonials_section TINYINT(1) NULL,
-  ADD COLUMN has_live_chat TINYINT(1) NULL,
-  ADD COLUMN facebook_page_type VARCHAR(20) NULL,
-  ADD COLUMN facebook_last_post_months INT NULL,
-  ADD COLUMN facebook_follower_band VARCHAR(20) NULL,
-  ADD COLUMN facebook_has_cta_button TINYINT(1) NULL,
-  ADD COLUMN instagram_is_business TINYINT(1) NULL,
-  ADD COLUMN instagram_follower_band VARCHAR(20) NULL,
-  ADD COLUMN instagram_last_post_months INT NULL,
-  ADD COLUMN has_gbp_posts TINYINT(1) NULL,
-  ADD COLUMN gbp_services_listed TINYINT(1) NULL,
-  ADD COLUMN gbp_hours_listed TINYINT(1) NULL,
-  ADD COLUMN has_yelp TINYINT(1) NULL,
-  ADD COLUMN yelp_claimed TINYINT(1) NULL,
-  ADD COLUMN yelp_review_count SMALLINT NULL,
-  ADD COLUMN yelp_rating DECIMAL(3,1) NULL,
-  ADD COLUMN has_youtube TINYINT(1) NULL,
-  ADD COLUMN has_nextdoor_listing TINYINT(1) NULL,
-  ADD COLUMN has_bbb_listing TINYINT(1) NULL,
-  ADD COLUMN logo_quality VARCHAR(20) NULL,
-  ADD COLUMN has_before_after_photos TINYINT(1) NULL,
-  ADD COLUMN has_professional_email TINYINT(1) NULL,
-  ADD COLUMN is_licensed_insured_visible TINYINT(1) NULL,
-  ADD COLUMN has_service_guarantee TINYINT(1) NULL,
-  ADD COLUMN target_customer_type VARCHAR(20) NULL DEFAULT 'unknown',
-  ADD COLUMN competitor_google_rating DECIMAL(3,1) NULL,
-  ADD COLUMN competitor_review_count SMALLINT NULL;
-```
+The code degrades gracefully (try/catch + comments) before each migration runs.
+Columns/tables the live system expects: `businesses.triaged`,
+`businesses.website_verified`; `research_records` 37-field expansion +
+`review_quote_1/2(_author/_date)` + `verified_at` + `verification_json`;
+`outreach_log.touch_number`; tables `preview_visits`, `email_log`,
+`captured_leads`, `review_replies`, `gap_prices`, `app_settings`. The exact
+ALTER/CREATE statements are in this file's pre-Frankenstein git history if a
+fresh environment needs them.
 
 ---
 
-## ⚠️ REQUIRED MIGRATION — research_records 37 columns
+## Deliberately Deferred / Not Done (don't "fix" without reason)
 
-✅ CONFIRMED RUN 2026-06-10 — all 37 columns verified present via INFORMATION_SCHEMA.
-
----
-
-## ⚠️ REQUIRED MIGRATION — review_quote columns (2026-06-10)
-
-The trust/emotion upgrade adds 6 quote columns. Research and enrichment imports
-will error on quote data until this runs. `ho_get_preview_by_slug()` has a
-fallback so go.php stays up either way — but quotes won't render until the
-ALTER runs and leads are re-enriched.
-
-```sql
-ALTER TABLE research_records
-  ADD COLUMN review_quote_1        VARCHAR(400) NULL AFTER last_review_date,
-  ADD COLUMN review_quote_1_author VARCHAR(60)  NULL AFTER review_quote_1,
-  ADD COLUMN review_quote_1_date   VARCHAR(10)  NULL AFTER review_quote_1_author,
-  ADD COLUMN review_quote_2        VARCHAR(400) NULL AFTER review_quote_1_date,
-  ADD COLUMN review_quote_2_author VARCHAR(60)  NULL AFTER review_quote_2,
-  ADD COLUMN review_quote_2_date   VARCHAR(10)  NULL AFTER review_quote_2_author;
-```
-
----
-
-## ⚠️ REQUIRED MIGRATION — data-quality reset (2026-06-10)
-
-Two columns + one optional reset statement. The code degrades gracefully
-before the ALTERs run (review queues just stay empty, research queue keeps
-old behavior).
-
-```sql
--- 1. Domain review queue (Keep/Clear UI in Research tab)
-ALTER TABLE businesses
-ADD COLUMN website_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER website_url;
-
--- 2. Triage gate — sourced leads wait for human confirmation before research
-ALTER TABLE businesses
-ADD COLUMN triaged TINYINT(1) NOT NULL DEFAULT 0 AFTER pipeline_status;
-
--- 3. OPTIONAL data reset — archives all unpitched leads (reversible).
---    Keeps pitched/converted history + blocklist. Run only when ready to
---    re-source through the new evidence-gated sourcing prompt.
-UPDATE businesses
-SET pipeline_status='excluded', exclusion_reason='pre_reset', updated_at=NOW()
-WHERE pipeline_status IN ('identified','researched','needs_contact','preview_ready','enhancement_ready');
-```
-
-To undo the reset for a specific lead: set its `pipeline_status` back and
-clear `exclusion_reason`.
-
-**⚠️ Migration trap:** adding the `triaged` column (default 0) makes every
-EXISTING `identified` lead untriaged — they leave the research queue and
-flood the triage list. That's intentional if the reset (statement 3) runs
-too. If keeping the old leads instead, backfill right after the ALTER:
-
-```sql
--- Escape hatch: trust all pre-existing identified leads
-UPDATE businesses SET triaged = 1 WHERE pipeline_status = 'identified';
-```
-
-## GPT auto-import (2026-06-10)
-
-The copy/paste return trip choked on big JSON replies. Three return paths
-now exist, best first:
-
-1. **Action POST (zero-touch)** — `gpt-import.php`: key-authed endpoint
-   (X-Api-Key / Bearer / ?key= vs `app_settings.gpt_import_key`, hash_equals).
-   Detects payload by top-level key (research_results / contacts /
-   enrichment_results / candidates) and calls the matching importer.
-   Sourcing requires top-level `run_id` — now embedded in the sourcing
-   prompt (`ho_generate_sourcing_prompt(..., int $runId = 0)`).
-   Setup UI lives in Research tab → "⚙ Auto-import setup": SQL, key
-   generator (`save_setting` action), GPT instructions + OpenAPI schema to
-   paste into a Custom GPT. Saved `gpt_actions_url` redirects every
-   "Ask ChatGPT" deep link to that GPT.
-2. **File upload** — "Import a results.json file" button reads the file
-   client-side (FileReader → `hoIngest()`, shared with paste) — no giant
-   clipboard. Prompts now tell GPT to also save results.json when long.
-3. **Paste** — unchanged fallback (`hoPaste` → `hoIngest`).
-
-Migration: `CREATE TABLE IF NOT EXISTS app_settings (setting_key VARCHAR(60)
-PRIMARY KEY, setting_value TEXT);`
-Helpers: `ho_get_setting()` / `ho_set_setting()` (graceful pre-migration).
-
-## ⚠️ GPT workflow reset (2026-06-11) — SUPERSEDES the multi-step flow above
-
-The Research tab used to run THREE prompts back-to-back (Research → Contact →
-Enrich) through one auto-advancing box, plus an optional Custom GPT webhook.
-That drift (different delivery instructions per prompt, hidden sequencing,
-silent failures, webhook-vs-paste ambiguity) made imports unreliable. Reset to
-**one prompt, one paste, manual only:**
-
-- **One merged research prompt.** `ho_generate_research_prompt()` now also
-  captures contact info (`email`, `phone`, `website_url`, `website_confidence`)
-  and already covered competitor + quote (ex-enrichment) fields — so a single
-  pass fully qualifies a lead. `ho_import_research_json()` writes found contact
-  into `businesses` (fill-empty only; rejects low-confidence + lead-platform
-  URLs via `ho_is_lead_platform_url()`) before routing, so the needs_contact
-  gate works without a separate step.
-- **Unified research queue.** app.php builds `$researchBatch` =
-  `$unresearched` + folded-in `needsContactBatch` (cap 19). The Research tab
-  renders exactly one `$hoPrompts` entry. Contact/Enrich steps removed from UI.
-- **Standardized delivery footer.** `ho_prompt_delivery_footer()` is the single
-  source of truth for both sourcing + research prompts: "reply is raw JSON
-  only, no summary sentence, no fences." Killed the old "save results.json +
-  one-line summary" instruction that broke auto-paste.
-- **Manual paste/file only.** Custom GPT "Auto-import setup" panel removed;
-  `cp_gpt_row()` and the research deep link always use standard
-  `chatgpt.com/?q=`. `gpt-import.php`, `llm-research.php`, and the
-  contact/enrichment importer functions remain in place (dead-but-harmless,
-  still callable) — no DB changes needed.
-
-## Data-quality gates (2026-06-10)
-
-Bad leads were entering at sourcing and wasting research cycles. Three gates
-now exist, in pipeline order:
-
-1. **Sourcing prompt** (`ho_generate_sourcing_prompt`) demands evidence:
-   verifiable Google Maps/FB/website presence, at least one contact path,
-   `found_via` + `confidence` per candidate, "return fewer rather than guess".
-2. **Import gate** (`ho_import_sourcing_json`) rejects: low confidence,
-   zero contact paths, lead-platform URLs as website_url.
-3. **Triage queue** (Research tab, `ho_get_triage_batch`) — promoted leads sit
-   at `identified`/`triaged=0` until a human taps Real ✓ (triaged=1) or
-   Reject ✗ (`excluded`/`failed_triage`). `ho_triage_clause()` keeps
-   untriaged leads out of `ho_get_unresearched_businesses` and the category
-   counts. Plus: **domain review queue** (`ho_get_website_review_batch`) for
-   `website_url` with `website_verified=0`; contact prompt now returns
-   `website_confidence` (high=verified, medium=review queue, low=discarded).
-
-## go.php Trust/Emotion Layer (2026-06-10)
-
-Five blocks added to go.php (both tracks unless noted), all data-gated —
-silently absent when data is missing:
-
-1. **"In their own words" pull-quote** — `review_quote_1/2` rendered as
-   blockquotes between WHY and the track fork. Gate: quote text non-empty.
-2. **Competitor scoreboard** (`.fd-score`) — You vs `{competitor_name}` stars +
-   review counts, inside WHY after the rating badge. Gate includes
-   `googleRating >= compRating` — NEVER renders a board the lead is losing.
-3. **Stakes block** (`.fd-stakes`) — `ho_stakes_estimate($catSlug)` →
-   conservative "$X/year walking past you" before each track's money moment.
-   `ho_category_avg_ticket()` map in ho-model.php; unknown slug → block absent.
-   Annual floored to nearest $100; 1 job/mo claimed for tickets ≥ $400.
-4. **Adam photo** — upload square `assets/img/adam.jpg` and it auto-replaces
-   the "AF" avatar in WHO BUILT THIS (is_file gate, no code change needed).
-5. **P.S. line** (`.fd-trust-ps`) — handwritten-style closer on the trust card;
-   fact priority: quote author → years → review count → competitor. Also:
-   Yelp cross-platform rating line (only when both ≥ 4.0) and professional-logo
-   strength prepended to "Working in your favour".
-
-## Three Game-Changer Features (2026-06-11)
-
-### Feature 1: Lead Heat Tracking
-
-Every go.php page visit is logged. Hot leads surface with 🔥 badges in the Send tab.
-
-**SQL migration (run in phpMyAdmin):**
-```sql
-CREATE TABLE IF NOT EXISTS preview_visits (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  preview_id INT NOT NULL,
-  business_id INT NOT NULL,
-  visited_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  ip_hash CHAR(64) NOT NULL DEFAULT '',
-  INDEX idx_pv_business (business_id),
-  INDEX idx_pv_visited (visited_at)
-) ENGINE=InnoDB;
-```
-
-**Functions (ho-model.php):**
-- `ho_log_preview_visit(PDO, previewId, bizId)` — inserts into preview_visits (silently skips if table missing)
-- `ho_visit_stats_for_businesses(PDO, bizIds[])` — returns `[bizId => ['total', 'recent' (48h), 'last_at', 'is_hot']]`
-
-**go.php:** logs every visit after `ho_get_preview_by_slug()` succeeds.
-
-**app.php Send tab:** 🔥 HOT badge on hot cards, "X hot leads" strip at top, heat counts on badges.
-`is_hot` = visited within 48h OR 2+ total visits.
-
----
-
-### Feature 2: Follow-up Engine
-
-Multi-touch sequence: touch 1 (existing), touch 2 (+3d), touch 3 (+10d), touch 4 breakup (+21d).
-Pre-written copy shown inline with copy + mailto buttons in the follow-up queue.
-
-**SQL migration:**
-```sql
-ALTER TABLE outreach_log ADD COLUMN touch_number TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER outcome;
-```
-
-**Functions (ho-model.php):**
-- `ho_followup_message(biz, previewUrl, touch, visitStats)` — returns `['subject', 'body']` for touches 2–4.
-  Personalizes based on visit data (🔥 HOT = different opener). Touch 4 is the breakup email.
-- `ho_get_followup_due_full(PDO)` — like `ho_get_followup_due()` but includes `touch_number`,
-  `email_address`, `phone_number`, `owner_first_name`, `sent_via`, `category_slug`.
-  Gracefully falls back if `touch_number` column not yet migrated.
-- `ho_record_followup_sent(PDO, logId, bizId, sentVia, sentTo, touch)` — closes current log row
-  as `no_response`, creates next touch row with correct `follow_up_at` (touch→2: +3d, →3: +7d, →4: +11d).
-
-**app.php:** New `record_followup_sent` POST action. Follow-up cards show:
-- Pre-written touch N+1 message (expandable) with Subject + body + email link + copy button
-- "✓ Sent touch N+1" button (calls `record_followup_sent`)
-- Interested / Not Interested buttons (unchanged)
-- Heat badge + visit count inline
-
----
-
-### Feature 3: Zero-Touch Research (Claude API)
-
-Replaces ChatGPT copy/paste for research. A single button in the Research tab researches
-all queued leads one-by-one via the Anthropic API with web search.
-
-**Config file (outside public_html — NEVER commit):**
-```
-/home1/spofnkte/llm-config.php
-  define('LLM_API_KEY', 'sk-ant-...');
-  define('LLM_MODEL', 'claude-sonnet-4-6');  // optional, defaults to claude-sonnet-4-6
-```
-
-**New file: `llm-research.php`** — POST endpoint
-- Auth: same `gpt_import_key` as `gpt-import.php` (X-Api-Key header)
-- Body: `{ "business_id": N }`
-- Builds research prompt via `ho_generate_research_prompt([$biz])`, strips ChatGPT DELIVERY section,
-  calls Anthropic Messages API with `web_search_20250305` tool.
-- Extracts JSON from response, pipes through `ho_import_research_json()`.
-- Returns `{ "ok": true, "updated": N, "message": "..." }`.
-
-**app.php Research tab:** "Research with Claude" section appears when:
-- `/home1/spofnkte/llm-config.php` exists AND `gpt_import_key` is configured.
-- Shows button + stop button + progress bar + status line.
-- JS `startLlmResearch()` / `llmNext()` self-chains: fetches next biz_id, POSTs to
-  llm-research.php, waits 800ms, repeats. On error, logs and continues.
-
----
-
-## DONE (2026-06-09 → continued session)
-
-### ✅ 1. Per-gap computed pricing — SHIPPED
-- `ho_gap_label()` — static label fallback for all 16 gaps
-- `ho_gap_prices(PDO)` — reads `gap_prices` table, hardcoded fallback for all 16, request-cached
-- `ho_build_package_items(PDO, gaps)` — priced bundle builder
-- `ho_route_to_enhancement()` stores `package_items` JSON on the preview at routing time
-- go.php enhancement page: each fix card shows its price + a flat one-time bundle total + total-led CTA
-- app.php send queue: bundle total shown per card
-
-### ✅ 2. All 16 gap types render & price — SHIPPED
-- go.php `$fixDefs` now has personalized copy for all 16 gaps (was 6)
-- app.php `$gapLabels` covers all 16
-- The 10 newer gaps fire automatically once their research_records columns exist + have data
-
-### ✅ 3. One-offer-per-lead — SHIPPED
-- Enhancement: single line-item bundle + total, direct-contact CTA (no Stripe)
-- Site-build: single $199 flat offer, single category-matched design (design PICKER removed —
-  lead sees one look, pre-chosen), domain field kept (functional, not a package choice),
-  single Stripe checkout carrying `template_key`
-
----
-
-## Pending Tasks (priority order)
-
-### 1. Re-route stuck decent-site leads
-Businesses at `preview_ready` or `excluded/has_good_website` with `has_website=1, website_quality='decent'`
-need a batch re-route button in app.php Research tab that calls `ho_route_to_enhancement()` on each.
-
-### 2. Admin price editor UI
-`gap_prices` is DB-backed and editable via SQL, but there's no in-app editor yet.
-Add a small table editor in app.php so Adam can change gap prices without phpMyAdmin.
-
-### 3. Verify the 10 newer gaps fire on real data
-Once the research_records ALTER is run and a few leads are re-researched with the 69-field
-prompt, confirm gaps like `no_before_after`, `dead_facebook`, `freemail` actually populate
-and show on go.php with correct prices.
-
----
-
-## CSS Notes (front-door.css)
-
-- `.fd-pc-row` grid: `grid-template-columns: 130px 58px 1fr; gap: 8px` — fixed widths for price table alignment
-- Enhancement track left border: `cp-send-card-enhance` class (amber left border)
-- iOS phone number auto-detection: never put phone numbers in inline text — iOS overrides all CSS styling
+- **Message-builder hook ladders not merged** (see Key Conventions).
+- **app.php Send tab still has 4 card-rendering loops** — money.php has the
+  clean unified version. Left separate: the loops encode genuinely different
+  card types and the cockpit JS binds to their DOM/`data-*`. Merge only with a
+  runtime check available.
+- **front-door.css not yet flattened** — 8 layered version sections, ~50
+  redefined selectors. Flattening is the last open Frankenstein step; it's the
+  one change with no automated verification, so it wants a human eyeball on
+  `/go/{slug}`, `/rep.php`, `/start.php` after.
+- **Contact/enrichment importer functions kept** — still wired into app.php.
 
 ---
 
 ## Known Gotchas
 
-- `'good'` website_quality is dead code — import validator only accepts `['none','poor','basic','decent']`
-- `ho_is_freemail()` covers 25+ explicit domains + pattern regex for Yahoo/Hotmail/Live variants
-- The enrichment prompt is a supplement to the main research prompt — for leads that were researched
-  before the new 69-field prompt was added, use enrichment to backfill missing fields
-- `ho_count_no_contact_ready()` / amber banner in Send tab: shows when preview_ready leads have
-  no contactable info — a re-queue button sends them back to needs_contact
-- Platform URLs (Angi/Thumbtack/etc.) are filtered at every contact path decision via
-  `ho_is_lead_platform_url()` — do not use these as website_url or outreach paths
-
-## 🤖 AUTOPILOT (2026-06-11) — server-side outreach engine
-
-Adam does no phone work. The machine now handles outreach end-to-end; his only
-jobs are triage taps and answering replies.
-
-**New file `cron.php`** — heartbeat, every 15 min via cPanel cron:
-`/usr/bin/curl -s "https://hoosieronline.com/cron.php?key=IMPORT_KEY" >/dev/null 2>&1`
-Auth = `gpt_import_key` (same as gpt-import.php) or CLI. Loads
-`/home1/spofnkte/llm-config.php` when present (enables research/source tasks).
-
-**Tasks (each toggled via `ap_*` settings, run in this order):**
-| Task | Function | What it does |
-|---|---|---|
-| digest | `ho_send_daily_digest()` | One morning email to Adam: hot leads, counts, yesterday's sends. Once/day after 7am. |
-| drip | `ho_run_followup_drip()` | Sends touches 2–4 by email when due, records via `ho_record_followup_sent()`. |
-| hotstrike | `ho_run_hot_strikes()` | "Saw you took a look" email to pitched leads visited <6h ago. Max 1/lead/7d, never <24h after any other email. |
-| autopitch | `ho_run_auto_pitch()` | First-touch pitch to preview_ready/enhancement_ready leads with email. `ap_pitch_per_run` (default 3) per run. |
-| research | `ho_run_auto_research()` | Claude API + web search researches queue, 1/run, `ap_research_daily_cap` (default 25)/day. |
-| source | `ho_run_auto_source()` | One sourcing run/day: rotates `ap_source_areas` cities, picks least-covered category, imports through the evidence gate → triage queue. |
-
-**Safety:** every outreach email passes `ho_autopilot_gate()`: master on, postal
-address set (CAN-SPAM footer is appended by `ho_send_email()` and sending hard-fails
-without it), 8am–6pm America/Indiana/Indianapolis window, daily cap
-(`ap_daily_cap`, default 30) counted from `email_log`. Missing email_log table
-blocks all automated sends. `ho_send_email()` sends via PHP `mail()` with
-From/Reply-To = `ap_from_email` (default adam@hoosieronline.com) and `-f`
-envelope sender; logs every send to email_log.
-
-**Settings keys (app_settings):** `ap_master`, `ap_drip`, `ap_hotstrike`,
-`ap_autopitch`, `ap_research`, `ap_source`, `ap_digest`, `ap_daily_cap`,
-`ap_postal`, `ap_from_email`, `ap_digest_email`, `ap_site_base`,
-`ap_source_areas`, `ap_pitch_per_run`, `ap_research_daily_cap`,
-`ap_last_run`, `ap_last_log`, `ap_last_source_date`, `ap_last_digest_date`,
-`ap_research_counter`.
-
-**UI:** Autopilot panel at top of Send tab (`save_autopilot` POST action) —
-master + per-feature toggles, cap/postal/from/digest/site-base/areas fields,
-migration SQL (shown until email_log exists), exact cron command with key filled in.
-
-**⚠ REQUIRED MIGRATION (phpMyAdmin) before autopilot can send:**
-```sql
-CREATE TABLE IF NOT EXISTS email_log (
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  business_id INT NOT NULL DEFAULT 0,
-  kind VARCHAR(20) NOT NULL DEFAULT 'pitch',
-  touch TINYINT UNSIGNED NOT NULL DEFAULT 1,
-  sent_to VARCHAR(190) NOT NULL DEFAULT '',
-  subject VARCHAR(255) NOT NULL DEFAULT '',
-  ok TINYINT(1) NOT NULL DEFAULT 1,
-  sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_el_biz (business_id),
-  INDEX idx_el_sent (sent_at)
-) ENGINE=InnoDB;
-```
-One-time cPanel steps (Adam, web UI only): add the cron job above; verify
-SPF + DKIM "valid" under Email Deliverability.
-
-**Shared LLM helpers:** `ho_llm_call(prompt, system, maxTokens)` (Anthropic
-Messages API + web_search tool) and `ho_llm_extract_json()` — used by
-auto-research/auto-source; llm-research.php still has its own inline copy.
-
-**Bug fix:** `ho_record_followup_sent()` previously stamped the new outreach_log
-row with the NEXT touch number, making the manual queue skip a touch (2→4).
-Now stamps the touch just sent; gap days keyed by upcoming touch (2:+3d, 3:+7d, 4:+11d).
-
-**Risk reversal (2026-06-11):** full-refund guarantee added to both pitch email
-closings, and `.fd-guarantee` line on both enhancement checkout CTAs (site-build
-offer already had the 30-day `.fd-guarantee-box`).
-
-## Three industry-changing features (2026-06-11, shipped earlier same day)
-
-1. **SMS pitch** — `ho_sms_message()` (hook-matched, ≤2 SMS segments); 📱 Text
-   block on every send card with a phone: preview + `copySms()` + sms: link.
-2. **ROI calculator** — `.fd-roi-calc` in both go.php stakes sections; input
-   pre-filled from `ho_stakes_estimate()`; `roiUpdate()` JS live-computes
-   "pays for itself in N weeks" / "one job covers it".
-3. **Before/After audit card** — `.fd-audit` section between quotes and track
-   fork; site-build = 5 standard rows from real signals; enhancement = up to 5
-   rows from `ho_enhancement_gaps()` with per-gap before/after copy (all 16 defined).
-
-## 💵 THE MONEY FLOOR (2026-06-11) — money.php, the daily execution UI
-
-app.php is now the back office; **money.php** is the screen Adam lives in.
-Dark command-center theme (`assets/css/money.css`), one feed of "moves"
-sorted by expected dollars, each card = one decision with the message
-prewritten and ONE primary tap. Fetch-first POST handlers (JSON, no
-redirects) reuse model functions: mark_sent, record_followup, log_strike
-(manual hot-strike → email_log for the 7-day suppressor), triage_keep/reject,
-mark_outcome.
-
-**Move priority:** close (interested leads, 900) → hot (pitched + visited
-<48h, 800+recency, suppressed if struck <7d) → followup (due touches,
-500+overdue) → pitch (fresh ready leads, fit/bundle-weighted, top 12 shown)
-→ triage (single rapid-fire card, leads embedded as JSON, Real ✓/Reject ✗
-advance client-side).
-
-**Scoreboard:** pipeline $ (199×buildReady + Σbundles), sent today
-(outreach_log+email_log), hot count, in-play count, daily-goal progress bar
-(10 moves = "Daily print complete"). Cards slide out on action; `.mf-first`
-glow marks the top card. Channel fallback per card: email mailto → website
-form (copy+open) → FB (copy+open) → SMS (copy + sms:). Gold "💵 The Floor"
-chip in the cockpit topbar links over; "cockpit →" links back.
-
-## 📈 EXPONENT CHANGERS (2026-06-11) — revenue model restructure
-
-1. **Keep-It-Running care plan — recurring revenue.** All three go.php checkout
-   forms have a default-checked, clearly-OPTIONAL `.fd-care-opt` checkbox:
-   $29/mo, 30-day free trial, cancel anytime. checkout.php (`care=1` POST)
-   switches the Stripe session to `mode=subscription` +
-   `subscription_data[trial_period_days]=30` + inline recurring price_data
-   line item — no Stripe dashboard setup needed. One-time build items ride
-   along in the same session. webhook.php admin email shows "Care plan: YES/no"
-   (metadata[care]). Enhancement copy reworded ("One-time price for the work")
-   so the page stays honest next to the optional monthly plan.
-2. **Slot-hold urgency.** go.php computes `$slotHeldUntil` = MIN(outreach_log
-   .sent_at)+10d; when in the future, `.fd-slot-note` renders on all offer
-   sections: "I take one {cat} build in {city} at a time — held until {date}."
-   Data-gated: absent for un-pitched previews.
-3. **Referral loop ($50/referral).** Three placements: paid banner on go.php
-   (`.fd-referral-note`), webhook.php customer confirmation email P.S., and
-   the touch-4 breakup email P.S. (dead leads become scouts).
-
-## 🚀 INBOUND ROCKET (2026-06-11) — start.php, public self-serve funnel
-
-The funnel inverted: any Indiana business can build its OWN preview at
-**/start.php** (free, no signup). Form (name/town/trade/email) → creates the
-business row (`triaged=1`, self-identified, source 'inbound' implicit) →
-fires llm-research.php **async** (1.5s curl timeout; endpoint now has
-`ignore_user_abort(true)`) → renders a staged "building your page" screen
-(progress bar + rotating stage messages) that polls `start.php?status=1&biz=
-{id}&t={hmac token}` until the preview is ready → redirects to /go/{slug},
-which has Stripe on it. ~60-90s end to end, zero Adam.
-
-**Graceful degradation:** no llm-config / no import key / `inb_daily_cap`
-(default 25) hit / bot trap tripped → lead still captured, "queued" screen
-shown; autopilot research+autopitch finishes the job by email. Duplicate
-name+town with a ready preview → instant redirect to the existing page
-(logs a visit → heat). `excluded/has_good_website` → honest "you already
-look strong" end state.
-
-**Abuse guards:** honeypot field, <3s speed trap, daily counter
-(`inb_counter` via ho_bump_daily_counter), HMAC poll token keyed on
-gpt_import_key.
-
-**Channel attribution:** `?src=` (sanitized) increments `inb_src_{src}` in
-app_settings. Every go.php preview footer now carries the viral loop:
-"Watch your own page build itself free →" (src=preview).
-
-## ✉️ EMAIL REWRITE (2026-06-11) — "the page closes; the email only opens"
-
-Both pitch generators rewritten from ~200-word stacked-argument emails to
-~75-110-word one-observation emails. Structure: greeting → opener (one
-specific data observation) → bridge ("so I built it") → URL → low-pressure
-closer ("ignore this and I won't bother you") → sig → ONE universal P.S.
-("everything's on the page — no call, no quote"). Price, guarantee, ROI,
-stakes, seasonal, credibility all REMOVED from email bodies — go.php carries
-them. Hook-matched branching kept (quote > competitor-beat > comp-has-site >
-Angi/Thumbtack > review-count > opp-summary > stale-reviews > no-site >
-poor-site > years > strengths > generic). Subjects recast human-typed,
-lowercase-leaning ("you vs {comp}", "who handles {name}'s website?",
-"{n} reviews, no website", "is {name} still taking work?").
-Enhancement closer keeps the flat bundle price as a "look first" frame.
-Touch 3 follow-up trimmed to ONE angle (visit-aware > stakes number >
-referral objection), subject "one number, then I'll stop". Signature unified
-everywhere: name / company · New Castle, Indiana / phone (no email in sig —
-the reply-to is the email).
-
-## 🛡 TRUTH GATE (2026-06-11) — fact-check before anything is emailed
-
-The fear: hallucinated claims (fake quotes, wrong ratings, "no website" when
-one exists) reaching real owners. Three defense layers:
-
-1. **Adversarial AI verification** — `ho_verify_research(PDO, bizId)`: a
-   SECOND independent web-search pass fact-checks every claim the research
-   made. Corrections applied in place: wrong counts/ratings updated;
-   **quotes not confirmed VERBATIM are blanked** (quote_1 + quote_2 + dates);
-   wrong competitor blanked, unverifiable competitor numbers dropped;
-   "no website" wrong → has_website/quality/url fixed + lead RE-ROUTED via
-   ho_auto_generate_preview. Stamps `verified_at` + `verification_json`.
-   Cron task `verify` (toggle `ap_verify`, cap `ap_verify_daily_cap`=25,
-   2/run) drains ready-but-unverified leads BEFORE autopitch runs.
-   **Autopitch skips unverified leads while ap_verify=1.**
-2. **Copy hedging** — both pitch generators: unverified review counts ≥15
-   are floored to "40+" (subjects + bodies) so drift can never overshoot;
-   verified rows speak precisely. Queues SELECT `r.verified_at` (nested
-   try/catch pre-migration).
-3. **Human 15-second check** — send cards show ✓ fact-checked / ⚠ unverified
-   badge + claim-specific links: Reviews ↗ (their listing), Quote ↗
-   (exact-match Google search of first 8 words — review must appear verbatim),
-   Comp ↗. Money Floor why-line carries the same marker.
-
-**⚠ REQUIRED MIGRATION:**
-```sql
-ALTER TABLE research_records
-  ADD COLUMN verified_at DATETIME NULL,
-  ADD COLUMN verification_json TEXT NULL;
-```
-Pre-migration: fixes still apply but rows can't be stamped, so autopitch
-(with ap_verify on) sends nothing — fail-safe direction.
-
-## 💰 LIVE CAPTURE (2026-06-11) — deliver the result first, charge to keep it
-
-The economics inversion: preview pages are now WORKING sites. Every go.php
-page carries a real "Request a free quote from {name}" form (`#quote`,
-`.fd-capture`). A visitor inquiry is stored in `captured_leads` and
-**forwarded to the business owner instantly, free** (`ho_forward_captured_lead`,
-kind='capture' — exempt from the daily cap AND from the postal hard-fail) with
-the keep-the-site ask attached. Adam gets a 💰 CUSTOMER CAUGHT email the
-moment it happens. The sale rides loss aversion: refusing $199 now means
-giving back a channel that already delivered a paying customer.
-
-- `ho_capture_lead()` / `ho_captured_count()` / `ho_get_unforwarded_captures()`
-  / `ho_capture_delivery_message()` (SMS-able)
-- go.php POST `action=request_quote` (honeypot, name + phone-or-email
-  required); success state + "N customer inquiries have already come through
-  this page" social-proof line
-- Money Floor: 💰 CUSTOMER CAUGHT moves at priority 2000 (above everything);
-  `mark_forwarded` POST action stamps delivery
-- Site-build pitch P.S. is now the inversion itself: "the page isn't a
-  mockup — it's live; leads go to you free whether you ever pay me or not"
-- Daily digest leads with captures in the last 24h
-
-**⚠ REQUIRED MIGRATION:**
-```sql
-CREATE TABLE IF NOT EXISTS captured_leads (
-  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  business_id INT NOT NULL,
-  preview_id INT NOT NULL DEFAULT 0,
-  customer_name VARCHAR(120) NOT NULL DEFAULT '',
-  customer_phone VARCHAR(40) NOT NULL DEFAULT '',
-  customer_email VARCHAR(190) NOT NULL DEFAULT '',
-  job_description TEXT,
-  forwarded_at DATETIME NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_cl_biz (business_id)
-) ENGINE=InnoDB;
-```
-Pre-migration the form still renders and thanks the visitor (capture lost) —
-run the migration before sharing pages broadly.
-
-## ✍️ REVIEW CONCIERGE (2026-06-11) — second product line, full app
-
-Done-for-you Google review responses. The deliverable is FINISHED at research
-time; the rep page shows the work; loss-aversion closes. Targets ANY Indiana
-business with ignored reviews — including the excluded/has_good_website
-graveyard, which becomes inventory.
-
-**Offer:** $99 catch-up (every unanswered review replied — Adam posts via GBP
-manager invite, or hands over the copy-paste pack) + optional default-checked
-$29/mo Review Concierge (every new review answered <24h) — rides the existing
-`care=1` subscription checkout with a rep-specific line-item label.
-
-**New file `rep.php`** (`/rep.php?slug={business_slug}`): front-door styled.
-Worst review + drafted reply shown as the showpiece (2 shown, rest teased
-with count), stats strip (rating/reviews/unanswered), $99+concierge checkout
-via checkout.php `pkg=reputation`, guarantee, paid state with GBP-manager
-instructions + $50 referral, viral footer. Logs heat via
-ho_log_preview_visit(pdo, 0, bizId).
-
-**Pipeline (all in ho-model.php):**
-- `ho_rep_draft(PDO,bizId)` — Claude+web search reads REAL unanswered reviews
-  (verbatim-strict prompt: inventing > finding none = forbidden), drafts ≤75-word
-  owner replies (warm voice; 1-3★: acknowledge, no excuses, take it offline);
-  replaces the set in `review_replies`; refreshes rating/count.
-- `ho_rep_candidates()` — researched, ≥5 reviews, responds_to_reviews≠1,
-  contactable, not pitched/converted, no drafts yet (graveyard included).
-- `ho_run_rep_draft()` — cron task `repdraft` (toggle `ap_repdraft`, cap
-  `ap_repdraft_daily_cap`=20, 2/run).
-- `ho_get_reputation_ready()` — send queue w/ draft_count + worst review meta.
-- `ho_pitch_message_reputation()` — "{author}'s review of {name} is still
-  waiting" / "{n} reviews, zero replies"; same short-email rules.
-- `ho_generate_rep_sourcing_prompt()` — ANY business type, ≥10 reviews,
-  several unanswered; emits standard candidates JSON (business_name key).
-- Auto-source: setting `ap_source_mode` = site|rep|mix (mix alternates days);
-  rep runs use the `general-local` category when present.
-- Auto-pitch includes the rep queue (rep exempt from ap_verify gate — the
-  drafts ARE the verbatim public record, with strict-prompt + human Reviews ↗
-  check on cards).
-
-**checkout.php:** `pkg=reputation` → loads business directly (no previews row
-needed), $99 line item, rep success/cancel URLs, rep care label.
-**webhook.php:** falls back to business_slug lookup when no preview row; rep
-package label; rep-specific customer confirmation email (GBP manager flow).
-**app.php:** purple-accent rep cards in Send tab (badges: N replies drafted,
-worst ★ + author; Reviews ↗ pre-send check), `ap_repdraft` panel toggle.
-**money.php:** ✍️ REVIEWS IGNORED pitch moves ($99 + $29/mo value chip, prio
-boosted by draft count + 1-2★ worst review); pipeline $ includes rep queue ×99.
-
-**⚠ REQUIRED MIGRATIONS:**
-```sql
-CREATE TABLE IF NOT EXISTS review_replies (
-  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  business_id INT NOT NULL,
-  review_author VARCHAR(80) NOT NULL DEFAULT '',
-  review_rating TINYINT NOT NULL DEFAULT 5,
-  review_date VARCHAR(20) NOT NULL DEFAULT '',
-  review_text TEXT,
-  drafted_reply TEXT,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_rr_biz (business_id)
-) ENGINE=InnoDB;
-
--- Optional but recommended: catch-all category so rep sourcing can target
--- ANY business type (restaurants, dentists, salons...):
-INSERT INTO categories (name, slug, typical_services)
-VALUES ('General Local Business', 'general-local', '[]');
--- (If categories has more NOT NULL columns, add values accordingly.)
-```
-No schema change needed on previews/businesses — rep is keyed entirely on
-review_replies + business_slug.
+- `'good'` website_quality is dead; importer accepts `none/poor/basic/decent`.
+- iOS auto-detects phone numbers and overrides CSS — never style phone text inline.
+- `front-door.css` `.fd-pc-row` grid: `130px 58px 1fr; gap:8px` (price alignment).
+- Enhancement card left border = `cp-send-card-enhance`; rep = `cp-send-card-rep`.

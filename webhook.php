@@ -98,7 +98,9 @@ try {
 
 // ── 2. Domain check ───────────────────────────────────────────────────────────
 $pkgCatalog  = ho_package_catalog();
-$pkgLabel    = $pkg === 'reputation' ? 'Review Catch-Up ($99)' : ($pkgCatalog[$pkg]['label'] ?? $pkg);
+$pkgLabel    = $pkg === 'reputation'
+    ? 'Review Catch-Up ($' . (int)(ho_reputation_price_cents() / 100) . ')'
+    : ($pkgCatalog[$pkg]['label'] ?? $pkg);
 $amountFmt   = '$' . number_format($amountPaid / 100, 2);
 $domainLine  = '';
 $needsDomain = in_array($pkg, ['launch', 'managed'], true) || $ownDomain !== '';
@@ -123,10 +125,13 @@ if ($needsDomain) {
 
 // ── 3. Email Adam ─────────────────────────────────────────────────────────────
 $carePlan   = (string)($session['metadata']['care'] ?? '') === '1';
+$care       = ho_care_plan($pkg);
 $adminLines = [
     "Business:   {$bizName}",
     "Package:    {$pkgLabel} ({$amountFmt})",
-    $carePlan ? "Care plan:  YES — \$29/mo starts after 30-day trial" : "Care plan:  no",
+    $carePlan
+        ? "Care plan:  YES — \$" . (int)($care['monthly_cents'] / 100) . "/mo starts after {$care['trial_days']}-day trial"
+        : "Care plan:  no",
     $domainLine,
     "Slug:       {$slug}",
     "Session:    {$sessionId}",

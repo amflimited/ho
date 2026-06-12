@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
 require_once __DIR__ . '/ho-enhancement-packages.php';
+require_once __DIR__ . '/fd-chrome.php';
 
 $slug = trim((string)($_GET['slug'] ?? ''));
 $row  = null;
@@ -1564,16 +1565,11 @@ endif; ?>
   </section>
   <?php endif; ?>
 
-  <footer class="fd-footer">
-    <strong><a href="/">Hoosier Online</a></strong><br>
-    <?php if ($isEnhancement): ?>
-    Helping Indiana service businesses grow online.<br>
-    <?php else: ?>
-    Front doors for Indiana&rsquo;s hardest-working businesses.<br>
-    <?php endif; ?>
-    <span class="fd-footer-by">Built by Adam Ferree &middot; <a href="mailto:<?= ADAM_EMAIL ?>"><?= ADAM_EMAIL ?></a></span>
-    <span class="fd-footer-viral">Run a business yourself? <a href="/start.php?src=preview">Watch your own page build itself free &rarr;</a></span>
-  </footer>
+<?php ho_fd_footer([
+    'tagline'   => $isEnhancement ? 'Helping Indiana service businesses grow online.' : 'Front doors for Indiana&rsquo;s hardest-working businesses.',
+    'email'     => ADAM_EMAIL,
+    'viral_src' => 'preview',
+  ]); ?>
 
   <!-- ── STICKY BOTTOM CTA ──────────────────────────────────────────────── -->
   <?php if ($isEnhancement): ?>

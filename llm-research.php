@@ -90,71 +90,21 @@ $prompt = preg_replace(
     $prompt
 ) ?? $prompt;
 
-$model  = defined('LLM_MODEL') ? LLM_MODEL : 'claude-sonnet-4-6';
-$apiKey = LLM_API_KEY;
+@set_time_limit(180);
 
-@set_time_limit(120);
-
-$requestPayload = json_encode([
-    'model'      => $model,
-    'max_tokens' => 8000,
-    'system'     => 'You are a business research assistant. Use web search to find accurate, current data. Return ONLY the JSON object requested — no explanation, no markdown, no preamble.',
-    'tools'      => [['type' => 'web_search_20250305', 'name' => 'web_search']],
-    'messages'   => [['role' => 'user', 'content' => $prompt]],
-]);
-
-$ch = curl_init('https://api.anthropic.com/v1/messages');
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => $requestPayload,
-    CURLOPT_HTTPHEADER     => [
-        'Content-Type: application/json',
-        'x-api-key: ' . $apiKey,
-        'anthropic-version: 2023-06-01',
-        'anthropic-beta: web-search-2025-03-05',
-    ],
-    CURLOPT_TIMEOUT        => 90,
-    CURLOPT_CONNECTTIMEOUT => 15,
-]);
-$resp     = curl_exec($ch);
-$httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$curlErr  = curl_error($ch);
-curl_close($ch);
-
-if ($resp === false || $resp === '') {
-    lr_out(502, ['ok' => false, 'error' => 'cURL error: ' . $curlErr]);
+// Single source of truth for the Anthropic call lives in ho-model.php — the
+// web-search messages call + JSON extraction are shared with autopilot.
+$r = ho_llm_call(
+    $prompt,
+    'You are a business research assistant. Use web search to find accurate, current data. Return ONLY the JSON object requested — no explanation, no markdown, no preamble.'
+);
+if (!$r['ok']) {
+    lr_out(502, ['ok' => false, 'error' => $r['error']]);
 }
-if ($httpCode !== 200) {
-    $apiErr = json_decode((string)$resp, true);
-    lr_out(502, ['ok' => false, 'error' => 'Anthropic API error ' . $httpCode . ': ' . ($apiErr['error']['message'] ?? substr((string)$resp, 0, 200))]);
+$jsonStr = ho_llm_extract_json($r['text']);
+if ($jsonStr === null) {
+    lr_out(502, ['ok' => false, 'error' => 'No JSON found in response.', 'snippet' => substr($r['text'], 0, 300)]);
 }
-
-$apiResp = json_decode((string)$resp, true);
-if (!is_array($apiResp)) {
-    lr_out(502, ['ok' => false, 'error' => 'Anthropic API returned non-JSON.']);
-}
-
-// Extract all text blocks from the response (may be interleaved with tool_use blocks)
-$textParts = [];
-foreach ((array)($apiResp['content'] ?? []) as $block) {
-    if (($block['type'] ?? '') === 'text' && isset($block['text'])) {
-        $textParts[] = $block['text'];
-    }
-}
-$text = implode('', $textParts);
-
-if ($text === '') {
-    lr_out(502, ['ok' => false, 'error' => 'No text content in Anthropic response.']);
-}
-
-// Extract the JSON object from the response text
-$jsonStart = strpos($text, '{');
-$jsonEnd   = strrpos($text, '}');
-if ($jsonStart === false || $jsonEnd === false || $jsonEnd <= $jsonStart) {
-    lr_out(502, ['ok' => false, 'error' => 'No JSON found in response.', 'snippet' => substr($text, 0, 300)]);
-}
-$jsonStr = substr($text, $jsonStart, $jsonEnd - $jsonStart + 1);
 
 try {
     $result = ho_import_research_json($pdo, $jsonStr);
