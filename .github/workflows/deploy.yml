@@ -1,0 +1,31 @@
+name: Deploy v2 to HostGator
+
+on:
+  push:
+    branches: ["v2"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Deploy changed files
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: public_html/ho-v2/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            **/database.php
+            **/admin-secrets.php
+            **/stripe-config.php
+            **/porkbun-config.php
+            **/db.php
+            **/db-v1.php
