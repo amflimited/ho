@@ -722,3 +722,7 @@ html.fd-landed .fd-turn { animation:fd-land .7s cubic-bezier(.2,.8,.3,1) both; }
 .fd-slot-fire span { font-size:13px; color:rgba(122,40,0,.75); line-height:1.4; }
 @keyframes fd-fire-pulse { 0%,100% { box-shadow:0 0 0 3px rgba(192,74,0,.22); } 50% { box-shadow:0 0 0 7px rgba(192,74,0,.06); } }
 @media (prefers-reduced-motion: reduce) { .fd-slot-fire-dot { animation:none; } }
+/* Conjunction fact sentence in "why I reached out" */
+.fd-why-conjunction { font-size:15px; font-weight:700; color:var(--fd-ink); border-left:3px solid var(--fd-green); padding:8px 14px; background:rgba(47,94,54,.06); border-radius:0 10px 10px 0; margin:0 0 14px; line-height:1.45; }
+/* Seasonal note near hero (same skin as bottom note, tighter top margin) */
+.fd-seasonal-hero-note { margin-top:12px; margin-bottom:0; }

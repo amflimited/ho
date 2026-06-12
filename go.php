@@ -310,7 +310,17 @@ endif; ?>
                      . ($googleRating > 0 ? ' · ' . number_format($googleRating, 1) . '★' : '');
     }
     $bootLines[] = '→ Scanning the ' . ($city !== '' ? $city : 'Indiana') . ' market…';
-    if ($compName !== '') $bootLines[] = '→ Sizing up ' . $compName . '…';
+    if ($compName !== '') {
+        $bootLines[] = '→ Sizing up ' . $compName . '…';
+        if ($compReviews !== null && $compReviews > 0) {
+            $cbl = '→ ' . $compName . ': ' . $compReviews . ' review' . ($compReviews !== 1 ? 's' : '');
+            if ($compRating !== null && $compRating > 0) $cbl .= ', ' . number_format($compRating, 1) . '★';
+            $cbl .= ($googleRating > 0 && $compRating !== null && $googleRating >= $compRating)
+                ? ' — you\'re rated higher.'
+                : ' — measuring the gap.';
+            $bootLines[] = $cbl;
+        }
+    }
     $bootLines[] = $isEnhancement
         ? '→ Measuring what your current site is missing…'
         : '→ Choosing a design that fits ' . ($catName !== '' ? strtolower($catName) : 'your trade') . '…';
@@ -466,6 +476,9 @@ endif; ?>
     <?php if (!$isEnhancement): ?>
     <p class="fd-price-anchor">$199 one-time &middot; live in 48&nbsp;hours &middot; 30-day refund</p>
     <?php endif; ?>
+    <?php if ($seasonalNote !== '' && (str_contains($seasonalNote, 'right now') || str_contains($seasonalNote, 'next month'))): ?>
+    <div class="fd-seasonal-note fd-seasonal-hero-note"><span aria-hidden="true">📅</span> <?= ho_h($seasonalNote) ?></div>
+    <?php endif; ?>
     <div class="fd-trust-strip">
       <a href="tel:<?= ADAM_TEL ?>" class="fd-ts-item">📞 <?= ADAM_PHONE ?></a>
       <?php if (!$isEnhancement): ?>
@@ -506,7 +519,9 @@ endif; ?>
       ? (int)round((time() - $gsimResearchedTs) / 86400)
       : 99;
   $gsimEyebrow = $gsimDaysOld <= 14
-      ? 'What someone sees when they search for you right now'
+      ? ($gsimHasComp && $compName !== ''
+          ? 'What ' . $compName . ' is getting paid for right now — while this page loads'
+          : 'What someone sees when they search for you right now')
       : 'What someone saw when they searched for you in ' . ($gsimResearchedTs !== false ? date('F Y', $gsimResearchedTs) : 'recent weeks');
   ?>
   <!-- ── SEARCH GAP — what a customer sees when they search ────────────────── -->
@@ -611,6 +626,9 @@ endif; ?>
     <?php // Personal hook FIRST — the specific reason we reached out ?>
     <?php if (!empty($opp)): ?>
       <p class="fd-why" style="font-size:17px;line-height:1.55;color:var(--fd-ink);margin-bottom:14px"><?= ho_h($opp) ?></p>
+    <?php endif; ?>
+    <?php if (!$isEnhancement && $yearsInBiz >= 2 && $googleCount >= 5 && $compHasSite && $compName !== ''): ?>
+    <p class="fd-why-conjunction"><?= $yearsInBiz ?> years, <?= number_format($googleCount) ?> reviews &mdash; and <?= ho_h($compName) ?> is getting those searches instead. This page exists to change that.</p>
     <?php endif; ?>
 
     <?php if ($isEnhancement): ?>
@@ -1307,6 +1325,7 @@ endif; ?>
       <li>I work with the site you&rsquo;ve got &mdash; no rebuild, no disruption</li>
       <?php else: ?>
       <li>30-day money-back if you&rsquo;re not happy after launch</li>
+      <li>One <?= ho_h(strtolower($catName)) ?> site per city &mdash; yours locks out competitors in <?= ho_h($city) ?></li>
       <?php endif; ?>
       <li>Every site researched and worked on personally — not outsourced</li>
     </ul>
@@ -1361,11 +1380,11 @@ endif; ?>
     <p>The average <?= ho_h(strtolower($catName)) ?> job runs around
        <span class="fd-stakes-num">$<?= number_format($stakes['ticket']) ?></span>.
        If being invisible online costs you just <?= $stakes['jobs_per_month'] ?> job<?= $stakes['jobs_per_month'] > 1 ? 's' : '' ?> a month
-       &mdash; the 11pm searcher, the person who called whoever Google showed first &mdash;
+       &mdash; the 11pm searcher, the person who called <?= ($compHasSite && $compName !== '') ? ho_h($compName) . ' because they came up first' : 'whoever Google showed first' ?> &mdash;
        that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span> walking past you.</p>
     <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero. And the fix is $199, once.</p>
     <?php if ($yearsInBiz > 0): ?>
-    <p class="fd-stakes-missed">In <?= $yearsInBiz ?> year<?= $yearsInBiz !== 1 ? 's' : '' ?> without a website, that&rsquo;s roughly <strong>$<?= number_format((int)(round($stakes['annual'] * $yearsInBiz / 100) * 100)) ?></strong> in work that found someone with a website instead. The fix is $199.</p>
+    <p class="fd-stakes-missed">In <?= $yearsInBiz ?> year<?= $yearsInBiz !== 1 ? 's' : '' ?> without a website, that&rsquo;s roughly <strong>$<?= number_format((int)(round($stakes['annual'] * $yearsInBiz / 100) * 100)) ?></strong> in work that found <?= ($compHasSite && $compName !== '') ? ho_h($compName) : 'someone with a website' ?> instead. The fix is $199.</p>
     <?php endif; ?>
     <div class="fd-roi-calc" data-jpm="<?= (int)$stakes['jobs_per_month'] ?>" data-offer="199">
       <p class="fd-roi-label">What&rsquo;s your average job worth?</p>
