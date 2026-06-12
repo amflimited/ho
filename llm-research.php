@@ -72,7 +72,7 @@ $s = $pdo->prepare("
     FROM businesses b
     JOIN categories c ON c.id = b.category_id
     WHERE b.id = ?
-      AND b.pipeline_status IN ('identified','researched')
+      AND b.pipeline_status NOT IN ('pitched','converted','not_a_fit','excluded')
     LIMIT 1
 ");
 $s->execute([$bizId]);

@@ -282,12 +282,9 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // spend. Long prompts exceed what an iOS deep link survives, so those fall
 // back to Copy → paste with instructions.
 function cp_claude_row(string $prompt): string {
-    $url = 'https://claude.ai/new?q=' . rawurlencode($prompt);
-    if (strlen($url) > 6000) {
-        return '<p class="cp-hint" style="margin-top:6px">Tap Copy, open the <strong>Claude app</strong>, turn on <strong>Web Search</strong> (or tap <strong>Research</strong> for the deepest sweep), paste, send. Copy its JSON reply and come back.</p>';
-    }
-    return '<a class="cp-gpt-btn" href="' . ho_h($url) . '" target="_blank" rel="noopener">✴️ Ask Claude &mdash; one tap, nothing to copy</a>'
-         . '<p class="cp-hint" style="margin-top:4px;text-align:center">Opens Claude with the prompt pre-filled &mdash; turn on Web Search and hit send. If it arrives cut off, use Copy.</p>';
+    $esc = ho_h(json_encode($prompt));
+    return '<button type="button" class="cp-gpt-btn" onclick="cpOpenClaude(' . $esc . ')">&#x2734;&#xFE0F; Copy &amp; Open Claude &mdash; one tap</button>'
+         . '<p class="cp-hint" style="margin-top:4px;text-align:center">Copies the prompt, opens Claude. Turn on <strong>Research</strong> (or Web Search), paste, send. Come back and paste the JSON reply.</p>';
 }
 
 // ─── Load state ───────────────────────────────────────────────────────────────
@@ -1104,16 +1101,13 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       $hintParts  = [];
       if ($newCount   > 0) $hintParts[] = $newCount . ' new';
       if ($staleCount > 0) $hintParts[] = $staleCount . ' to update';
-      $gUrl = 'https://claude.ai/new?q=' . rawurlencode($researchPrompt);
       $hoPrompts[] = [
-          'label'    => 'Research',
-          'step'     => count($researchBatch) . ' businesses' . ($hintParts ? ' — ' . implode(', ', $hintParts) : ''),
-          'prompt'   => $researchPrompt,
-          'action'   => 'import_research',
-          'key'      => 'research_results',
-          'noun'     => 'business',
-          'gptUrl'   => strlen($gUrl) > 30000 ? '' : $gUrl,
-          'gptLabel' => '✴️ Ask Claude — one tap, nothing to copy',
+          'label'  => 'Research',
+          'step'   => count($researchBatch) . ' businesses' . ($hintParts ? ' — ' . implode(', ', $hintParts) : ''),
+          'prompt' => $researchPrompt,
+          'action' => 'import_research',
+          'key'    => 'research_results',
+          'noun'   => 'business',
       ];
   }
   ?>
@@ -1133,12 +1127,8 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       <pre id="hoPrompt" class="cp-prompt"><?= ho_h($hoPrompts[0]['prompt']) ?></pre>
       <button class="cp-copy" id="hoCopyBtn" type="button" onclick="hoDoStep(this)">Copy</button>
     </div>
-    <?php if ($hoPrompts[0]['gptUrl'] !== ''): ?>
-    <a id="hoGptLink" class="cp-gpt-btn" href="<?= ho_h($hoPrompts[0]['gptUrl']) ?>" target="_blank" rel="noopener" onclick="hoAfterGpt()"><?= ho_h($hoPrompts[0]['gptLabel']) ?></a>
-    <?php else: ?>
-    <a id="hoGptLink" class="cp-gpt-btn" href="#" hidden>Ask Claude</a>
-    <p class="cp-hint" style="text-align:center;margin-top:4px">Batch too big for one-tap &mdash; use Copy above, then paste into Claude (Web Search on).</p>
-    <?php endif; ?>
+    <button type="button" class="cp-gpt-btn" id="hoGptLink" onclick="hoCopyThenClaude()">&#x2734;&#xFE0F; Copy &amp; Open Claude &mdash; one tap</button>
+    <p class="cp-hint" style="text-align:center;margin-top:4px">Copies the prompt, then opens Claude. Turn on <strong>Research</strong> (or Web Search) and paste.</p>
   </section>
 
   <section class="cp-section" id="ho-paste-stage">
@@ -2784,6 +2774,45 @@ function copyFollowup(btn) {
   } else {
     ta.select();
     document.execCommand('copy');
+  }
+}
+
+// ── Copy prompt then open Claude (iOS-safe: no long ?q= URL) ─────────────────
+function cpOpenClaude(text) {
+  function doOpen(btn) {
+    window.open('https://claude.ai/new', '_blank', 'noopener');
+    if (btn) { var orig = btn.textContent; btn.textContent = '✓ Copied — paste in Claude'; setTimeout(function(){ btn.textContent = orig; }, 4000); }
+  }
+  var btn = event && event.currentTarget ? event.currentTarget : null;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ doOpen(btn); }).catch(function(){ doOpen(btn); });
+  } else {
+    try { var ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); } catch(e) {}
+    doOpen(btn);
+  }
+}
+function hoCopyThenClaude() {
+  var pre = document.getElementById('hoPrompt');
+  if (!pre) return;
+  var text = pre.textContent || pre.innerText || '';
+  var btn  = document.getElementById('hoGptLink');
+  function doOpen() {
+    window.open('https://claude.ai/new', '_blank', 'noopener');
+    if (btn) { btn.textContent = '✓ Copied — paste in Claude (Research on)'; }
+    setTimeout(function() {
+      if (btn) btn.textContent = '✴️ Copy & Open Claude — one tap';
+    }, 4000);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(doOpen).catch(doOpen);
+  } else {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch(e) {}
+    doOpen();
   }
 }
 
