@@ -386,6 +386,10 @@ $hotLeadIds    = array_keys(array_filter($heatStats, fn($s) => $s['is_hot']));
 // LLM (zero-touch) research availability — needs an AI engine + the import key
 // (the /llm-research.php endpoint authenticates with gpt_import_key).
 $llmAvailable = ($pdo && ho_llm_ready($pdo)) && $gptImportKey !== '';
+// Engine name for UI labels — reflects the configured provider so the cockpit
+// shows what's actually running the zero-touch path.
+$llmCfg        = ho_llm_settings();
+$aiEngineName  = ($llmCfg['provider'] ?? '') === 'gemini' ? 'Gemini' : 'Claude';
 try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
 
 if (isset($_GET['demo']) && empty($pendingOrders)) {
@@ -1168,13 +1172,13 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   <section class="cp-section">
     <div class="cp-llm-header">
       <div>
-        <strong style="font-size:15px">Research with Claude — zero touch</strong>
-        <p class="cp-hint" style="margin:2px 0 0">Claude researches each lead using web search and imports results directly — no copy/paste.</p>
+        <strong style="font-size:15px">Research with <?= ho_h($aiEngineName) ?> — zero touch</strong>
+        <p class="cp-hint" style="margin:2px 0 0"><?= ho_h($aiEngineName) ?> researches each lead using web search and imports results directly — no copy/paste.</p>
       </div>
     </div>
     <div class="cp-llm-controls">
       <button id="llmBtn" type="button" class="cp-btn-primary" onclick="startLlmResearch()">
-        Research <?= count($researchBatch) ?> lead<?= count($researchBatch) !== 1 ? 's' : '' ?> with Claude
+        Research <?= count($researchBatch) ?> lead<?= count($researchBatch) !== 1 ? 's' : '' ?> with <?= ho_h($aiEngineName) ?>
       </button>
       <button id="llmStop" type="button" class="cp-btn-ghost" onclick="stopLlmResearch()" style="display:none">Stop</button>
     </div>
