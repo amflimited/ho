@@ -18,6 +18,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
 
+require_once __DIR__ . '/admin-auth.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    ho_admin_require_login_json();   // 401 JSON for the fetch-first handlers
+} else {
+    ho_admin_require_login();        // HTML redirect for the page itself
+}
+
 $pdo = null;
 try { $pdo = ho_db(); } catch (Throwable $e) { $dbError = $e->getMessage(); }
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/ho-model.php';
+require_once __DIR__ . '/admin-auth.php';
+ho_admin_require_login();
 
 // ─── POST handlers ────────────────────────────────────────────────────────────
 $pdo     = null;

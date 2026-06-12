@@ -8,6 +8,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+require_once __DIR__ . '/admin-auth.php';
+ho_admin_require_login_json();
+
 $bizId = (int)($_POST['id'] ?? 0);
 if ($bizId === 0) {
     echo json_encode(['error' => 'Missing id']);
