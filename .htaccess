@@ -16,6 +16,7 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^go/([a-z0-9_-]+)/?$ go.php?slug=$1 [L,QSA]
+  RewriteRule ^site/([a-z0-9_-]+)/?$ site.php?slug=$1 [L,QSA]
   RewriteRule ^(db|uploads)/ - [F,L]
 </IfModule>
 

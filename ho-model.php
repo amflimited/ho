@@ -4981,3 +4981,444 @@ function ho_generate_rep_sourcing_prompt(string $area, int $count, array $exclus
         . "Reply with ONLY this JSON (no fences, no commentary):\n"
         . '{"run_id":' . $runId . ',"candidates":[{"business_name":"","city":"","state":"IN","website_url":"","facebook_url":"","google_url":"","phone":"","email":"","found_via":"","confidence":"high"}]}';
 }
+
+// ─── Live Site — skin registry + AI site composer + stash helpers ─────────────
+
+/**
+ * All 8 skin definitions. PHP is the single source of truth — live-site.css
+ * reads the same [data-skin] keys. Never render skin vars inline.
+ */
+function ho_site_skins(): array {
+    return [
+        'forest_pro'   => ['label' => 'Forest Pro',   'color' => '#2d6a3a'],
+        'bold_orange'  => ['label' => 'Bold Orange',  'color' => '#c95208'],
+        'navy_trust'   => ['label' => 'Navy Trust',   'color' => '#1e3a5f'],
+        'warm_clay'    => ['label' => 'Warm Clay',    'color' => '#7a3c1f'],
+        'slate_modern' => ['label' => 'Slate Modern', 'color' => '#2563eb'],
+        'gold_premium' => ['label' => 'Gold Premium', 'color' => '#8a6800'],
+        'fresh_teal'   => ['label' => 'Fresh Teal',   'color' => '#0e7490'],
+        'eco_sage'     => ['label' => 'Eco Sage',     'color' => '#4a7c59'],
+    ];
+}
+
+/** Curated ordered 5-skin subset for the go.php picker; default skin first. */
+function ho_site_skins_for_category(string $catSlug): array {
+    $all     = ho_site_skins();
+    $default = ho_site_default_skin($catSlug);
+    $dir     = ho_template_dir_for_slug($catSlug) ?: $catSlug;
+    $ordered = match ($dir) {
+        'lawn_mowing'   => ['forest_pro',  'eco_sage',    'bold_orange', 'navy_trust', 'fresh_teal'],
+        'house_cleaning'=> ['navy_trust',  'fresh_teal',  'warm_clay',   'eco_sage',   'gold_premium'],
+        'junk_removal'  => ['bold_orange', 'slate_modern','navy_trust',  'gold_premium','forest_pro'],
+        default         => ['forest_pro',  'navy_trust',  'bold_orange', 'warm_clay',  'slate_modern'],
+    };
+    $ordered = array_values(array_unique(array_merge([$default], $ordered)));
+    $ordered = array_slice($ordered, 0, 5);
+    $result  = [];
+    foreach ($ordered as $k) {
+        if (isset($all[$k])) $result[$k] = $all[$k];
+    }
+    return $result ?: [$default => $all[$default] ?? ['label' => 'Default', 'color' => '#2d6a3a']];
+}
+
+/** Category-default skin key. */
+function ho_site_default_skin(string $catSlug): string {
+    return match (ho_template_dir_for_slug($catSlug) ?: $catSlug) {
+        'lawn_mowing'   => 'forest_pro',
+        'house_cleaning'=> 'navy_trust',
+        'junk_removal'  => 'bold_orange',
+        default         => 'forest_pro',
+    };
+}
+
+/**
+ * Resolve skin: explicit request > order.template_key > previews.selected_template > default.
+ * Unknown or legacy PNG template keys fall back to the category default gracefully.
+ */
+function ho_site_resolve_skin(?string $requested, array $row): string {
+    $all     = ho_site_skins();
+    $catSlug = (string)($row['category_slug'] ?? '');
+    $default = ho_site_default_skin($catSlug);
+    foreach (array_filter([$requested, (string)($row['order_template_key'] ?? ''), (string)($row['selected_template'] ?? '')]) as $k) {
+        $k = trim((string)$k);
+        if ($k !== '' && isset($all[$k])) return $k;
+    }
+    return $default;
+}
+
+/** Read stashed site JSON for a business. Returns null if absent or corrupt. */
+function ho_site_get(PDO $pdo, int $bizId): ?array {
+    try {
+        $raw = ho_get_setting($pdo, 'sitejson_' . $bizId);
+        if ($raw === '') return null;
+        $d = json_decode($raw, true);
+        return (is_array($d) && ($d['v'] ?? 0) === 1 && !empty($d['hero']['headline'])) ? $d : null;
+    } catch (Throwable) { return null; }
+}
+
+/** Stash site JSON for a business. */
+function ho_site_save(PDO $pdo, int $bizId, array $site): bool {
+    return ho_set_setting($pdo, 'sitejson_' . $bizId, json_encode($site, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+/**
+ * Lazy trigger: return cached stash if valid, else compose (AI when ready, else
+ * fallback), stash, return. $fresh=true deletes the stash first (operator recompose).
+ * Never throws — the page must render even on total failure.
+ */
+function ho_site_ensure(PDO $pdo, array $row, bool $fresh = false): array {
+    $bizId = (int)($row['id'] ?? 0);
+    if ($fresh && $bizId > 0) {
+        try { ho_del_setting($pdo, 'sitejson_' . $bizId); } catch (Throwable) {}
+    }
+    if ($bizId > 0) {
+        $cached = ho_site_get($pdo, $bizId);
+        if ($cached !== null && (!$fresh || ($cached['source'] ?? '') === 'ai')) {
+            return $cached;
+        }
+        $result = ho_compose_site_content($pdo, $row);
+        if (!empty($result['site'])) {
+            ho_site_save($pdo, $bizId, $result['site']);
+            return $result['site'];
+        }
+    }
+    return ho_site_fallback_content($row);
+}
+
+/**
+ * Generate full site copy via AI (no web search — fast, ~3s).
+ * Returns ['ok','site','source','error']. Never throws.
+ */
+function ho_compose_site_content(PDO $pdo, array $biz): array {
+    $name      = (string)$biz['business_name'];
+    $city      = (string)$biz['location_city'];
+    $catName   = (string)$biz['category_name'];
+    $catSlug   = (string)($biz['category_slug'] ?? '');
+    $years     = (int)($biz['years_in_business'] ?? 0);
+    $area      = (string)($biz['service_area_text'] ?? ($city !== '' ? $city . ' and surrounding area' : 'Indiana'));
+    $firstName = trim((string)($biz['owner_first_name'] ?? ''));
+    $booking   = (string)($biz['booking_method'] ?? 'phone');
+
+    $rawSvcs = [];
+    foreach ([(array)json_decode((string)($biz['services_display'] ?? '[]'), true),
+              (array)json_decode((string)($biz['typical_services'] ?? '[]'), true)] as $src) {
+        foreach ($src as $s) { if (is_string($s) && trim($s) !== '') $rawSvcs[] = trim($s); }
+        if (!empty($rawSvcs)) break;
+    }
+    $rawSvcs = array_slice(array_unique($rawSvcs), 0, 8);
+
+    $strengths = implode('; ', array_slice((array)json_decode((string)($biz['strengths'] ?? '[]'), true), 0, 4));
+    $quote1 = trim((string)($biz['review_quote_1'] ?? ''));
+
+    $ctaGuide = $booking === 'form' ? 'contact form' : 'phone call';
+
+    $svcList = !empty($rawSvcs) ? implode(', ', $rawSvcs) : $catName;
+    $yearsLine = $years >= 3 ? "{$years} years serving {$city}" : '';
+    $strengthsLine = $strengths !== '' ? "Known for: {$strengths}" : '';
+    $quoteLine = $quote1 !== '' ? "One real customer review (do NOT quote directly — it will be shown separately): \"{$quote1}\"" : '';
+
+    $prompt = <<<PROMPT
+Write website copy for a real Indiana local service business.
+
+BUSINESS FACTS (use exactly — do not invent numbers, testimonials, or claims):
+- Name: {$name}
+- Category: {$catName}
+- City: {$city}, Indiana
+- Services offered: {$svcList}
+- Service area: {$area}
+{$yearsLine}
+{$strengthsLine}
+{$quoteLine}
+
+COPY TO WRITE (return as JSON only — see schema below):
+1. meta.title — "{$name} | {$catName} in {$city}, IN" (exactly this format, tweak only if needed for SEO)
+2. meta.description — 140-160 char page description
+3. hero.headline — 6-10 word hook. NOT generic ("done right" is banned). Must reflect something specific about this business or trade.
+4. hero.sub — 1-2 sentences. What makes hiring THIS business the right call in {$city}? Be concrete.
+5. about.heading — short section heading (4-8 words)
+6. about.body — 3-5 sentences. Who is this business, how do they work, why do {$city} customers trust them? Mention years if ≥3. Warm but professional — Indiana neighbour tone, not agency-speak.
+7. about.years_line — empty string if years < 3, else: "Serving {$city} since " + (current year - years)
+8. services — for EACH of: [{$svcList}] write {"name":"exact service name","desc":"1-2 sentences — what it includes, why it matters, what the customer gets"}. Max 8 services.
+9. faq — 4-6 Q&A pairs. Mix trade-specific (scheduling, what's included, what areas) with universal (estimates, insurance, payment). No fabricated facts — answers should be reassuring and honest.
+10. service_area.heading — "Serving {$city} and the Surrounding Area" (or similar, 4-8 words)
+11. service_area.blurb — 1-2 sentences about the area served, feeling local and specific.
+12. cta.headline — 4-8 words inviting the customer to get in touch via {$ctaGuide}
+13. cta.sub — 1 sentence lowering friction (fast response, no obligation, free estimate)
+
+RULES:
+- Never invent review quotes, ratings, or specific job stories
+- Indiana, not "Midwest" or generic USA copy
+- No em-dash decoration or bullet points in body text
+- Warm, direct, human — not marketing-department language
+- All text must fit its field length (hero.headline ≤ 90 chars, service desc ≤ 240 chars)
+
+Return ONLY this JSON, nothing else:
+{"v":1,"source":"ai","meta":{"title":"","description":""},"hero":{"headline":"","sub":"","cta_label":"Get a Free Quote"},"about":{"heading":"","body":"","years_line":""},"services":[{"name":"","desc":""}],"faq":[{"q":"","a":""}],"service_area":{"heading":"","blurb":""},"cta":{"headline":"","sub":""}}
+PROMPT;
+
+    $system = 'You write concise, honest, local-business website copy. You never invent facts. You write like an Indiana neighbour who knows the trade well. Return only the JSON asked for — no preamble, no explanation, no markdown fences.';
+
+    try {
+        ho_llm_boot($pdo);
+        if ((ho_llm_settings()['key'] ?? '') === '') {
+            $fb = ho_site_fallback_content($biz);
+            return ['ok' => true, 'site' => $fb, 'source' => 'fallback', 'error' => 'No AI configured.'];
+        }
+        $r = ho_llm_call($prompt, $system, 4000, false);
+        if (!$r['ok']) throw new RuntimeException($r['error']);
+        $jsonStr = ho_llm_extract_json($r['text']);
+        if ($jsonStr === null) throw new RuntimeException('No JSON in response.');
+        $raw = json_decode($jsonStr, true);
+        if (!is_array($raw)) throw new RuntimeException('Invalid JSON.');
+        $site = ho_site_normalize($raw, $biz);
+        $site['source'] = 'ai';
+        return ['ok' => true, 'site' => $site, 'source' => 'ai', 'error' => ''];
+    } catch (Throwable $e) {
+        $fb = ho_site_fallback_content($biz);
+        return ['ok' => true, 'site' => $fb, 'source' => 'fallback', 'error' => $e->getMessage()];
+    }
+}
+
+/**
+ * Clamp and validate AI-generated site JSON. Fills any missing sections from the
+ * fallback so the page always has something in every slot.
+ */
+function ho_site_normalize(array $raw, array $biz): array {
+    $fb  = ho_site_fallback_content($biz);
+    $clamp = fn(string $s, int $max): string => mb_substr(trim($s), 0, $max);
+
+    $meta = (array)($raw['meta'] ?? []);
+    $hero = (array)($raw['hero'] ?? []);
+    $about = (array)($raw['about'] ?? []);
+    $svcs  = (array)($raw['services'] ?? []);
+    $faq   = (array)($raw['faq'] ?? []);
+    $svcArea = (array)($raw['service_area'] ?? []);
+    $cta   = (array)($raw['cta'] ?? []);
+
+    // Services: clamp desc, require name, 4-8 items
+    $cleanSvcs = [];
+    foreach ($svcs as $s) {
+        if (!is_array($s) || trim((string)($s['name'] ?? '')) === '') continue;
+        $cleanSvcs[] = ['name' => $clamp((string)$s['name'], 80), 'desc' => $clamp((string)($s['desc'] ?? ''), 240)];
+        if (count($cleanSvcs) >= 8) break;
+    }
+    if (count($cleanSvcs) < 2) $cleanSvcs = $fb['services'];
+
+    // FAQ: require q+a, 3-6 items
+    $cleanFaq = [];
+    foreach ($faq as $f) {
+        if (!is_array($f) || trim((string)($f['q'] ?? '')) === '') continue;
+        $cleanFaq[] = ['q' => $clamp((string)$f['q'], 160), 'a' => $clamp((string)($f['a'] ?? ''), 500)];
+        if (count($cleanFaq) >= 6) break;
+    }
+    if (count($cleanFaq) < 2) $cleanFaq = $fb['faq'];
+
+    $headline = $clamp((string)($hero['headline'] ?? ''), 90);
+    if ($headline === '') $headline = (string)$fb['hero']['headline'];
+
+    return [
+        'v'            => 1,
+        'generated_at' => time(),
+        'source'       => 'ai',
+        'meta'  => [
+            'title'       => $clamp((string)($meta['title'] ?? ''), 120) ?: (string)$fb['meta']['title'],
+            'description' => $clamp((string)($meta['description'] ?? ''), 200) ?: (string)$fb['meta']['description'],
+        ],
+        'hero'  => [
+            'headline' => $headline,
+            'sub'      => $clamp((string)($hero['sub'] ?? ''), 300) ?: (string)$fb['hero']['sub'],
+            'cta_label'=> trim((string)($hero['cta_label'] ?? 'Get a Free Quote')) ?: 'Get a Free Quote',
+        ],
+        'about' => [
+            'heading'   => $clamp((string)($about['heading'] ?? ''), 80) ?: (string)$fb['about']['heading'],
+            'body'      => $clamp((string)($about['body'] ?? ''), 1000) ?: (string)$fb['about']['body'],
+            'years_line'=> $clamp((string)($about['years_line'] ?? ''), 100),
+        ],
+        'services'     => $cleanSvcs,
+        'faq'          => $cleanFaq,
+        'service_area' => [
+            'heading' => $clamp((string)($svcArea['heading'] ?? ''), 80) ?: (string)$fb['service_area']['heading'],
+            'blurb'   => $clamp((string)($svcArea['blurb'] ?? ''), 400) ?: (string)$fb['service_area']['blurb'],
+        ],
+        'cta' => [
+            'headline' => $clamp((string)($cta['headline'] ?? ''), 80) ?: (string)$fb['cta']['headline'],
+            'sub'      => $clamp((string)($cta['sub'] ?? ''), 200) ?: (string)$fb['cta']['sub'],
+        ],
+    ];
+}
+
+/**
+ * Deterministic zero-AI site content built from research data alone.
+ * Always succeeds — the page renders even with no DB connection (empty biz array).
+ */
+function ho_site_fallback_content(array $biz): array {
+    $name    = (string)($biz['business_name'] ?? 'Your Business');
+    $city    = (string)($biz['location_city'] ?? 'Indiana');
+    $cat     = strtolower((string)($biz['category_name'] ?? 'service'));
+    $catSlug = (string)($biz['category_slug'] ?? '');
+    $years   = (int)($biz['years_in_business'] ?? 0);
+    $area    = (string)($biz['service_area_text'] ?? ($city !== '' ? $city . ' and surrounding area' : 'Indiana'));
+    $dir     = ho_template_dir_for_slug($catSlug) ?: $catSlug;
+
+    // Hero headline per trade family
+    $headline = match ($dir) {
+        'lawn_mowing'   => "A lawn {$city} is proud of — without the work.",
+        'house_cleaning'=> "A cleaner home in {$city}, on your schedule.",
+        'junk_removal'  => "Got junk? We haul it. Same week, fair price.",
+        default         => ucfirst($cat) . " in {$city} — reliable, reasonably priced, done right.",
+    };
+    $sub = match ($dir) {
+        'lawn_mowing'   => "Local lawn care in {$city} you can count on every visit — no contracts, no surprises, just a great-looking yard.",
+        'house_cleaning'=> "Professional home cleaning in {$city} that saves you time and keeps your space truly clean, not just surface-clean.",
+        'junk_removal'  => "Fast, friendly junk removal for {$city} homeowners — we load it, haul it, and leave the area swept. Done.",
+        default         => "Dependable {$cat} serving {$city} and the surrounding area. Get a free estimate — no pressure, no obligation.",
+    };
+
+    // Services with descriptions via keyword map
+    $rawSvcs = [];
+    foreach ([(array)json_decode((string)($biz['services_display'] ?? '[]'), true),
+              (array)json_decode((string)($biz['typical_services'] ?? '[]'), true)] as $src) {
+        foreach ($src as $s) { if (is_string($s) && trim($s) !== '') $rawSvcs[] = trim($s); }
+        if (!empty($rawSvcs)) break;
+    }
+    if (empty($rawSvcs)) {
+        $rawSvcs = match ($dir) {
+            'lawn_mowing'   => ['Lawn Mowing', 'Edging', 'Leaf Removal', 'Seasonal Cleanup'],
+            'house_cleaning'=> ['Standard Cleaning', 'Deep Cleaning', 'Move-In / Move-Out Cleaning', 'Kitchen & Bathroom Detailing'],
+            'junk_removal'  => ['Furniture Removal', 'Appliance Haul-Away', 'Garage Cleanout', 'Yard Debris Removal'],
+            default         => [ucfirst($cat)],
+        };
+    }
+
+    $descMap = [
+        // Lawn
+        'lawn mowing'           => "Regular mowing keeps your lawn healthy and looking its best. We cut at the right height and clean up every time.",
+        'mowing'                => "Consistent mowing on a schedule you choose — we show up, do the job right, and leave the yard tidy.",
+        'edging'                => "Clean, crisp edges along driveways, sidewalks, and beds make the whole yard look sharp and well-maintained.",
+        'fertilization'         => "We apply the right fertilizer at the right time to build thick, healthy grass that crowds out weeds naturally.",
+        'fertilizing'           => "Seasonal fertilizer applications that keep your lawn green and growing without you having to think about it.",
+        'weed control'          => "Targeted weed treatment keeps your lawn thick and clean without harming the grass around it.",
+        'weed removal'          => "Hand-pulling and spot treatment to keep weeds from taking hold in beds and turf.",
+        'leaf removal'          => "When the leaves fall, we clear them out completely — no piles left behind, no lawn smothered underneath.",
+        'leaf cleanup'          => "Full leaf cleanup that protects your lawn and leaves the yard looking neat heading into the colder months.",
+        'aeration'              => "Annual aeration breaks up compacted soil so water and nutrients reach the roots — better grass starts here.",
+        'seasonal cleanup'      => "Start every season right with a thorough cleanup of debris, leaves, and anything that built up over the previous months.",
+        'spring cleanup'        => "Clear out winter debris and get your lawn and beds ready for the growing season.",
+        'fall cleanup'          => "Leaf removal, bed cleanup, and final mowing prep to close out the season right.",
+        'mulching'              => "Fresh mulch beds lock in moisture, regulate soil temperature, and make your landscaping look clean and polished.",
+        'gutter cleaning'       => "Clogged gutters cause real damage. We clear them out so water flows away from your home the way it should.",
+        'trimming'              => "We trim around obstacles, along edges, and under fences where the mower can't reach — every visit.",
+        // Cleaning
+        'standard cleaning'     => "Our thorough clean covers every room: vacuumed floors, wiped surfaces, scrubbed bathrooms, and a clean kitchen every visit.",
+        'regular cleaning'      => "A consistent routine clean that keeps your home genuinely clean week to week, not just surface-wiped.",
+        'deep cleaning'         => "A top-to-bottom clean that gets the spots regular cleaning skips — baseboards, under appliances, inside the oven, and more.",
+        'deep clean'            => "Intensive cleaning that resets your home to its cleanest state, tackling buildup that accumulates over time.",
+        'move-in'               => "Start fresh in your new home. We clean everything before you unpack so you're moving into a truly clean space.",
+        'move-out'              => "Leave the old place spotless. We handle the full clean so you get your deposit back without the stress.",
+        'move in'               => "Start fresh in your new home with a thorough clean before you move a single box in.",
+        'move out'              => "A complete move-out clean that protects your deposit and leaves the place ready for the next residents.",
+        'post-construction'     => "Construction dust gets everywhere, even where workers didn't go. We remove it completely so your home is clean and safe.",
+        'post construction'     => "We remove construction dust, debris, and residue from every surface so your home is ready to live in.",
+        'office cleaning'       => "A clean office keeps your team focused and makes the right impression on clients. We clean on your schedule.",
+        'commercial cleaning'   => "Professional cleaning for commercial spaces — done on your schedule so your business always looks its best.",
+        'window cleaning'       => "Streak-free windows inside and out bring in more natural light and make every room feel bigger and brighter.",
+        'carpet cleaning'       => "Professional carpet cleaning removes the dirt, allergens, and stains that vacuuming alone can never fully clear.",
+        'laundry'               => "We handle laundry on request — washed, dried, and folded — as an add-on to any cleaning visit.",
+        // Junk removal
+        'furniture removal'     => "Old furniture is heavy and awkward. We carry it out and haul it off — you don't lift a thing.",
+        'furniture haul'        => "We load and haul away any furniture, no matter the size, and handle all the heavy lifting for you.",
+        'appliance removal'     => "We safely remove refrigerators, washers, dryers, and other appliances and recycle them responsibly.",
+        'appliance haul'        => "Appliance removal handled safely — we disconnect, haul, and recycle so you don't have to deal with it.",
+        'garage cleanout'       => "Years of stuff cleared in one afternoon. We sort, haul, and sweep so you get your garage back.",
+        'basement cleanout'     => "Turn your basement from overflow storage into usable space. We haul away everything you no longer need.",
+        'attic cleanout'        => "We clear out the attic safely — boxes, furniture, old insulation — and leave it empty and clean.",
+        'yard waste removal'    => "Branches, brush, leaves, and landscaping debris hauled away so your yard is clean and clear.",
+        'yard debris'           => "We load and haul away all yard debris — branches, brush, grass clippings — and leave the area swept.",
+        'construction debris'   => "Renovation mess cleared fast. Lumber, drywall, concrete, and debris removed same or next day in most cases.",
+        'demolition debris'     => "Post-demo cleanup handled completely — we haul the material out and leave the site ready for the next phase.",
+        'hot tub removal'       => "Hot tubs are heavy and awkward. We break them down and remove them completely, including the concrete pad if needed.",
+        'estate cleanout'       => "A compassionate, thorough cleanout handled with care — we sort, donate, recycle, and dispose of everything responsibly.",
+        'dumpster rental'       => "Flexible dumpster rental for projects big and small — we drop it, you fill it, we haul it away when you're done.",
+        'junk removal'          => "Fast, fair junk hauling for homes and businesses. We load everything and leave the area swept.",
+    ];
+
+    $services = [];
+    foreach (array_slice($rawSvcs, 0, 8) as $svc) {
+        $key  = strtolower(trim($svc));
+        $desc = '';
+        foreach ($descMap as $pattern => $d) {
+            if (str_contains($key, $pattern) || str_contains($pattern, $key)) { $desc = $d; break; }
+        }
+        if ($desc === '') $desc = "Professional {$svc} service you can count on — thorough, fairly priced, and done right the first time.";
+        $services[] = ['name' => $svc, 'desc' => $desc];
+    }
+
+    // About body
+    $yearsPhrase = $years >= 3 ? " With {$years} years serving {$city}, we" : 'We';
+    $aboutBody = match ($dir) {
+        'lawn_mowing'   => "{$yearsPhrase} know Indiana lawns inside and out — what they need through the growing season, and how to keep them looking great without overcomplicating things. We're a local operation, not a franchise: you get a consistent crew, honest pricing, and a yard you're proud of every week.",
+        'house_cleaning'=> "{$yearsPhrase} take house cleaning seriously — not just surface-level wiping, but the kind of clean that actually makes a difference. We're a local team, not a national chain, so you deal with real people who show up when they say they will and do the job the way you want it done.",
+        'junk_removal'  => "{$yearsPhrase} hauled just about everything out of just about every kind of space in {$city} and the surrounding area. We're a local crew — not a franchise — so you get straight talk about pricing, fast scheduling, and a space that's actually cleared when we leave.",
+        default         => "{$yearsPhrase} built our reputation in {$city} on straightforward work and honest pricing. We're a local operation — you deal with real people, not a call center — and we stand behind everything we do.",
+    };
+    $yearsLine = $years >= 3 ? "Serving {$city} since " . (date('Y') - $years) : '';
+    $aboutHeading = match ($dir) {
+        'lawn_mowing'   => "Local Lawn Care You Can Count On",
+        'house_cleaning'=> "Local Cleaners Who Actually Care",
+        'junk_removal'  => "Fast, Local Junk Removal",
+        default         => "About " . $name,
+    };
+
+    // Trade-specific FAQ + 2 universal items
+    $tradeFaq = match ($dir) {
+        'lawn_mowing' => [
+            ['q' => 'How often do you mow?', 'a' => "We typically mow every 7–10 days during the growing season, adjusting for weather and how fast your lawn grows. We'll work out a schedule that makes sense for your yard."],
+            ['q' => 'Do I need to be home?', 'a' => "Not at all. As long as we can access the yard, we'll take care of it and you'll know it's done when we're through."],
+            ['q' => 'What if it rains?', 'a' => "We monitor the forecast and reschedule at no extra charge when needed. We stay consistent for you throughout the season."],
+            ['q' => 'Do you handle clippings and debris?', 'a' => "Yes — we bag or mulch clippings based on your preference and clean up any debris so the yard looks tidy when we leave."],
+        ],
+        'house_cleaning' => [
+            ['q' => "What's included in a standard clean?", 'a' => "Every room vacuumed and mopped, surfaces wiped down, bathrooms scrubbed, and the kitchen cleaned including stovetop and counters. We can customize from there."],
+            ['q' => 'Do I need to provide cleaning supplies?', 'a' => "We bring everything — all supplies and equipment are included in your price. Just let us know if you have product preferences."],
+            ['q' => 'How long does a clean take?', 'a' => "Most homes take 1.5 to 3 hours depending on size and how regularly we clean. First visits typically take a bit longer."],
+            ['q' => 'Do I need to be home during the cleaning?', 'a' => "That's up to you. Many clients give us a key or door code and come home to a clean house. Whatever makes you most comfortable works for us."],
+        ],
+        'junk_removal' => [
+            ['q' => 'What can you haul away?', 'a' => "Almost anything — furniture, appliances, yard waste, construction debris, garage cleanouts, hot tubs, and more. If you can point to it, we can haul it."],
+            ['q' => 'How does pricing work?', 'a' => "Pricing is based on how much space your items take up in our truck. You get a firm quote on the spot before we start — no surprises when we're done."],
+            ['q' => 'How quickly can you come?', 'a' => "We often have same-day or next-day availability depending on your location and schedule. Fill out the form and we'll get back to you fast."],
+            ['q' => 'What do you do with the junk?', 'a' => "We sort everything for recycling, donation, or responsible disposal. We try to keep as much as possible out of the landfill."],
+        ],
+        default => [
+            ['q' => "What areas do you serve?", 'a' => "We serve {$area} and are happy to discuss projects in nearby communities — just ask."],
+            ['q' => "How quickly can I get a response?", 'a' => "We respond to all inquiries within one business day, often the same day. Fill out the form above or give us a call."],
+        ],
+    };
+    $universalFaq = [
+        ['q' => 'Do you offer free estimates?', 'a' => 'Yes — always. There\'s no charge to get a quote and no obligation to book. We\'d rather you make an informed decision.'],
+        ['q' => 'Are you licensed and insured?', 'a' => 'Yes, fully insured. If anything unexpected happens while we\'re working, you\'re covered.'],
+    ];
+    $faq = array_slice(array_merge($tradeFaq, $universalFaq), 0, 6);
+
+    return [
+        'v'            => 1,
+        'generated_at' => time(),
+        'source'       => 'fallback',
+        'meta'  => [
+            'title'       => "{$name} | " . ucwords($cat) . " in {$city}, IN",
+            'description' => mb_substr("{$sub}", 0, 160),
+        ],
+        'hero'  => ['headline' => $headline, 'sub' => $sub, 'cta_label' => 'Get a Free Quote'],
+        'about' => ['heading' => $aboutHeading, 'body' => $aboutBody, 'years_line' => $yearsLine],
+        'services'     => $services,
+        'faq'          => $faq,
+        'service_area' => [
+            'heading' => "Serving {$city} and the Surrounding Area",
+            'blurb'   => "We're a local operation based in Indiana — we know the area and our customers aren't numbers on a spreadsheet. If you're in or around {$area}, we'd love to hear from you.",
+        ],
+        'cta' => [
+            'headline' => "Ready to get started?",
+            'sub'      => "Fill out the form and we'll get back to you the same day — no pressure, no sales pitch, just a straight answer.",
+        ],
+    ];
+}

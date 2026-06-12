@@ -965,6 +965,53 @@ endif; ?>
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <div id="preview"></div>
   <?php
+  $liveSiteEnabled = ho_get_setting($pdo, 'livesite_enabled') !== '0' && is_file(__DIR__ . '/site.php');
+  if ($liveSiteEnabled):
+    // ── LIVE SITE PATH ─────────────────────────────────────────────────────────
+    $liveSkins      = ho_site_skins_for_category($catSlug);
+    $defaultSkinKey = ho_site_default_skin($catSlug);
+    $templateKey    = $defaultSkinKey; // skin key flows into checkout hidden input
+  ?>
+  <section class="fd-card fd-reveal">
+    <p class="fd-kicker">Your website &mdash; already built</p>
+    <h2 class="fd-design-title">This is <?= ho_h($name) ?>&rsquo;s real site. Pick the look.</h2>
+    <p class="fd-design-sub">Every word, every service<?= $googleCount >= 3 ? ', your real Google reviews' : '' ?> &mdash; already in there. Tap a style and watch it live-update. Whatever you pick, this is exactly what goes live on your domain.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
+      <span style="font-size:12px;font-weight:700;color:var(--fd-green);background:rgba(47,94,54,.1);border:1px solid rgba(47,94,54,.2);padding:4px 10px;border-radius:20px">⚡ Goes live at your domain</span>
+      <span style="font-size:12px;font-weight:700;color:#7a4800;background:rgba(184,112,32,.1);border:1px solid rgba(184,112,32,.2);padding:4px 10px;border-radius:20px"><?= count($liveSkins) ?> looks &mdash; pick yours</span>
+    </div>
+
+    <div class="fd-tpl-picker">
+      <?php foreach ($liveSkins as $sk => $sd): ?>
+      <button type="button" class="fd-tpl-tab<?= $sk === $defaultSkinKey ? ' fd-tpl-tab--active' : '' ?>"
+              data-tpl="<?= ho_h($sk) ?>" onclick="fdPickTpl(this)">
+        <span class="fd-tpl-dot" style="background:<?= ho_h((string)$sd['color']) ?>"></span><?= ho_h((string)$sd['label']) ?>
+      </button>
+      <?php endforeach; ?>
+    </div>
+
+    <div class="fd-phone-stage">
+    <div class="fd-phone-frame">
+      <div class="fd-phone-screen" id="fd-phone-screen">
+        <iframe id="fd-live-frame"
+                src="/site/<?= ho_h($slug) ?>?embed=1&amp;skin=<?= ho_h($defaultSkinKey) ?>"
+                loading="lazy"
+                style="width:100%;height:100%;border:0;display:block"
+                title="Live preview of <?= ho_h($name) ?>"></iframe>
+      </div>
+    </div>
+    </div><!-- /.fd-phone-stage -->
+
+    <p style="text-align:center;margin:.5rem 0">
+      <a href="/site/<?= ho_h($slug) ?>" target="_blank" rel="noopener"
+         style="font-size:.85rem;font-weight:600;color:var(--fd-green)">Open your full site ↗</a>
+    </p>
+    <p class="fd-excl-note">This site is built for <?= ho_h($name) ?> &mdash; we won&rsquo;t sell the same look to another <?= ho_h(strtolower($catName)) ?> company<?= $city !== '' ? ' in ' . ho_h($city) : '' ?>.</p>
+  </section>
+
+  <?php
+  else:
+  // ── LEGACY PNG PATH — verbatim for instant rollback ────────────────────────
   $templateKey = $design['key'] ?? 'default';
 
   // Resolve template directory — DB slug may differ from directory name
@@ -1000,16 +1047,10 @@ endif; ?>
           if (is_file($f) && is_readable($f)) $available[$k] = array_merge($opt, ['file' => $f]);
       }
   }
-  ?>
 
-  <?php if (!empty($available)): ?>
-
-  <?php
-    // Honest demo gallery: these are template designs with a placeholder
-    // business on them. The lead picks the style they like; Adam builds
-    // their real site in that style. Choice is recorded at checkout.
+  if (!empty($available)):
     $showKey     = isset($available[$templateKey]) ? $templateKey : array_key_first($available);
-    $templateKey = $showKey; // keep the checkout hidden input in sync with what's shown
+    $templateKey = $showKey;
   ?>
   <section class="fd-card fd-reveal">
     <p class="fd-kicker">Design styles &mdash; you pick</p>
@@ -1066,7 +1107,9 @@ endif; ?>
     </div>
   </section>
 
-  <?php endif; ?>
+  <?php endif; // !empty($available) ?>
+
+  <?php endif; // livesite_enabled vs legacy ?>
 
   <?php endif; // !$isEnhancement ?>
 
@@ -1398,16 +1441,20 @@ endif; ?>
   <?php endif; ?>
 
   <script>
-  // Style picker: swap visible template pane, mark active tab,
-  // carry the chosen style into checkout via the hidden input.
+  // Style picker: re-skin the live iframe (live mode) or swap PNG panes (legacy).
   function fdPickTpl(btn) {
     var key = btn.getAttribute('data-tpl');
     document.querySelectorAll('.fd-tpl-tab').forEach(function(b){
       b.classList.toggle('fd-tpl-tab--active', b === btn);
     });
-    document.querySelectorAll('[data-tpl-pane]').forEach(function(p){
-      p.hidden = p.getAttribute('data-tpl-pane') !== key;
-    });
+    var frame = document.getElementById('fd-live-frame');
+    if (frame) {
+      frame.src = '/site/' + <?= json_encode($slug) ?> + '?embed=1&skin=' + encodeURIComponent(key);
+    } else {
+      document.querySelectorAll('[data-tpl-pane]').forEach(function(p){
+        p.hidden = p.getAttribute('data-tpl-pane') !== key;
+      });
+    }
     var h = document.getElementById('fd-h-template');
     if (h) h.value = key;
   }

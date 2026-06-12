@@ -1,4 +1,20 @@
 <?php
+// Custom-domain dispatch: if host matches a sitedomains mapping, serve site.php directly.
+try {
+    require_once __DIR__ . '/../database.php';
+    require_once __DIR__ . '/ho-model.php';
+    $cdPdo  = ho_db();
+    $cdMap  = json_decode(ho_get_setting($cdPdo, 'sitedomains'), true);
+    if (is_array($cdMap) && !empty($cdMap)) {
+        $cdHost = strtolower(preg_replace('/^www\./', '', (string)($_SERVER['HTTP_HOST'] ?? '')));
+        if (isset($cdMap[$cdHost])) {
+            $_GET['slug'] = $cdMap[$cdHost];
+            require __DIR__ . '/site.php';
+            exit;
+        }
+    }
+} catch (Throwable) {}
+
 // Hoosier Online public homepage.
 // Trust-first, porch-warm, and deliberately substantial. Most visitors arrive from a
 // custom preview link already weighing a purchase, so the page builds trust with depth:
