@@ -142,7 +142,7 @@ if (function_exists('fastcgi_finish_request'))      { fastcgi_finish_request(); 
 elseif (function_exists('litespeed_finish_request')) { litespeed_finish_request(); }
 
 // ── Background work (client already has its response) ─────────────────────────
-@set_time_limit(280);
+@set_time_limit(420); // 280 work + up to 2×62s Gemini rate-limit waits
 
 $prompt = ho_generate_research_prompt([$biz]);
 $prompt = preg_replace(

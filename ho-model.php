@@ -4098,32 +4098,52 @@ function ho_llm_call_gemini(string $prompt, string $system, int $maxTokens, arra
         'tools'             => [['google_search' => new stdClass()]],
         'generationConfig'  => ['maxOutputTokens' => $maxTokens, 'temperature' => 0.2],
     ]);
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-        CURLOPT_TIMEOUT        => 150,
-        CURLOPT_CONNECTTIMEOUT => 15,
-    ]);
-    $resp     = curl_exec($ch);
-    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlErr  = curl_error($ch);
-    curl_close($ch);
 
-    if ($resp === false || $resp === '') return ['ok' => false, 'text' => '', 'error' => 'cURL: ' . $curlErr];
-    if ($httpCode !== 200) {
-        $apiErr = json_decode((string)$resp, true);
-        return ['ok' => false, 'text' => '', 'error' => 'Gemini API ' . $httpCode . ': ' . ($apiErr['error']['message'] ?? substr((string)$resp, 0, 200))];
+    $lastError = '';
+    for ($attempt = 0; $attempt < 3; $attempt++) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_TIMEOUT        => 150,
+            CURLOPT_CONNECTTIMEOUT => 15,
+        ]);
+        $resp     = curl_exec($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr  = curl_error($ch);
+        curl_close($ch);
+
+        if ($resp === false || $resp === '') return ['ok' => false, 'text' => '', 'error' => 'cURL: ' . $curlErr];
+
+        if ($httpCode === 429 && $attempt < 2) {
+            // Gemini rate limit: parse "Please retry in Xs" and wait.
+            $apiErr   = json_decode((string)$resp, true);
+            $errMsg   = (string)($apiErr['error']['message'] ?? $resp);
+            $waitSec  = 62; // default if not parseable
+            if (preg_match('/retry in (\d+(?:\.\d+)?)s/i', $errMsg, $m)) {
+                $waitSec = min(62, (int)ceil((float)$m[1]));
+            }
+            $lastError = 'Gemini API 429: ' . $errMsg;
+            sleep($waitSec);
+            continue;
+        }
+
+        if ($httpCode !== 200) {
+            $apiErr = json_decode((string)$resp, true);
+            return ['ok' => false, 'text' => '', 'error' => 'Gemini API ' . $httpCode . ': ' . ($apiErr['error']['message'] ?? substr((string)$resp, 0, 200))];
+        }
+
+        $api  = json_decode((string)$resp, true);
+        $text = '';
+        foreach ((array)($api['candidates'][0]['content']['parts'] ?? []) as $part) {
+            if (isset($part['text'])) $text .= $part['text'];
+        }
+        return $text !== '' ? ['ok' => true, 'text' => $text, 'error' => '']
+                            : ['ok' => false, 'text' => '', 'error' => 'No text in Gemini response.'];
     }
-    $api  = json_decode((string)$resp, true);
-    $text = '';
-    foreach ((array)($api['candidates'][0]['content']['parts'] ?? []) as $part) {
-        if (isset($part['text'])) $text .= $part['text'];
-    }
-    return $text !== '' ? ['ok' => true, 'text' => $text, 'error' => '']
-                        : ['ok' => false, 'text' => '', 'error' => 'No text in Gemini response.'];
+    return ['ok' => false, 'text' => '', 'error' => $lastError ?: 'Gemini API: rate limit, max retries exceeded.'];
 }
 
 /** Pull the outermost JSON object out of a model reply. */
