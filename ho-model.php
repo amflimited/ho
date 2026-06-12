@@ -2606,6 +2606,23 @@ function ho_product_features(): array {
     ];
 }
 
+/** Reputation (Review Catch-Up) one-time price, in cents. Shared by checkout + webhook. */
+function ho_reputation_price_cents(): int { return 9900; }
+
+/**
+ * Keep-It-Running / Review Concierge recurring care-plan terms.
+ * Single source for the $29/mo, 30-day-trial offer + the Stripe line-item label.
+ */
+function ho_care_plan(string $pkg): array {
+    return [
+        'monthly_cents' => 2900,
+        'trial_days'    => 30,
+        'label'         => $pkg === 'reputation'
+            ? "Review Concierge \u{2014} every new Google review answered within 24h"
+            : "Keep-It-Running Plan \u{2014} hosting, security, unlimited small edits, monthly Google post",
+    ];
+}
+
 /** Package options with prices — single source of truth for display + checkout. */
 function ho_package_catalog(): array {
     return [

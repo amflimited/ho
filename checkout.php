@@ -89,7 +89,7 @@ try {
     if ($isReputation) {
         $items[] = [
             'name'   => "Review Catch-Up \u{2014} every unanswered Google review answered \u{2014} {$bizName}",
-            'amount' => 9900,
+            'amount' => ho_reputation_price_cents(),
         ];
     } elseif ($isEnhancement) {
         $bundle = ho_current_enhancement_bundle($pdo, $row);
@@ -166,15 +166,14 @@ try {
     // Subscription mode lets the one-time build items ride along with the
     // recurring plan in a single Checkout; the trial means $0 extra today.
     if ($careOptIn) {
+        $care = ho_care_plan($pkg);
         $params['mode']                                  = 'subscription';
-        $params['subscription_data[trial_period_days]']  = '30';
+        $params['subscription_data[trial_period_days]']  = (string)$care['trial_days'];
         $params['metadata[care]']                        = '1';
         $ci = count($items);
         $params["line_items[{$ci}][price_data][currency]"]                    = 'usd';
-        $params["line_items[{$ci}][price_data][product_data][name]"]          = $isReputation
-            ? "Review Concierge \u{2014} every new Google review answered within 24h"
-            : "Keep-It-Running Plan \u{2014} hosting, security, unlimited small edits, monthly Google post";
-        $params["line_items[{$ci}][price_data][unit_amount]"]                 = '2900';
+        $params["line_items[{$ci}][price_data][product_data][name]"]          = $care['label'];
+        $params["line_items[{$ci}][price_data][unit_amount]"]                 = (string)$care['monthly_cents'];
         $params["line_items[{$ci}][price_data][recurring][interval]"]         = 'month';
         $params["line_items[{$ci}][quantity]"]                                = '1';
     }
