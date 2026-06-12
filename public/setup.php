@@ -26,13 +26,13 @@ function out(string $msg): void { echo '<p style="margin:.4em 0">' . $msg . '</p
 
 echo '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">';
 echo '<body style="font:17px/1.5 -apple-system,sans-serif;max-width:640px;margin:2em auto;padding:0 1em;color:#1c2430">';
-echo '<h2>Hoosier Online — Setup</h2>';
+echo '<h2>Hoosier Online &mdash; Setup</h2>';
 
 try {
     $pdo = ho_pdo();
-    out('\xE2\x9C\x85 Database connected.');
+    out('&#10003; Database connected.');
 } catch (Throwable $e) {
-    out('\xE2\x9D\x8C Database connection failed: ' . htmlspecialchars($e->getMessage()));
+    out('&#10007; Database connection failed: ' . htmlspecialchars($e->getMessage()));
     out('Check <code>config/db.php</code> on the server.');
     exit;
 }
@@ -40,7 +40,7 @@ try {
 // Refuse to re-run once done — protects the admin_key.
 try {
     if (ho_setting($pdo, 'setup_done') === '1') {
-        out('\xE2\x9A\xA0\xEF\xB8\x8F Setup already completed on this database.');
+        out('&#9888; Setup already completed on this database.');
         out('The admin key was shown once and is not stored in readable form. '
           . 'If you lost it, tell Claude to rotate it.');
         exit;
@@ -51,7 +51,7 @@ try {
 $sqlFile = dirname(__DIR__) . '/migrations/003_milestone2.sql';
 $sql = is_file($sqlFile) ? (string)file_get_contents($sqlFile) : '';
 if ($sql === '') {
-    out('\xE2\x9D\x8C migrations/003_milestone2.sql not found on server.');
+    out('&#10007; migrations/003_milestone2.sql not found on server.');
     exit;
 }
 foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
@@ -59,19 +59,19 @@ foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
     try {
         $pdo->exec($stmt);
     } catch (PDOException $e) {
-        if ($e->getCode() !== '23000') { out('\xE2\x9A\xA0\xEF\xB8\x8F ' . htmlspecialchars($e->getMessage())); }
+        if ($e->getCode() !== '23000') { out('&#9888; ' . htmlspecialchars($e->getMessage())); }
     }
 }
-out('\xE2\x9C\x85 Migration 003 applied (pitch_drafts + default settings).');
+out('&#10003; Migration 003 applied (pitch_drafts + default settings).');
 
 // Generate admin_key
 $key  = bin2hex(random_bytes(16));
 ho_set_setting($pdo, 'admin_key', password_hash($key, PASSWORD_DEFAULT));
 ho_set_setting($pdo, 'setup_done', '1');
 
-out('\xE2\x9C\x85 Admin key generated.');
+out('&#10003; Admin key generated.');
 echo '<div style="background:#f6f4ef;border:2px solid #1c2430;border-radius:10px;padding:1em;margin:1.2em 0">';
-echo '<p style="margin:0 0 .3em;font-weight:600">Your admin key — copy it now (shown only once):</p>';
+echo '<p style="margin:0 0 .3em;font-weight:600">Your admin key &mdash; copy it now (shown only once):</p>';
 echo '<p style="margin:0;font:20px ui-monospace,monospace;word-break:break-all">' . htmlspecialchars($key) . '</p>';
 echo '</div>';
 
