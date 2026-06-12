@@ -296,6 +296,28 @@ function ho_set_setting(PDO $pdo, string $key, string $value): bool {
     }
 }
 
+function ho_del_setting(PDO $pdo, string $key): void {
+    try {
+        $pdo->prepare("DELETE FROM app_settings WHERE setting_key = ?")->execute([$key]);
+    } catch (Throwable) {}
+}
+
+function ho_get_pitch_drafts(PDO $pdo): array {
+    try {
+        $rows = $pdo->query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key LIKE 'pitchdraft_%' ORDER BY setting_key ASC")->fetchAll();
+        $drafts = [];
+        foreach ($rows as $row) {
+            $bizId = (int)str_replace('pitchdraft_', '', (string)$row['setting_key']);
+            if ($bizId <= 0) continue;
+            $d = json_decode((string)$row['setting_value'], true);
+            if (!is_array($d) || empty($d['subject'])) continue;
+            $d['biz_id'] = $bizId;
+            $drafts[] = $d;
+        }
+        return $drafts;
+    } catch (Throwable) { return []; }
+}
+
 function ho_create_source_run(PDO $pdo, int $categoryId, string $area, int $count): int {
     $s = $pdo->prepare("
         INSERT INTO source_runs (run_uid, category_id, area_query, target_count, status)
@@ -4031,41 +4053,45 @@ function ho_llm_ready(PDO $pdo): bool {
     return false;
 }
 
-/** Provider-agnostic web-search-grounded call. Returns ['ok','text','error']. */
-function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000): array {
+/** Provider-agnostic call. Set $search=false for fast text-only generation (no web grounding). */
+function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000, bool $search = true): array {
     $cfg = ho_llm_settings();
     if (($cfg['key'] ?? '') === '') {
         return ['ok' => false, 'text' => '', 'error' => 'No AI engine configured — add a key in the cockpit (Send → Autopilot → AI engine).'];
     }
     return ($cfg['provider'] === 'gemini')
-        ? ho_llm_call_gemini($prompt, $system, $maxTokens, $cfg)
-        : ho_llm_call_anthropic($prompt, $system, $maxTokens, $cfg);
+        ? ho_llm_call_gemini($prompt, $system, $maxTokens, $cfg, $search)
+        : ho_llm_call_anthropic($prompt, $system, $maxTokens, $cfg, $search);
 }
 
-/** Anthropic Claude messages API with the web_search tool. */
-function ho_llm_call_anthropic(string $prompt, string $system, int $maxTokens, array $cfg): array {
-    $model   = ($cfg['model'] ?? '') !== '' ? $cfg['model'] : 'claude-sonnet-4-6';
-    $payload = json_encode([
+/** Anthropic Claude messages API. $search=true adds web_search tool; false = text-only (fast). */
+function ho_llm_call_anthropic(string $prompt, string $system, int $maxTokens, array $cfg, bool $search = true): array {
+    $model = ($cfg['model'] ?? '') !== '' ? $cfg['model'] : 'claude-sonnet-4-6';
+    $req = [
         'model'      => $model,
         'max_tokens' => $maxTokens,
         'system'     => $system,
+        'messages'   => [['role' => 'user', 'content' => $prompt]],
+    ];
+    if ($search) {
         // Cap searches per call — each result is injected as input tokens, so an
         // uncapped call can blow past Anthropic's per-minute token limit (429).
-        'tools'      => [['type' => 'web_search_20250305', 'name' => 'web_search', 'max_uses' => 4]],
-        'messages'   => [['role' => 'user', 'content' => $prompt]],
-    ]);
+        $req['tools'] = [['type' => 'web_search_20250305', 'name' => 'web_search', 'max_uses' => 4]];
+    }
+    $payload = json_encode($req);
+    $headers = [
+        'Content-Type: application/json',
+        'x-api-key: ' . $cfg['key'],
+        'anthropic-version: 2023-06-01',
+    ];
+    if ($search) $headers[] = 'anthropic-beta: web-search-2025-03-05';
     $ch = curl_init('https://api.anthropic.com/v1/messages');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_HTTPHEADER     => [
-            'Content-Type: application/json',
-            'x-api-key: ' . $cfg['key'],
-            'anthropic-version: 2023-06-01',
-            'anthropic-beta: web-search-2025-03-05',
-        ],
-        CURLOPT_TIMEOUT        => 240,
+        CURLOPT_HTTPHEADER     => $headers,
+        CURLOPT_TIMEOUT        => $search ? 240 : 60,
         CURLOPT_CONNECTTIMEOUT => 15,
     ]);
     $resp     = curl_exec($ch);
@@ -4087,17 +4113,18 @@ function ho_llm_call_anthropic(string $prompt, string $system, int $maxTokens, a
                         : ['ok' => false, 'text' => '', 'error' => 'No text in Claude response.'];
 }
 
-/** Google Gemini generateContent with google_search grounding (free tier). */
-function ho_llm_call_gemini(string $prompt, string $system, int $maxTokens, array $cfg): array {
+/** Google Gemini generateContent. $search=true adds google_search grounding; false = text-only (fast). */
+function ho_llm_call_gemini(string $prompt, string $system, int $maxTokens, array $cfg, bool $search = true): array {
     $model = ($cfg['model'] ?? '') !== '' ? $cfg['model'] : 'gemini-2.5-flash';
     $url   = 'https://generativelanguage.googleapis.com/v1beta/models/'
            . rawurlencode($model) . ':generateContent?key=' . urlencode($cfg['key']);
-    $payload = json_encode([
+    $payloadData = [
         'systemInstruction' => ['parts' => [['text' => $system]]],
         'contents'          => [['parts' => [['text' => $prompt]]]],
-        'tools'             => [['google_search' => new stdClass()]],
         'generationConfig'  => ['maxOutputTokens' => $maxTokens, 'temperature' => 0.2],
-    ]);
+    ];
+    if ($search) $payloadData['tools'] = [['google_search' => new stdClass()]];
+    $payload = json_encode($payloadData);
 
     $lastError = '';
     for ($attempt = 0; $attempt < 3; $attempt++) {
@@ -4107,7 +4134,7 @@ function ho_llm_call_gemini(string $prompt, string $system, int $maxTokens, arra
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-            CURLOPT_TIMEOUT        => 150,
+            CURLOPT_TIMEOUT        => $search ? 240 : 60,
             CURLOPT_CONNECTTIMEOUT => 15,
         ]);
         $resp     = curl_exec($ch);
@@ -4152,6 +4179,100 @@ function ho_llm_extract_json(string $text): ?string {
     $end   = strrpos($text, '}');
     if ($start === false || $end === false || $end <= $start) return null;
     return substr($text, $start, $end - $start + 1);
+}
+
+/**
+ * Generate a personalised cold-email pitch using the AI (no web search — fast, ~2-5s).
+ * Returns ['ok','subject','body','fallback'] — fallback=true means AI failed and the
+ * hook-ladder template was used instead. Never returns ok=false if a fallback exists.
+ */
+function ho_llm_generate_pitch(PDO $pdo, array $biz, string $previewUrl, string $kind = 'site'): array {
+    $base      = ho_msg_base($biz);
+    $name      = $base['name'];
+    $firstName = $base['firstName'];
+    $city      = $base['city'];
+    $cat       = $base['catLower'];
+    $reviews   = $base['reviews'];
+    $rating    = $base['rating'];
+    $quote     = $base['quote'];
+    $quoteAuth = $base['quoteAuthor'];
+    $compName  = $base['compName'];
+    $compRat   = $base['compRating'];
+    $compRev   = $base['compReviews'];
+    $years     = $base['years'];
+    $siteQual  = $base['siteQual'];
+    $hasSite   = $base['hasSite'];
+
+    $greeting = $firstName !== '' ? "Hi {$firstName}," : 'Hi,';
+
+    $kindDesc = match ($kind) {
+        'enhancement' => 'specific fixes to their existing website and online presence, priced individually (~$199 total)',
+        'reputation'  => 'a review-reply and reputation management service ($99 one-time + $29/mo)',
+        default       => 'a new website built specifically for their business ($199 flat)',
+    };
+
+    $intel = [];
+    $intel[] = "Business: {$name} | {$cat} | {$city}, Indiana";
+    $intel[] = 'Owner first name: ' . ($firstName ?: 'unknown');
+    if ($reviews > 0) $intel[] = "Google: {$reviews} reviews at {$rating}★";
+    if ($quote !== '') {
+        $intel[] = 'Standout review: "' . $quote . '"' . ($quoteAuth !== '' ? " — {$quoteAuth}" : '');
+    }
+    if ($compName !== '') {
+        $line = "Nearest competitor: {$compName}";
+        if ($compRat !== null) $line .= " ({$compRat}★";
+        if ($compRev !== null) $line .= ", {$compRev} reviews";
+        if ($compRat !== null) $line .= ')';
+        $intel[] = $line;
+    }
+    if ($years > 0) $intel[] = "Years in business: {$years}";
+    $intel[] = $hasSite ? "Current website quality: {$siteQual}" : 'No website at all';
+    $intel[] = "Offer: {$kindDesc}";
+    $intel[] = "Include this URL exactly once: {$previewUrl}";
+
+    $intelBlock = implode("\n", $intel);
+
+    $prompt = <<<PROMPT
+Write a cold outreach email FROM Adam Ferree of Hoosier Online TO the owner of {$name}.
+
+BUSINESS INTELLIGENCE:
+{$intelBlock}
+
+RULES:
+- Body: 80–110 words (not counting greeting or sign-off)
+- First sentence must reference something SPECIFIC from the intelligence above — the single most compelling angle
+- Zero clichés: absolutely no "I noticed", "I came across", "I hope this finds you", "I wanted to reach out", "I took the liberty", "I stumbled upon"
+- Be direct, warm, specific — think knowledgeable neighbour, not marketer
+- Exactly ONE URL in the email (the one listed above)
+- Greeting line: "{$greeting}"
+- End exactly with: "— Adam\nHoosier Online\nadam@hoosieronline.com"
+- Plain text only — no markdown, no bullets, no asterisks, no em dashes as decoration
+
+Return ONLY this JSON, nothing else:
+{"subject": "...", "body": "..."}
+PROMPT;
+
+    $system = 'You write short, specific, non-slimy cold-email outreach. Every email opens with a real observation about this specific business. You never use templates or agency-speak. Return only the JSON asked for — no preamble, no explanation.';
+
+    $r = ho_llm_call($prompt, $system, 600, false);
+
+    if ($r['ok']) {
+        $jsonStr = ho_llm_extract_json($r['text']);
+        if ($jsonStr !== null) {
+            $d = json_decode($jsonStr, true);
+            if (is_array($d) && !empty($d['subject']) && !empty($d['body'])) {
+                return ['ok' => true, 'subject' => trim((string)$d['subject']), 'body' => trim((string)$d['body']), 'fallback' => false];
+            }
+        }
+    }
+
+    // Fall back to the hook-ladder message builder so the queue never returns empty-handed
+    $fb = match ($kind) {
+        'enhancement' => ho_pitch_message_enhancement($biz, $previewUrl),
+        'reputation'  => ho_pitch_message_reputation($biz, $previewUrl),
+        default       => ho_pitch_message($biz, $previewUrl),
+    };
+    return ['ok' => true, 'subject' => $fb['subject'], 'body' => $fb['body'], 'fallback' => true];
 }
 
 // ─── Auto-research — drain the research queue via the Claude API ─────────────

@@ -264,6 +264,57 @@ body.mf > *{position:relative;z-index:2}
   text-align:center;margin:26px 0 10px;letter-spacing:.12em;text-transform:uppercase;
 }
 
+/* ── AI Pitch Queue ──────────────────────────────────────────────────────── */
+.mf-ai-section{
+  width:min(560px,100%);margin:0 auto 20px;padding:0 14px;
+}
+.mf-ai-header{
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--mc-line);
+}
+.mf-ai-title{
+  font-family:var(--fn);font-size:14px;font-weight:900;letter-spacing:.2em;
+  color:var(--mc-green);text-transform:uppercase;
+}
+.mf-ai-count{
+  margin-left:auto;font-family:var(--fm);font-size:11px;
+  color:var(--mc-muted);letter-spacing:.06em;
+}
+.mf-ai-draft{border-left:3px solid var(--mc-green-dim)}
+.mf-ai-badge{
+  font-family:var(--fm);font-size:10px;font-weight:600;letter-spacing:.12em;
+  background:rgba(65,255,139,.12);color:var(--mc-green);
+  padding:3px 9px;border-radius:4px;text-transform:uppercase;
+}
+.mf-ai-fallback{
+  background:rgba(255,179,71,.10);color:var(--mc-amber);
+}
+.mf-ai-email-chip{
+  font-family:var(--fm);font-size:10px;color:var(--mc-muted);
+  margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:180px;
+}
+.mf-ai-gen-row{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  margin-top:10px;padding:18px 16px;
+  background:linear-gradient(180deg,var(--mc-panel),var(--mc-panel2));
+  border:1px solid var(--mc-line);border-radius:10px;
+}
+.mf-ai-gen-btn{
+  width:100%;
+  background:linear-gradient(135deg,rgba(65,255,139,.15),rgba(65,255,139,.08));
+  color:var(--mc-green);
+  border:1px solid rgba(65,255,139,.3);
+  box-shadow:0 0 18px rgba(65,255,139,.08);
+  font-size:15px;padding:14px 20px;letter-spacing:.08em;
+}
+.mf-ai-gen-btn:active:not(:disabled){transform:scale(.97)}
+.mf-ai-gen-btn:disabled{opacity:.5;cursor:default}
+.mf-ai-gen-status{
+  font-family:var(--fm);font-size:11px;color:var(--mc-muted);
+  letter-spacing:.06em;text-align:center;line-height:1.5;
+}
 @media (prefers-reduced-motion: reduce){
   .mf-card{transition:none}
   .mf-goal-fill{transition:none}

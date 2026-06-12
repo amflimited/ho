@@ -78,6 +78,63 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'mark_outcome':
                 ho_mark_outcome($pdo, (int)($_POST['log_id'] ?? 0), trim((string)($_POST['outcome'] ?? '')));
                 echo json_encode(['ok' => true]); exit;
+
+            case 'skip_ai_pitch':
+                ho_del_setting($pdo, 'pitchdraft_' . $bizId);
+                echo json_encode(['ok' => true]); exit;
+
+            case 'send_ai_pitch':
+                $aiSubject = trim((string)($_POST['subject'] ?? ''));
+                $aiEmail   = trim((string)($_POST['sent_to'] ?? ''));
+                $aiBody    = trim((string)($_POST['body'] ?? ''));
+                $sent = false;
+                if ($aiEmail !== '' && $aiSubject !== '' && $aiBody !== '') {
+                    $sent = ho_send_email($pdo, $bizId, $aiEmail, $aiSubject, $aiBody, 'pitch', 1);
+                    if ($sent) ho_mark_sent($pdo, $bizId, 'email', $aiEmail);
+                }
+                ho_del_setting($pdo, 'pitchdraft_' . $bizId);
+                echo json_encode(['ok' => true, 'sent' => $sent]); exit;
+
+            case 'gen_ai_pitch':
+                ho_llm_boot($pdo);
+                if ((ho_llm_settings()['key'] ?? '') === '') {
+                    echo json_encode(['ok' => false, 'error' => 'No AI engine configured.']); exit;
+                }
+                $s2 = $pdo->prepare("
+                    SELECT b.id, b.business_name, b.location_city, b.owner_first_name,
+                           b.email_address, b.pipeline_status,
+                           c.name AS category_name, c.slug AS category_slug,
+                           p.preview_slug, p.preview_type,
+                           r.google_review_count, r.google_rating,
+                           r.review_quote_1, r.review_quote_1_author,
+                           r.competitor_name, r.competitor_google_rating, r.competitor_review_count,
+                           r.years_in_business, r.has_website, r.website_quality, r.verified_at
+                    FROM businesses b
+                    JOIN categories c ON c.id = b.category_id
+                    LEFT JOIN previews p ON p.business_id = b.id AND p.preview_status = 'ready'
+                    LEFT JOIN research_records r ON r.business_id = b.id
+                    WHERE b.id = ? AND b.pipeline_status IN ('preview_ready','enhancement_ready')
+                    LIMIT 1
+                ");
+                $s2->execute([$bizId]);
+                $biz2 = $s2->fetch();
+                if (!$biz2) { echo json_encode(['ok' => false, 'error' => 'Not found.']); exit; }
+                $siteBase2   = trim(ho_get_setting($pdo, 'site_base')) ?: 'https://hoosieronline.com';
+                $slug2       = (string)($biz2['preview_slug'] ?? '');
+                $kind2       = (string)($biz2['preview_type'] ?? '') === 'enhancement' ? 'enhancement' : 'site';
+                $previewUrl2 = $siteBase2 . '/go/' . $slug2;
+                $result2     = ho_llm_generate_pitch($pdo, $biz2, $previewUrl2, $kind2);
+                $draft2 = [
+                    'biz_id' => $bizId, 'biz_name' => (string)$biz2['business_name'],
+                    'biz_email' => (string)($biz2['email_address'] ?? ''),
+                    'biz_slug' => $slug2, 'biz_city' => (string)($biz2['location_city'] ?? ''),
+                    'category' => (string)$biz2['category_name'], 'kind' => $kind2,
+                    'subject' => $result2['subject'], 'body' => $result2['body'],
+                    'preview_url' => $previewUrl2, 'fallback' => $result2['fallback'],
+                    'generated_at' => time(),
+                ];
+                ho_set_setting($pdo, 'pitchdraft_' . $bizId, json_encode($draft2));
+                echo json_encode(array_merge(['ok' => true], $draft2)); exit;
         }
         echo json_encode(['ok' => false, 'error' => 'Unknown action.']); exit;
     } catch (Throwable $e) {
@@ -94,6 +151,10 @@ $siteBase = 'https://' . ($_SERVER['HTTP_HOST'] ?? 'hoosieronline.com');
 
 $buildReady = []; $enhReady = []; $repReady = []; $followups = []; $hotLeads = []; $interested = []; $triage = [];
 $struckRecently = []; $captures = [];
+
+// AI Pitch Queue
+$pitchDrafts     = [];
+$pitchCandidates = [];
 
 if ($pdo !== null) {
     try { $buildReady = ho_get_preview_ready($pdo); }     catch (Throwable) {}
@@ -130,6 +191,26 @@ if ($pdo !== null) {
         ")->fetchAll(PDO::FETCH_COLUMN);
         $struckRecently = array_map('intval', $struckRecently);
     } catch (PDOException) {}
+
+    // AI Pitch Queue data
+    try { $pitchDrafts = ho_get_pitch_drafts($pdo); } catch (Throwable) {}
+    $draftBizIds = array_map(fn($d) => (int)$d['biz_id'], $pitchDrafts);
+    try {
+        $cRows = $pdo->query("
+            SELECT b.id, b.business_name, b.location_city, c.name AS category_name, p.preview_type
+            FROM businesses b
+            JOIN categories c ON c.id = b.category_id
+            JOIN previews p ON p.business_id = b.id AND p.preview_status = 'ready'
+            WHERE b.pipeline_status IN ('preview_ready','enhancement_ready')
+              AND (b.email_address != ''
+                   OR (b.website_url != '' AND b.website_url NOT REGEXP 'angi\\.com|thumbtack\\.com|yelp\\.com|homeadvisor\\.com|houzz\\.com|bark\\.com|porch\\.com|networx\\.com|homeguide\\.com'))
+            ORDER BY b.updated_at DESC
+            LIMIT 30
+        ")->fetchAll();
+        foreach ($cRows as $cr) {
+            if (!in_array((int)$cr['id'], $draftBizIds, true)) $pitchCandidates[] = $cr;
+        }
+    } catch (Throwable) {}
 
     // Interested: they raised their hand — the closest thing to money there is
     try {
@@ -349,6 +430,10 @@ function ho_money_channel(array $b, string $subject, string $body): array {
 }
 
 $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
+$candidateJson = json_encode(array_map(
+    fn($c) => ['id' => (int)$c['id'], 'name' => (string)$c['business_name']],
+    array_slice($pitchCandidates, 0, 20)
+), JSON_UNESCAPED_SLASHES);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -399,6 +484,66 @@ $movesLeft = count($moves) + (count($triage) > 0 ? 1 : 0);
 </section>
 
 <main class="mf-shell">
+
+<?php if (!empty($pitchDrafts) || !empty($pitchCandidates)): ?>
+<section class="mf-ai-section" id="mfAiSection">
+  <div class="mf-ai-header">
+    <span class="mf-station">INTEL</span>
+    <span class="mf-ai-title">AI PITCH QUEUE</span>
+    <?php if (!empty($pitchDrafts)): ?>
+    <span class="mf-ai-count"><?= count($pitchDrafts) ?> written</span>
+    <?php elseif (!empty($pitchCandidates)): ?>
+    <span class="mf-ai-count"><?= count($pitchCandidates) ?> ready</span>
+    <?php endif; ?>
+  </div>
+
+  <div id="mfAiDraftList">
+  <?php foreach ($pitchDrafts as $d): $dEmail = (string)($d['biz_email'] ?? ''); ?>
+  <article class="mf-card mf-ai-draft" id="mfAiDraft<?= (int)$d['biz_id'] ?>" data-biz="<?= (int)$d['biz_id'] ?>">
+    <div class="mf-card-tag-row">
+      <span class="mf-ai-badge<?= $d['fallback'] ? ' mf-ai-fallback' : '' ?>">
+        <?= $d['fallback'] ? '📋 TEMPLATE' : '🤖 AI WRITTEN' ?>
+      </span>
+      <?php if ($dEmail !== ''): ?>
+      <span class="mf-ai-email-chip"><?= ho_h($dEmail) ?></span>
+      <?php endif; ?>
+    </div>
+    <h2 class="mf-card-name"><?= ho_h((string)$d['biz_name']) ?></h2>
+    <p class="mf-card-sub"><?= ho_h((string)$d['category']) ?> · <?= ho_h((string)$d['biz_city']) ?></p>
+    <details class="mf-msg-peek" open>
+      <summary>Subject: <?= ho_h((string)$d['subject']) ?> ▾</summary>
+      <pre class="mf-msg-body"><?= ho_h((string)$d['body']) ?></pre>
+    </details>
+    <textarea class="mf-msg-src" hidden><?= ho_h((string)$d['body']) ?></textarea>
+    <div class="mf-actions">
+      <?php if ($dEmail !== ''): ?>
+      <button type="button" class="mf-btn mf-btn-go"
+              onclick="aiSend(this,<?= (int)$d['biz_id'] ?>,'<?= addslashes($dEmail) ?>')"
+              data-subject="<?= ho_h((string)$d['subject']) ?>">
+        ✉ Approve &amp; Send
+      </button>
+      <?php else: ?>
+      <span class="mf-no-channel">No email found — skip or research more.</span>
+      <?php endif; ?>
+      <button type="button" class="mf-btn mf-btn-skip" onclick="aiSkip(this,<?= (int)$d['biz_id'] ?>)">Skip</button>
+    </div>
+  </article>
+  <?php endforeach; ?>
+  </div>
+
+  <?php $genCount = min(8, count($pitchCandidates)); ?>
+  <?php if (!empty($pitchCandidates)): ?>
+  <div class="mf-ai-gen-row" id="mfAiGenRow">
+    <button type="button" class="mf-btn mf-ai-gen-btn" id="mfAiGenBtn" onclick="aiStartBatch()">
+      ⚡ Generate <?= $genCount ?> AI Pitch<?= $genCount !== 1 ? 'es' : '' ?>
+    </button>
+    <div class="mf-ai-gen-status" id="mfAiGenStatus">
+      <?= count($pitchCandidates) ?> pitch-ready lead<?= count($pitchCandidates) !== 1 ? 's' : '' ?> · AI writes, you approve
+    </div>
+  </div>
+  <?php endif; ?>
+</section>
+<?php endif; ?>
 
   <?php if (empty($moves) && empty($triage)): ?>
     <div class="mf-card mf-empty">
@@ -589,6 +734,107 @@ function triageGo(keep) {
   triageRender();
 }
 triageRender();
+
+// ── AI Pitch Queue ────────────────────────────────────────────────────────────
+var AI_CANDIDATES = <?= $candidateJson ?? '[]' ?>;
+var aiBatch = []; var aiIdx = 0; var aiGenerating = false;
+
+function aiPost(params, cb) {
+  fetch('/money.php', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams(params).toString()
+  }).then(function(r){ return r.json(); }).then(cb).catch(function(){ cb({ok:false}); });
+}
+function aiSlideOut(card) {
+  if (!card) return;
+  card.classList.add('mf-out');
+  setTimeout(function(){ card.remove(); }, 420);
+}
+function aiSend(btn, bizId, email) {
+  var card = document.getElementById('mfAiDraft' + bizId);
+  var subj = btn.getAttribute('data-subject');
+  var src  = card ? card.querySelector('.mf-msg-src') : null;
+  var body = src ? src.value : '';
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  aiPost({action:'send_ai_pitch', business_id:bizId, subject:subj, body:body, sent_to:email}, function(r) {
+    if (r.ok) {
+      if (card) card.classList.add('mf-sent');
+      bumpScore();
+      setTimeout(function(){ aiSlideOut(card); }, 900);
+    } else {
+      btn.disabled = false;
+      btn.textContent = '✉ Approve & Send';
+      alert('Send failed — check email settings.');
+    }
+  });
+}
+function aiSkip(btn, bizId) {
+  var card = document.getElementById('mfAiDraft' + bizId);
+  btn.disabled = true;
+  aiPost({action:'skip_ai_pitch', business_id:bizId}, function() {
+    aiSlideOut(card);
+  });
+}
+function aiStartBatch() {
+  if (aiGenerating) return;
+  aiBatch = AI_CANDIDATES.slice(0, 8); aiIdx = 0; aiGenerating = true;
+  var btn = document.getElementById('mfAiGenBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Writing…'; }
+  aiGenNext();
+}
+function aiGenNext() {
+  if (aiIdx >= aiBatch.length) {
+    aiGenerating = false;
+    var btn = document.getElementById('mfAiGenBtn');
+    var row = document.getElementById('mfAiGenRow');
+    if (btn) btn.textContent = 'Done';
+    var st = document.getElementById('mfAiGenStatus');
+    if (st) st.textContent = aiBatch.length + ' pitch' + (aiBatch.length !== 1 ? 'es' : '') + ' written — review above';
+    return;
+  }
+  var c = aiBatch[aiIdx];
+  var st = document.getElementById('mfAiGenStatus');
+  if (st) st.textContent = 'Writing pitch ' + (aiIdx+1) + ' of ' + aiBatch.length + ' — ' + c.name + '…';
+  aiPost({action:'gen_ai_pitch', business_id:c.id}, function(r) {
+    if (r.ok) aiInsertCard(r);
+    aiIdx++;
+    aiGenNext();
+  });
+}
+function aiInsertCard(d) {
+  var list = document.getElementById('mfAiDraftList');
+  if (!list) return;
+  var hasEmail = d.biz_email && d.biz_email !== '';
+  var badge = d.fallback ? '<span class="mf-ai-badge mf-ai-fallback">📋 TEMPLATE</span>'
+                         : '<span class="mf-ai-badge">🤖 AI WRITTEN</span>';
+  var emailChip = hasEmail ? '<span class="mf-ai-email-chip">' + escH(d.biz_email) + '</span>' : '';
+  var sendBtn = hasEmail
+    ? '<button type="button" class="mf-btn mf-btn-go" data-subject="' + escH(d.subject) + '" onclick="aiSend(this,' + d.biz_id + ',\'' + escAttr(d.biz_email) + '\')">✉ Approve &amp; Send</button>'
+    : '<span class="mf-no-channel">No email found.</span>';
+  var art = document.createElement('article');
+  art.className = 'mf-card mf-ai-draft';
+  art.id = 'mfAiDraft' + d.biz_id;
+  art.setAttribute('data-biz', d.biz_id);
+  art.innerHTML =
+    '<div class="mf-card-tag-row">' + badge + emailChip + '</div>' +
+    '<h2 class="mf-card-name">' + escH(d.biz_name) + '</h2>' +
+    '<p class="mf-card-sub">' + escH(d.category) + ' · ' + escH(d.biz_city) + '</p>' +
+    '<details class="mf-msg-peek" open>' +
+      '<summary>Subject: ' + escH(d.subject) + ' ▾</summary>' +
+      '<pre class="mf-msg-body">' + escH(d.body) + '</pre>' +
+    '</details>' +
+    '<textarea class="mf-msg-src" hidden>' + escH(d.body) + '</textarea>' +
+    '<div class="mf-actions">' + sendBtn +
+      '<button type="button" class="mf-btn mf-btn-skip" onclick="aiSkip(this,' + d.biz_id + ')">Skip</button>' +
+    '</div>';
+  list.appendChild(art);
+}
+function escH(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) { return String(s).replace(/'/g,"\\'"); }
 </script>
 <?php endif; ?>
 </body>
