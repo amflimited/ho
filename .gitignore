@@ -1,0 +1,4 @@
+/vendor/
+/config/db.php
+/config/db-v1.php
+.env

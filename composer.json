@@ -1,0 +1,12 @@
+{
+    "name": "amflimited/ho-v2",
+    "description": "Hoosier Online v2 - the sales machine",
+    "type": "project",
+    "require": { "php": ">=8.3", "ext-pdo": "*", "ext-curl": "*", "ext-mbstring": "*" },
+    "autoload": { "psr-4": { "HoV2\\": "src/" } },
+    "scripts": {
+        "codegen": "php bin/codegen.php",
+        "migrate": "php bin/migrate.php",
+        "test": "php tests/run.php"
+    }
+}
