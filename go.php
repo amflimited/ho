@@ -485,17 +485,6 @@ endif; ?>
       <span class="fd-ts-item">No contracts</span>
       <?php endif; ?>
     </div>
-    <nav class="fd-chapter-nav" aria-label="Jump to section">
-      <?php if ($isEnhancement): ?>
-      <a href="#what-i-can-add" class="fd-chapter-link">What I&rsquo;d fix</a>
-      <?php else: ?>
-      <a href="#preview" class="fd-chapter-link">Design styles</a>
-      <a href="#services" class="fd-chapter-link">What you get</a>
-      <?php endif; ?>
-      <a href="#about" class="fd-chapter-link">Who built this</a>
-      <a href="#pricing" class="fd-chapter-link">Pricing</a>
-      <a href="#quote" class="fd-chapter-link">Free quote</a>
-    </nav>
   </section>
 
   <?php if (!$isEnhancement): ?>
@@ -614,9 +603,6 @@ endif; ?>
         $sources[] = ['href' => 'https://www.google.com/search?q=' . $gQuery, 'label' => 'Google Business', 'class' => 'fd-rs-google'];
     }
     ?>
-    <?php if ($verifiedAt !== ''): ?>
-    <p class="fd-verified-note">✓ Every claim on this page &mdash; reviews, ratings, competitor data &mdash; was independently verified by a second research pass on <?= ho_h(date('F j', strtotime($verifiedAt))) ?>.</p>
-    <?php endif; ?>
     <?php // Personal hook FIRST — the specific reason we reached out ?>
     <?php if (!empty($opp)): ?>
       <p class="fd-why" style="font-size:17px;line-height:1.55;color:var(--fd-ink);margin-bottom:14px"><?= ho_h($opp) ?></p>
@@ -697,141 +683,6 @@ endif; ?>
     <p class="fd-score-note"><?= $scoreNote ?></p>
     <?php endif; ?>
 
-    <?php if (!empty($sources)): ?>
-    <div class="fd-research-sources">
-      <span class="fd-rs-label">We reviewed:</span>
-      <?php foreach ($sources as $src): ?>
-        <?php if ($src['href'] !== null): ?>
-          <a href="<?= ho_h($src['href']) ?>" target="_blank" rel="noopener" class="fd-rs-chip <?= $src['class'] ?>"><?= $src['label'] ?></a>
-        <?php else: ?>
-          <span class="fd-rs-chip <?= $src['class'] ?>"><?= $src['label'] ?></span>
-        <?php endif; ?>
-      <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <?php // ── Years in business credibility (site-build only) ─────────────── ?>
-    <?php if (!$isEnhancement && $yearsInBiz >= 5 && (!$hasWebsite || $websiteQ === 'none')): ?>
-    <div class="fd-signal fd-signal-cred">
-      <span class="fd-signal-icon" aria-hidden="true">📅</span>
-      <div>
-        <strong><?= $yearsInBiz ?> years in business.</strong>
-        That track record is completely invisible online right now. A website makes your experience the first thing a customer sees — not an afterthought buried three clicks deep in a Google listing.
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <?php // ── Review equity — locked in Google (site-build only) ──────────── ?>
-    <?php if (!$isEnhancement && $googleCount >= 10 && (!$hasWebsite || $websiteQ === 'none')): ?>
-    <div class="fd-signal fd-signal-cred">
-      <span class="fd-signal-icon" aria-hidden="true">🔒</span>
-      <div>
-        <strong>Your <?= number_format($googleCount) ?> reviews are locked inside Google.</strong>
-        Right now that proof only surfaces when someone searches your exact name. Put a website in front of it and those reviews become your opening argument on every page — every search, every quote, every estimate you send.
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <?php // ── Technical issues on existing site ──────────────────────────── ?>
-    <?php if ($hasWebsite && ($notMobile || $noSsl)): ?>
-    <div class="fd-signal fd-signal-tech">
-      <span class="fd-signal-icon" aria-hidden="true">⚡</span>
-      <div>
-        <?php if ($notMobile && $noSsl): ?>
-          <strong>Your site isn&rsquo;t mobile-friendly and has no SSL.</strong>
-          Over 70% of local searches happen on phones. Google is actively penalising your site in search results because of both issues, and every major browser warns visitors &ldquo;Not Secure&rdquo; before they read a word. That warning alone loses you jobs.
-        <?php elseif ($notMobile): ?>
-          <strong>Your site isn&rsquo;t mobile-friendly.</strong>
-          Over 70% of local searches happen on phones. Google actively penalises sites that aren&rsquo;t optimised — meaning competitors rank above you even if you&rsquo;ve been in business longer and have better reviews.
-        <?php else: ?>
-          <strong>Your site has no SSL certificate.</strong>
-          Every major browser flags your site as &ldquo;Not Secure&rdquo; before a visitor reads a single word. That warning alone is enough to send most people straight back to the search results.
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <?php // ── GBP photo count ─────────────────────────────────────────────── ?>
-    <?php if ($gbpPhotos !== null && $gbpPhotos < 10): ?>
-    <div class="fd-signal fd-signal-friction">
-      <span class="fd-signal-icon" aria-hidden="true">📷</span>
-      <div>
-        <strong>Only <?= $gbpPhotos ?> photo<?= $gbpPhotos !== 1 ? 's' : '' ?> on your Google listing.</strong>
-        Google&rsquo;s own data shows businesses with 20+ photos get significantly more profile visits and direct calls. Customers want to see the work before they commit. <?= ($gbpPhotos === 0) ? 'Right now there&rsquo;s nothing for them to look at.' : 'You&rsquo;re not giving them enough to make the call.' ?>
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <?php // ── Stale reviews recency ────────────────────────────────────────── ?>
-    <?php if ($reviewAgeMonths !== null && $reviewAgeMonths >= 6 && $googleCount >= 3): ?>
-    <div class="fd-signal fd-signal-friction">
-      <span class="fd-signal-icon" aria-hidden="true">🕐</span>
-      <div>
-        <strong>Your most recent review was <?= $reviewAgeMonths ?> month<?= $reviewAgeMonths !== 1 ? 's' : '' ?> ago.</strong>
-        Customers look at recency, not just the star count. A review from <?= $reviewAgeMonths >= 12 ? 'over a year ago' : 'several months ago' ?> reads as &ldquo;are they still taking jobs?&rdquo; Without fresh activity, you&rsquo;re losing work to businesses that just look more active — even if they&rsquo;re not better.
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <?php // ── Phone-only booking friction ─────────────────────────────────── ?>
-    <?php if ($bookingMethod === 'phone' && $googleCount >= 5): ?>
-    <div class="fd-signal fd-signal-friction">
-      <span class="fd-signal-icon" aria-hidden="true">📞</span>
-      <div>
-        <strong>Phone-only means silent lost jobs.</strong>
-        The 11pm searcher. The person who hates making calls. The customer who wants to send details in writing first. All of those people found you — and then left. A contact form captures that job instead of handing it to a competitor.
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <?php // ── Angi / Thumbtack listing ──────────────────────────────────────── ?>
-    <?php if ($hasAngi || $hasThumbtak): ?>
-    <?php $platform = $hasAngi ? 'Angi' : 'Thumbtack'; ?>
-    <div class="fd-signal fd-signal-roi">
-      <span class="fd-signal-icon" aria-hidden="true">$</span>
-      <div>
-        <strong>You&rsquo;re listed on <?= ho_h($platform) ?>.</strong>
-        Many businesses on that platform pay per lead or per connection. Whether you do or not, a contact form on your own site captures the same search traffic permanently — no platform taking a cut, no competing with other bids on the same job.
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <?php if ($logoQuality === 'professional') array_unshift($strengths, 'A clean, professional logo — your branding already looks the part. Most local competitors can\'t say that.'); ?>
-    <?php if (!empty($strengths)): ?>
-      <p class="fd-str-intro">Working in your favour:</p>
-      <div class="fd-str-list">
-        <?php foreach ($strengths as $s): ?>
-          <div class="fd-str-item"><span class="fd-str-marker" aria-hidden="true">✓</span><?= ho_h((string)$s) ?></div>
-        <?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-
-    <?php if (!empty($gaps)): ?>
-      <p class="fd-gap-intro">What&rsquo;s worth fixing:</p>
-      <div class="fd-gap-list">
-        <?php foreach ($gaps as $g): ?>
-          <div class="fd-gap-item"><span class="fd-gap-marker" aria-hidden="true">✗</span><?= ho_h((string)$g) ?></div>
-        <?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-
-    <?php // ── Competitive pressure — below strengths/gaps so it reads as context, not accusation ?>
-    <?php if (!$isEnhancement && $compHasSite && $compName !== ''): ?>
-    <div class="fd-signal fd-signal-comp">
-      <span class="fd-signal-icon" aria-hidden="true">⚠</span>
-      <div>
-        <strong><?= ho_h($compName) ?> has a website.</strong>
-        <?php if ($compWebsite !== ''): ?>
-          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find
-          <a href="<?= ho_h($compWebsite) ?>" target="_blank" rel="noopener"><?= ho_h(parse_url($compWebsite, PHP_URL_HOST) ?: $compName) ?></a>
-          at the top of the results. You don&rsquo;t show up at all. That customer made their choice before they knew you existed.
-        <?php else: ?>
-          When someone searches for <?= ho_h(strtolower($catName)) ?> in <?= ho_h($city) ?>, they find <?= ho_h($compName) ?> at the top of the results. You don&rsquo;t show up. That customer made their choice before they knew you existed.
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php endif; ?>
-
     <?php if (!$isEnhancement): ?>
     <p class="fd-why-scroll">I built something to fix that. See it below &darr;</p>
     <?php endif; ?>
@@ -860,63 +711,6 @@ endif; ?>
   </section>
   <?php endif; ?>
 
-  <?php
-  // ── BEFORE / AFTER AUDIT — build rows from real data ─────────────────────
-  $auditRows = [];
-  if ($isEnhancement) {
-      $auditGapDefs = [
-          'contact_form'    => ['Contact',      'No way to reach you in writing',         'Contact form on every page'],
-          'tech_issues'     => ['Mobile/SSL',   ($notMobile && $noSsl) ? 'Not mobile + no HTTPS' : ($notMobile ? 'Not mobile-friendly' : 'No HTTPS'), 'Fast, secure, mobile-ready'],
-          'site_outdated'   => ['Design',       'Looks dated — visitors bounce',          'Modern, trust-building design'],
-          'paid_leads'      => ['Lead cost',    'Paying per Angi lead',                   'Own your traffic, no cut taken'],
-          'google_business' => ['Google Maps',  'Not showing in local results',           'Verified, showing locally'],
-          'gbp_photos'      => ['GBP photos',   'Few or no work photos',                 '20+ job photos published'],
-          'stale_reviews'   => ['Reviews',      'Last review 6+ months ago',             'Active review request system'],
-          'no_before_after' => ['Portfolio',    'No before/after photos',                'Before/after gallery live'],
-          'no_gallery'      => ['Gallery',      'No work photos on site',                'Real job photos on every page'],
-          'no_testimonials' => ['Testimonials', 'Reviews buried on Google',              'Quotes front and center'],
-          'dead_facebook'   => ['Facebook',     'No posts in months',                    'Active presence, monthly posts'],
-          'freemail'        => ['Email',        'Gmail / Yahoo address',                 'Professional @yourdomain'],
-          'no_trust_signals'=> ['License',      'Not mentioned anywhere',                'License + insurance badge'],
-          'yelp_unclaimed'  => ['Yelp',         'Unclaimed — anyone can edit it',        'Claimed & locked down'],
-          'online_booking'  => ['Booking',      "Can't book online",                     'Online booking enabled'],
-          'gbp_incomplete'  => ['GBP',          'Incomplete profile',                    'Complete, optimized'],
-      ];
-      foreach (array_slice($enhancementGaps, 0, 5) as $gk) {
-          if (isset($auditGapDefs[$gk])) $auditRows[] = $auditGapDefs[$gk];
-      }
-  } else {
-      $auditRows[] = ['Website',  "None — you're invisible online",           'Live in 48 hours'];
-      if ($notMobile)   $auditRows[] = ['Mobile',   'Not working on phones',            '100% responsive'];
-      elseif ($noSsl)   $auditRows[] = ['Security', '"Not Secure" browser warning',      'HTTPS included'];
-      $contactBefore    = ($bookingMethod === 'phone') ? 'Phone only — 11pm leads leave' : 'Limited contact options';
-      $auditRows[]      = ['Contact',  $contactBefore,                                  'Form + phone, always on'];
-      $reviewBefore     = $googleCount > 0 ? $googleCount . ' reviews buried in Google' : 'No visible social proof';
-      $auditRows[]      = ['Reviews',  $reviewBefore,                                   'Front and center on your site'];
-      $auditRows[]      = ['Search',   'Not showing in Google or Maps',                 'Indexed & appearing locally'];
-  }
-  ?>
-  <?php if (!empty($auditRows)): ?>
-  <!-- ── BEFORE / AFTER AUDIT CARD ──────────────────────────────────────────── -->
-  <section class="fd-card fd-audit fd-reveal">
-    <p class="fd-kicker">The honest picture</p>
-    <h2>Where things stand right now.</h2>
-    <div class="fd-audit-table" role="table" aria-label="Before and after comparison">
-      <div class="fd-audit-head" role="row">
-        <div role="columnheader"></div>
-        <div class="fd-audit-col-now" role="columnheader">Now</div>
-        <div class="fd-audit-col-after" role="columnheader">After</div>
-      </div>
-      <?php foreach ($auditRows as $ar): ?>
-      <div class="fd-audit-row" role="row">
-        <div class="fd-audit-cell fd-audit-label" role="rowheader"><?= ho_h($ar[0]) ?></div>
-        <div class="fd-audit-cell fd-audit-before" role="cell"><span class="fd-audit-x" aria-hidden="true">✗</span><?= ho_h($ar[1]) ?></div>
-        <div class="fd-audit-cell fd-audit-after" role="cell"><span class="fd-audit-chk" aria-hidden="true">✓</span><?= ho_h($ar[2]) ?></div>
-      </div>
-      <?php endforeach; ?>
-    </div>
-  </section>
-  <?php endif; ?>
 
   <?php if ($isEnhancement): ?>
   <!-- ── WHAT I'D FIX (enhancement only) — contact-first, no checkout ─────── -->
@@ -1290,38 +1084,18 @@ endif; ?>
         <p class="fd-trust-location">New Castle, Indiana &mdash; not a call centre, not an agency</p>
       </div>
     </div>
-    <?php
-    // Build a list of specific facts to prove the research was real (both tracks)
-    $adamKnows = [];
-    if ($yearsInBiz >= 3) $adamKnows[] = 'you&rsquo;ve been running ' . ho_h($name) . ' for ' . $yearsInBiz . ' years';
-    if ($googleCount >= 5) $adamKnows[] = 'you have ' . number_format($googleCount) . ' Google reviews';
-    if ($compHasSite && $compName !== '') $adamKnows[] = ho_h($compName) . ' already has a site and is outranking you';
-    if (!$hasWebsite && $phone !== '') $adamKnows[] = 'customers can only reach you by calling ' . ho_h($telDisplay);
-
-    // Handwritten P.S. — strongest single fact, no phone numbers (iOS rule)
-    $psFact = '';
-    if ($quote1Author !== '')   $psFact = 'I read what ' . ho_h($quote1Author) . ' wrote about you before I ever wrote a word of this page.';
-    elseif ($yearsInBiz >= 3)   $psFact = $yearsInBiz . ' years of work deserves better than being invisible online.';
-    elseif ($googleCount >= 5)  $psFact = 'Anyone who earns ' . number_format($googleCount) . ' reviews is doing the work right.';
-    elseif ($compName !== '')   $psFact = 'I checked what ' . ho_h($compName) . ' is doing too. You should be ahead of them.';
-    ?>
     <?php if (!$isEnhancement): ?>
-    <p>I build websites for Indiana service businesses &mdash; that&rsquo;s the whole business. <?= $ownerFirst !== '' ? ho_h($ownerFirst) . ', before' : 'Before' ?> I reached out, I already knew: <?php if (!empty($adamKnows)): ?><?= implode('; ', $adamKnows) ?>. <?php endif; ?>I built this preview before sending a single message. I only do that when I think it&rsquo;s worth it.</p>
-    <p style="margin-top:10px">When you say yes, you&rsquo;re not entering a queue &mdash; I start the same day. <?= ho_h($name) ?>&rsquo;s site is live within 48 hours. That&rsquo;s a guarantee, not a target.</p>
+    <p>I build websites for Indiana service businesses &mdash; one at a time, personally. I looked <?= ho_h($name) ?> up before I ever sent a message<?= ($googleCount >= 5 ? ', read your ' . number_format($googleCount) . ' reviews' : '') ?><?= ($compHasSite && $compName !== '' ? ', and checked what ' . ho_h($compName) . ' is doing' : '') ?>. I only build a preview when I think it&rsquo;s genuinely worth it.</p>
     <?php else: ?>
-    <p>I build websites for Indiana service businesses. That&rsquo;s the whole business. I looked at your <?= $hasWebsite && $websiteUrl !== '' ? 'site' : ($hasGoogle ? 'Google listing' : ($hasFacebook ? 'Facebook page' : 'online presence')) ?>, noted what could be better, and put this together before reaching out. I only send these when I think the business is worth it.</p>
-    <p style="margin-top:10px">No queue, no agency runaround. You tell me what you want fixed and I&rsquo;ll tell you exactly what it takes &mdash; same day. Most of it&rsquo;s a flat one-time fix.</p>
+    <p>I build and fix websites for Indiana service businesses, one at a time. I looked over your online presence before reaching out &mdash; every fix I listed above is something specific I noticed, not a template.</p>
     <?php endif; ?>
     <ul class="fd-trust-signals">
       <li>Indiana-based &mdash; you can call me directly</li>
-      <li>Flat price, no contract, no monthly fees — ever</li>
-      <?php if ($isEnhancement): ?>
-      <li>I work with the site you&rsquo;ve got &mdash; no rebuild, no disruption</li>
-      <?php else: ?>
-      <li>30-day money-back if you&rsquo;re not happy after launch</li>
+      <li>Flat price, no contract, no monthly fees &mdash; ever</li>
+      <?php if (!$isEnhancement): ?>
       <li>One <?= ho_h(strtolower($catName)) ?> site per city &mdash; yours locks out competitors in <?= ho_h($city) ?></li>
       <?php endif; ?>
-      <li>Every site researched and worked on personally — not outsourced</li>
+      <li>Researched and built personally &mdash; never outsourced</li>
     </ul>
     <div class="fd-trust-contact">
       <a href="mailto:<?= ADAM_EMAIL ?>"><?= ADAM_EMAIL ?></a>
@@ -1330,68 +1104,9 @@ endif; ?>
         <a href="tel:<?= ho_h(preg_replace('/\D/', '', $adamPhone)) ?>"><?= ho_h($adamPhone) ?></a>
       <?php endif; ?>
     </div>
-    <?php if ($psFact !== ''): ?>
-    <p class="fd-trust-ps">P.S. <?= $ownerFirst !== '' ? ho_h($ownerFirst) . ' &mdash; ' : '' ?><?= $psFact ?> This page wasn&rsquo;t mass-mailed. It only exists for <?= ho_h($name) ?>.</p>
-    <?php endif; ?>
   </section>
 
-  <?php if (!$isEnhancement): ?>
-  <!-- ── WHAT YOU GET (modules) ───────────────────────────────────────────── -->
-  <?php
-  $servicesClean = array_values(array_filter(array_map('trim', array_map('strval', $services))));
-  $servicesList = !empty($servicesClean) ? implode(', ', array_slice($servicesClean, 0, 5)) : '';
-  ?>
-  <section class="fd-section fd-reveal" id="services">
-    <div class="fd-section-head">
-      <p class="fd-kicker">What We Build</p>
-      <h2>Every page. What it does. Why it matters.</h2>
-      <p class="fd-design-sub" style="margin-top:-4px;margin-bottom:8px">Built in the style you pick, filled with <?= ho_h($name) ?>&rsquo;s real details &mdash; and you own it the day it goes live.</p>
-    </div>
-    <div class="fd-module-list">
-      <?php foreach ($modules as $i => $m): ?>
-        <div class="fd-module fd-reveal" style="--reveal-delay:<?= $i * 80 ?>ms">
-          <span class="fd-module-icon"><?= ho_h($m['icon'] ?? '◆') ?></span>
-          <div>
-            <strong><?= ho_h($m['title']) ?></strong>
-            <?php if ($m['title'] === 'Your Services' && $servicesList !== ''): ?>
-            <p><?= ho_h($servicesList) ?> &mdash; every service laid out clearly with what customers should expect. When they can picture the job before they call, they call already sold.</p>
-            <?php elseif ($m['title'] === 'Your Front Page' && $name !== ''): ?>
-            <p><?= ho_h($name) ?><?= $city !== '' ? ' &middot; ' . ho_h($catName) . ' &middot; ' . ho_h($city) . ', IN' : '' ?> &mdash; visible the moment someone lands. One clear call-to-action. Most customers decide in under 5 seconds. This page wins those 5 seconds.</p>
-            <?php else: ?>
-            <p><?= ho_h($m['desc']) ?></p>
-            <?php endif; ?>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  </section>
-
-  <?php if ($stakes !== null): ?>
-  <!-- ── WHAT THIS COSTS YOU (site-build) ─────────────────────────────────── -->
-  <section class="fd-card fd-stakes fd-reveal">
-    <p class="fd-kicker">What this actually costs you</p>
-    <h2>Run the math with me.</h2>
-    <p>The average <?= ho_h(strtolower($catName)) ?> job runs around
-       <span class="fd-stakes-num">$<?= number_format($stakes['ticket']) ?></span>.
-       If being invisible online costs you just <?= $stakes['jobs_per_month'] ?> job<?= $stakes['jobs_per_month'] > 1 ? 's' : '' ?> a month
-       &mdash; the 11pm searcher, the person who called <?= ($compHasSite && $compName !== '') ? ho_h($compName) . ' because they came up first' : 'whoever Google showed first' ?> &mdash;
-       that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span> walking past you.</p>
-    <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero. And the fix is $199, once.</p>
-    <?php if ($yearsInBiz > 0): ?>
-    <p class="fd-stakes-missed">In <?= $yearsInBiz ?> year<?= $yearsInBiz !== 1 ? 's' : '' ?> without a website, that&rsquo;s roughly <strong>$<?= number_format((int)(round($stakes['annual'] * $yearsInBiz / 100) * 100)) ?></strong> in work that found <?= ($compHasSite && $compName !== '') ? ho_h($compName) : 'someone with a website' ?> instead. The fix is $199.</p>
-    <?php endif; ?>
-    <div class="fd-roi-calc" data-jpm="<?= (int)$stakes['jobs_per_month'] ?>" data-offer="199">
-      <p class="fd-roi-label">What&rsquo;s your average job worth?</p>
-      <div class="fd-roi-input-row">
-        <span class="fd-roi-dollar" aria-hidden="true">$</span>
-        <input type="number" class="fd-roi-input" value="<?= (int)$stakes['ticket'] ?>" min="50" max="50000" step="50" aria-label="Average job price in dollars" oninput="roiUpdate(this)">
-        <span class="fd-roi-per">/ job</span>
-      </div>
-      <p class="fd-roi-result" aria-live="polite"></p>
-    </div>
-  </section>
-  <?php endif; ?>
-
+<?php if (!$isEnhancement): ?>
   <div class="fd-bridge" aria-hidden="true"><span class="fd-bridge-dot"></span></div>
   <!-- ── THE OFFER ────────────────────────────────────────────────────────── -->
   <?php
@@ -1416,24 +1131,6 @@ endif; ?>
         <strong>One-time. You own it forever.</strong>
         <span>No monthly fee. No contract. No renewal bill.</span>
         <span>No Wix. No GoDaddy. Just your site.</span>
-      </div>
-    </div>
-
-    <div class="fd-price-compare">
-      <div class="fd-pc-row fd-pc-other">
-        <span class="fd-pc-name">Wix (3 yrs)</span>
-        <span class="fd-pc-cost"><s>$576+</s></span>
-        <span class="fd-pc-note">monthly fees forever, you never own it</span>
-      </div>
-      <div class="fd-pc-row fd-pc-other">
-        <span class="fd-pc-name">GoDaddy (3 yrs)</span>
-        <span class="fd-pc-cost"><s>$420+</s></span>
-        <span class="fd-pc-note">monthly fees forever, you never own it</span>
-      </div>
-      <div class="fd-pc-row fd-pc-ours">
-        <span class="fd-pc-name">Hoosier Online</span>
-        <span class="fd-pc-cost">$199</span>
-        <span class="fd-pc-note">once &mdash; yours forever, no renewal, no platform</span>
       </div>
     </div>
 
@@ -1477,16 +1174,9 @@ endif; ?>
     </ul>
 
     <div class="fd-live-guarantee">
-      <strong>⚡ Live by <?= date('l, F j') === date('l, F j', strtotime('tomorrow')) ? date('F j', strtotime('tomorrow')) : date('F j', strtotime('tomorrow')) ?> &mdash; or you pay nothing.</strong>
-      Most web agencies quote 4&ndash;8 weeks. <?= ho_h($name) ?>&rsquo;s site is live within 48 hours of checkout &mdash; real, live, at your web address. That&rsquo;s the actual contract: not a target, not a goal. If it&rsquo;s not live in time, I refund every cent.
+      <strong>⚡ Live in 48 hours &mdash; guaranteed.</strong>
+      Say yes today, <?= ho_h($name) ?>&rsquo;s site is live by <?= date('F j', strtotime('+48 hours')) ?>. If it&rsquo;s not live in time, I refund every cent.
     </div>
-
-    <p class="fd-kicker" style="margin-top:20px;margin-bottom:8px">What happens next</p>
-    <ol class="fd-offer-steps">
-      <li>You say yes &mdash; 2 minutes to check out below</li>
-      <li>I build <?= ho_h($name) ?>&rsquo;s site today &mdash; live in under 48 hours</li>
-      <li><?= $hasExistingDomain ? ho_h($ownDotCom) : ho_h($ownDotCom ?: $name) ?> goes live &mdash; customers can find and call you</li>
-    </ol>
 
     <?php if ($seasonalNote !== ''): ?>
     <div class="fd-seasonal-note"><span aria-hidden="true">📅</span> <?= ho_h($seasonalNote) ?></div>
@@ -1508,6 +1198,9 @@ endif; ?>
         <input type="checkbox" name="care" value="1">
         <span><span class="fd-care-tag">OPTIONAL</span> <strong>Keep-It-Running &mdash; $29/mo, first 30 days free.</strong> The site is yours to keep either way. This adds: I handle hosting (no account for you to manage, no renewal to miss), keep it secure and backed up, make unlimited small edits, and post once a month to your Google Business Profile. Cancel any time with one email &mdash; or uncheck it now. $0 extra today either way.</span>
       </label>
+      <?php if ($quote1 !== '' && $quote1Author !== ''): ?>
+      <div class="fd-offer-quote">&ldquo;<?= ho_h(mb_strimwidth($quote1, 0, 120, '…')) ?>&rdquo; &mdash; <strong><?= ho_h($quote1Author) ?></strong>, <?= $googleCount > 0 ? number_format($googleRating, 1) . '★ Google' : 'verified customer' ?></div>
+      <?php endif; ?>
       <button type="submit" class="fd-btn fd-btn-primary fd-stripe-btn fd-checkout-main-btn">
         Yes &mdash; build <?= ho_h($name) ?>&rsquo;s site &rarr; $199
       </button>
