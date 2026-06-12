@@ -726,3 +726,113 @@ html.fd-landed .fd-turn { animation:fd-land .7s cubic-bezier(.2,.8,.3,1) both; }
 .fd-why-conjunction { font-size:15px; font-weight:700; color:var(--fd-ink); border-left:3px solid var(--fd-green); padding:8px 14px; background:rgba(47,94,54,.06); border-radius:0 10px 10px 0; margin:0 0 14px; line-height:1.45; }
 /* Seasonal note near hero (same skin as bottom note, tighter top margin) */
 .fd-seasonal-hero-note { margin-top:12px; margin-bottom:0; }
+
+/* ══ v136 — 25 visual improvements ══════════════════════════════════════════ */
+
+/* 1. Hero name — richer 5-stop gradient, luminous bright mid-stop */
+.fd-turn-name { background:linear-gradient(138deg,#071a0a 0%,#1d4d22 25%,#3a8045 52%,#5aba6a 72%,#2f5e36 100%)!important; filter:drop-shadow(0 3px 14px rgba(47,94,54,.18)); }
+
+/* 2. Turn section — deeper atmospheric glow, stronger light halo at top */
+.fd-turn { background: radial-gradient(ellipse 110% 70% at 50% -10%,rgba(47,94,54,.28),transparent 60%), radial-gradient(ellipse 70% 50% at 80% 110%,rgba(47,94,54,.08),transparent), rgba(248,243,231,.78)!important; border-color:rgba(47,94,54,.20)!important; box-shadow:inset 0 2px 0 rgba(255,255,255,.88), 0 1px 0 rgba(255,255,255,.6), 0 4px 24px rgba(47,94,54,.10)!important; }
+
+/* 3. Hero CTA — bigger tap target, shine sweep on hover */
+.fd-turn-cta { min-height:60px!important; padding:17px 44px!important; font-size:18px!important; position:relative; overflow:hidden; }
+.fd-turn-cta::after { content:''; position:absolute; inset:0; background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.20) 50%,transparent 75%); transform:translateX(-110%); transition:transform .55s ease; }
+@media(hover:hover) { .fd-turn-cta:hover::after { transform:translateX(110%); } }
+
+/* 4. Trust strip items — pill-badge treatment, not bare text */
+.fd-ts-item { background:rgba(255,255,255,.58)!important; border:1px solid rgba(34,23,19,.10)!important; border-radius:999px!important; padding:5px 13px!important; box-shadow:inset 0 1px 0 rgba(255,255,255,.75)!important; font-size:12px!important; }
+.fd-ts-item a { font-weight:900; }
+
+/* 5. Hero stats pills — glassy, crisper backdrop */
+.fd-hstat { background:rgba(255,255,255,.72)!important; border-color:rgba(47,94,54,.16)!important; box-shadow:inset 0 1.5px 0 rgba(255,255,255,.92), 0 3px 10px rgba(34,23,19,.07)!important; }
+.fd-hstat strong { font-size:17px!important; }
+
+/* 6. Price anchor — styled as a green pill, not plain caption */
+.fd-price-anchor { display:inline-block!important; background:rgba(47,94,54,.10)!important; border:1px solid rgba(47,94,54,.24)!important; border-radius:999px!important; padding:6px 20px!important; font-size:13px!important; color:var(--fd-green)!important; font-weight:700!important; margin-top:12px!important; }
+
+/* 7. Section h2 headings — ink-to-forest gradient (skip dark quote-card) */
+.fd-card:not(.fd-quote-card) h2, .fd-section-head h2 { background:linear-gradient(135deg,var(--fd-ink) 0%,#1e3d23 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+/* 8. Kicker — hairline rule extends to the right */
+.fd-kicker::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(47,94,54,.28),transparent); display:inline-block; min-width:12px; }
+
+/* 9. Cards — stronger inner-light top edge */
+.fd-card { box-shadow:inset 0 2px 0 rgba(255,255,255,.96), 0 20px 58px rgba(34,23,19,.10), 0 4px 14px rgba(34,23,19,.06)!important; }
+
+/* 10. Offer card — deep green glow aura */
+.fd-offer { box-shadow:inset 0 2px 0 rgba(255,255,255,.92), 0 0 0 1px rgba(47,94,54,.18), 0 8px 32px rgba(34,23,19,.12), 0 40px 110px rgba(47,94,54,.26)!important; }
+
+/* 11. $199 amount — text-glow, larger */
+.fd-offer-amount { font-size:66px!important; text-shadow:0 0 32px rgba(47,94,54,.32); }
+
+/* 12. Phone stage — wider spotlight; frame deeper shadow */
+.fd-phone-stage::before { background:radial-gradient(ellipse 85% 95% at 50% 55%,rgba(47,94,54,.16),transparent 68%)!important; }
+.fd-phone-frame { box-shadow:inset 0 0 0 2px #3f3f46, 0 0 0 1px #000, 0 55px 130px rgba(0,0,0,.55), 0 0 100px rgba(47,94,54,.22)!important; }
+
+/* 13. Google search sim — stronger floating shadow */
+.fd-gsim { box-shadow:0 8px 48px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.09), 0 2px 6px rgba(0,0,0,.06)!important; }
+
+/* 14. "Not found" block — slow red pulse on the dashed border */
+.fd-gsim-notfound { border-color:rgba(181,18,34,.55)!important; background:rgba(181,18,34,.06)!important; animation:fd-nf-pulse 3.2s ease-in-out infinite; }
+@keyframes fd-nf-pulse { 0%,100%{border-color:rgba(181,18,34,.55)} 50%{border-color:rgba(181,18,34,.18)} }
+@media(prefers-reduced-motion:reduce){ .fd-gsim-notfound { animation:none; } }
+
+/* 15. Competitor scoreboard "you" column — green ring + bigger number */
+.fd-score-col.fd-score-you { box-shadow:0 0 0 1.5px rgba(47,94,54,.38), 0 4px 18px rgba(47,94,54,.20)!important; background:rgba(47,94,54,.11)!important; }
+.fd-score-col.fd-score-you strong { font-size:30px!important; text-shadow:0 0 18px rgba(47,94,54,.30); }
+
+/* 16. Stakes section — deeper red gradient atmosphere */
+.fd-stakes { background:linear-gradient(168deg,rgba(181,18,34,.08) 0%,rgba(255,250,241,.97) 38%)!important; box-shadow:inset 0 2px 0 rgba(255,255,255,.92), 0 6px 28px rgba(181,18,34,.09)!important; border-left-width:5px!important; }
+
+/* 17. Stakes missed line — bolder red accent */
+.fd-stakes-missed { background:rgba(181,18,34,.08)!important; border-left:4px solid #b51222!important; border-radius:0 12px 12px 0!important; }
+.fd-stakes-missed strong { color:#8b0d15; }
+
+/* 18. ROI result — bigger payoff text */
+.fd-roi-result { font-size:17px!important; font-weight:600!important; }
+.fd-roi-result strong { font-size:21px!important; letter-spacing:-.01em; }
+
+/* 19. Quote card — deeper drama, bigger decorative mark */
+.fd-quote-card { background:linear-gradient(162deg,#150d06 0%,#1e1108 55%,#140e05 100%)!important; }
+.fd-quote-card::after { font-size:280px!important; top:-60px!important; color:rgba(245,158,11,.13)!important; }
+.fd-quote-card .fd-quote p { font-size:20px!important; line-height:1.62!important; }
+
+/* 20. Checkout button — 3D press shadow + shine sweep */
+.fd-checkout-main-btn { position:relative; overflow:hidden; background:linear-gradient(162deg,#3d7645 0%,#2f5e36 52%,#1f4528 100%)!important; box-shadow:0 5px 0 rgba(0,0,0,.28), 0 12px 40px rgba(47,94,54,.50), inset 0 1px 0 rgba(255,255,255,.20)!important; }
+.fd-checkout-main-btn::after { content:''; position:absolute; inset:0; background:linear-gradient(108deg,transparent 20%,rgba(255,255,255,.17) 50%,transparent 80%); transform:translateX(-110%); transition:transform .6s ease; }
+@media(hover:hover) { .fd-checkout-main-btn:hover::after { transform:translateX(110%); } .fd-checkout-main-btn:hover { transform:translateY(-2px); box-shadow:0 7px 0 rgba(0,0,0,.28), 0 20px 52px rgba(47,94,54,.60), inset 0 1px 0 rgba(255,255,255,.22)!important; } }
+.fd-checkout-main-btn:active { transform:translateY(4px)!important; box-shadow:0 1px 0 rgba(0,0,0,.26), 0 4px 14px rgba(47,94,54,.30)!important; }
+
+/* 21. Slot fire badge — amber glow halo */
+.fd-slot-fire { box-shadow:0 3px 14px rgba(192,74,0,.14), inset 0 1px 0 rgba(255,255,255,.65)!important; }
+
+/* 22. Bridge dot — green, slightly larger */
+.fd-bridge-dot { background:var(--fd-green)!important; opacity:.4!important; width:7px!important; height:7px!important; }
+
+/* 23. Module items on hover — green border accent */
+@media(hover:hover) { .fd-module:hover { border-color:rgba(47,94,54,.30)!important; background:rgba(255,255,255,.99)!important; } }
+
+/* 24. Trust avatar — double ring */
+.fd-trust-avatar { box-shadow:0 0 0 3px rgba(255,255,255,.92), 0 0 0 5px rgba(47,94,54,.38), 0 8px 28px rgba(47,94,54,.32)!important; }
+
+/* 25. Gap items — hover brightens border and background */
+@media(hover:hover) { .fd-gap-item:hover { border-left-color:#e05800!important; background:rgba(176,98,18,.12)!important; } }
+
+/* 26. Why-card — thicker left accent, warm gradient tint */
+.fd-why-card { border-left:5px solid var(--fd-green)!important; background:linear-gradient(162deg,rgba(47,94,54,.05) 0%,rgba(255,250,241,.97) 45%)!important; }
+
+/* 27. Sticky bar — elevated glass */
+.fd-sticky-bar { box-shadow:0 -8px 36px rgba(34,23,19,.17), 0 -1px 0 rgba(255,255,255,.65)!important; backdrop-filter:blur(14px)!important; }
+
+/* 28. Scarcity line — more prominent amber badge */
+.fd-scarcity { background:rgba(184,112,0,.11)!important; border-color:rgba(184,112,0,.32)!important; font-size:14px!important; padding:12px 18px!important; }
+
+/* 29. Guarantee box — stronger green left accent */
+.fd-guarantee-box { border-left:5px solid var(--fd-green)!important; background:rgba(47,94,54,.08)!important; }
+
+/* 30. Body — subtle warm vignette overlay */
+body.front-door-preview-page::after { content:''; position:fixed; inset:0; background:radial-gradient(ellipse 120% 120% at 50% 0%,transparent 45%,rgba(34,23,19,.05) 100%); pointer-events:none; z-index:0; }
+.fd-shell { position:relative; z-index:1; }
+.fd-nav,.fd-sticky-bar,.fd-boot { z-index:200; }
+.fd-boot { z-index:9999!important; }
