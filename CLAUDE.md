@@ -24,8 +24,7 @@ framework, no Composer · GitHub Actions FTP auto-deploy.
 
 - **Production deploy branch:** `claude/admin-site-assessment-4Zrig`.
   `SamKirkland/FTP-Deploy-Action@v4.3.5` deploys every push on it to
-  production. Code changes meant to go live push here (with explicit
-  permission per session).
+  production.
 - **Operation Frankenstein lives on:** `claude/awesome-volta-03lqnp` — a
   sandbox that does NOT auto-deploy. The demolition + consolidation was done
   here so nothing reaches production until a deliberate merge.
