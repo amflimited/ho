@@ -230,23 +230,12 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
 
             case 'save_gap_prices':
-                $gapOrder = ['tech_issues','contact_form','online_booking','site_outdated','paid_leads',
-                             'google_business','gbp_incomplete','gbp_photos','stale_reviews','no_before_after',
-                             'no_gallery','no_testimonials','dead_facebook','freemail','no_trust_signals','yelp_unclaimed'];
-                $gapLbls  = ['tech_issues'=>'Mobile & SSL Fix','contact_form'=>'Contact & Quote Form',
-                             'online_booking'=>'Online Booking System','site_outdated'=>'Site Redesign / Refresh',
-                             'paid_leads'=>'Lead Capture Landing Page','google_business'=>'Google Business Profile Setup',
-                             'gbp_incomplete'=>'GBP Profile Completion','gbp_photos'=>'Photo Shoot & GBP Upload',
-                             'stale_reviews'=>'Review Request Campaign','no_before_after'=>'Before & After Photos',
-                             'no_gallery'=>'Photo Gallery','no_testimonials'=>'Testimonials Section',
-                             'dead_facebook'=>'Facebook Page & Content','freemail'=>'Professional Email Setup',
-                             'no_trust_signals'=>'License & Insurance Display','yelp_unclaimed'=>'Claim & Optimize Yelp'];
-                foreach ($gapOrder as $sort => $gk) {
+                foreach (ho_gap_keys_ordered() as $sort => $gk) {
                     $price = max(0, (float)($_POST['price_' . $gk] ?? 0));
                     $pdo->prepare("INSERT INTO gap_prices (gap_key, label, price, active, sort_order)
                         VALUES (?, ?, ?, 1, ?)
                         ON DUPLICATE KEY UPDATE price=VALUES(price), label=VALUES(label), sort_order=VALUES(sort_order)")
-                        ->execute([$gk, $gapLbls[$gk] ?? $gk, $price, $sort]);
+                        ->execute([$gk, ho_gap_label($gk), $price, $sort]);
                 }
                 header('Location: ?tab=send&flash=' . urlencode('Gap prices saved.'));
                 exit;
@@ -1474,24 +1463,9 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
       foreach (ho_gap_prices($pdo) as $k => $v) $editorPrices[$k] = (float)$v['price'];
     } catch (Throwable) {}
   }
-  $editorGaps = [
-    'tech_issues'     => 'Mobile & SSL Fix',
-    'contact_form'    => 'Contact & Quote Form',
-    'online_booking'  => 'Online Booking System',
-    'site_outdated'   => 'Site Redesign / Refresh',
-    'paid_leads'      => 'Lead Capture Landing Page',
-    'google_business' => 'Google Business Profile Setup',
-    'gbp_incomplete'  => 'GBP Profile Completion',
-    'gbp_photos'      => 'Photo Shoot & GBP Upload',
-    'stale_reviews'   => 'Review Request Campaign',
-    'no_before_after' => 'Before & After Photos',
-    'no_gallery'      => 'Photo Gallery',
-    'no_testimonials' => 'Testimonials Section',
-    'dead_facebook'   => 'Facebook Page & Content',
-    'freemail'        => 'Professional Email Setup',
-    'no_trust_signals'=> 'License & Insurance Display',
-    'yelp_unclaimed'  => 'Claim & Optimize Yelp',
-  ];
+  // Single source of truth: ho_gap_keys_ordered() + ho_gap_label() from ho-model.php
+  $editorGaps = [];
+  foreach (ho_gap_keys_ordered() as $gk) $editorGaps[$gk] = ho_gap_label($gk);
   ?>
   <section class="cp-section">
     <details class="cp-ap-wrap">

@@ -137,6 +137,7 @@ $email        = $row ? trim((string)($row['email_address'] ?? '')) : '';
 $catSlug      = $row ? (string)($row['category_slug'] ?? '') : '';
 $seasonalNote = $row ? ho_seasonal_urgency_note($catSlug) : '';
 $stakes       = $row ? ho_stakes_estimate($catSlug) : null;
+$verifiedAt   = $row ? trim((string)($row['verified_at'] ?? '')) : '';
 
 // Honest urgency — the build slot is held for 10 days from first outreach.
 // Adam is one person; one build per category per town at a time is real.
@@ -464,12 +465,13 @@ endif; ?>
       : '';
   // Show "right now" only when data is ≤14 days old; stamp the month otherwise.
   $gsimResearchedAt = $row ? trim((string)($row['researched_at'] ?? '')) : '';
-  $gsimDaysOld = ($gsimResearchedAt !== '' && strtotime($gsimResearchedAt))
-      ? (int)round((time() - strtotime($gsimResearchedAt)) / 86400)
+  $gsimResearchedTs = $gsimResearchedAt !== '' ? strtotime($gsimResearchedAt) : false;
+  $gsimDaysOld = ($gsimResearchedTs !== false && $gsimResearchedTs > 0)
+      ? (int)round((time() - $gsimResearchedTs) / 86400)
       : 99;
   $gsimEyebrow = $gsimDaysOld <= 14
       ? 'What someone sees when they search for you right now'
-      : 'What someone saw when they searched for you in ' . ($gsimResearchedAt !== '' ? date('F Y', strtotime($gsimResearchedAt)) : 'recent weeks');
+      : 'What someone saw when they searched for you in ' . ($gsimResearchedTs !== false ? date('F Y', $gsimResearchedTs) : 'recent weeks');
   ?>
   <!-- ── SEARCH GAP — what a customer sees when they search ────────────────── -->
   <section class="fd-gsim-section fd-reveal">
@@ -567,6 +569,9 @@ endif; ?>
         $sources[] = ['href' => 'https://www.google.com/search?q=' . $gQuery, 'label' => 'Google Business', 'class' => 'fd-rs-google'];
     }
     ?>
+    <?php if ($verifiedAt !== ''): ?>
+    <p class="fd-verified-note">✓ Every claim on this page &mdash; reviews, ratings, competitor data &mdash; was independently verified by a second research pass on <?= ho_h(date('F j', strtotime($verifiedAt))) ?>.</p>
+    <?php endif; ?>
     <?php // Personal hook FIRST — the specific reason we reached out ?>
     <?php if (!empty($opp)): ?>
       <p class="fd-why" style="font-size:17px;line-height:1.55;color:var(--fd-ink);margin-bottom:14px"><?= ho_h($opp) ?></p>
@@ -620,11 +625,13 @@ endif; ?>
           // that's a losing position in practice, not a winning one. ──────────── ?>
     <?php if ($googleRating > 0 && $googleCount > 0 && $compName !== ''
               && $compRating !== null && $compReviews !== null
+              && $compReviews > 0
               && $googleRating >= $compRating
-              && ($compReviews === 0 || $googleCount >= $compReviews * 0.5)):
+              && $googleCount >= $compReviews * 0.5):
       $scoreNote = ($googleCount < $compReviews)
           ? 'You&rsquo;re winning on quality and losing on visibility. ' . ho_h($compName) . ' isn&rsquo;t better &mdash; they just show up in more places. That&rsquo;s the part I can fix.'
           : 'You&rsquo;re ahead on both. The job now is making sure every single search shows it &mdash; before ' . ho_h($compName) . ' catches up.';
+      $compSearchUrl = 'https://www.google.com/search?q=' . rawurlencode($compName . ' ' . $catName . ' ' . $city . ' indiana');
     ?>
     <div class="fd-score">
       <div class="fd-score-col fd-score-you">
@@ -634,7 +641,7 @@ endif; ?>
       </div>
       <div class="fd-score-vs" aria-hidden="true">vs</div>
       <div class="fd-score-col">
-        <span class="fd-score-name"><?= ho_h($compName) ?></span>
+        <a href="<?= ho_h($compSearchUrl) ?>" target="_blank" rel="noopener" class="fd-score-name fd-score-comp-link"><?= ho_h($compName) ?></a>
         <strong><?= number_format($compRating, 1) ?>★</strong>
         <span class="fd-score-count"><?= number_format($compReviews) ?> reviews</span>
       </div>
@@ -1035,6 +1042,9 @@ endif; ?>
        Even at just <?= $stakes['jobs_per_month'] ?> missed job<?= $stakes['jobs_per_month'] > 1 ? 's' : '' ?> a month,
        that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span>.</p>
     <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero.<?= $fixItemsTotal > 0 ? ' Everything above, fixed for good, is $' . number_format($fixItemsTotal) . ' &mdash; once.' : '' ?></p>
+    <?php if ($yearsInBiz > 0): ?>
+    <p class="fd-stakes-missed">In <?= $yearsInBiz ?> year<?= $yearsInBiz !== 1 ? 's' : '' ?> of business, that adds up to roughly <strong>$<?= number_format((int)(round($stakes['annual'] * $yearsInBiz / 100) * 100)) ?></strong> in work that found someone with a website instead. The fix is $<?= $fixItemsTotal > 0 ? number_format($fixItemsTotal) : '199' ?>.</p>
+    <?php endif; ?>
     <div class="fd-roi-calc" data-jpm="<?= (int)$stakes['jobs_per_month'] ?>" data-offer="<?= $fixItemsTotal > 0 ? (int)$fixItemsTotal : 199 ?>">
       <p class="fd-roi-label">What&rsquo;s your average job worth?</p>
       <div class="fd-roi-input-row">
@@ -1306,6 +1316,9 @@ endif; ?>
        &mdash; the 11pm searcher, the person who called whoever Google showed first &mdash;
        that&rsquo;s about <span class="fd-stakes-num">$<?= number_format($stakes['annual']) ?> a year</span> walking past you.</p>
     <p class="fd-stakes-honest">That&rsquo;s an estimate, not a promise &mdash; your real number could be lower or higher. But it isn&rsquo;t zero. And the fix is $199, once.</p>
+    <?php if ($yearsInBiz > 0): ?>
+    <p class="fd-stakes-missed">In <?= $yearsInBiz ?> year<?= $yearsInBiz !== 1 ? 's' : '' ?> without a website, that&rsquo;s roughly <strong>$<?= number_format((int)(round($stakes['annual'] * $yearsInBiz / 100) * 100)) ?></strong> in work that found someone with a website instead. The fix is $199.</p>
+    <?php endif; ?>
     <div class="fd-roi-calc" data-jpm="<?= (int)$stakes['jobs_per_month'] ?>" data-offer="199">
       <p class="fd-roi-label">What&rsquo;s your average job worth?</p>
       <div class="fd-roi-input-row">

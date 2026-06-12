@@ -1380,6 +1380,16 @@ function ho_website_tech_check(string $url): array {
  * Static fallback label for a gap key — no DB required.
  * Covers all 16 gap types so labels resolve even before gap_prices is read.
  */
+/**
+ * Canonical ordered list of all gap keys — single source of truth for
+ * ordering in the price editor, save handler, and any new UI.
+ */
+function ho_gap_keys_ordered(): array {
+    return ['tech_issues','contact_form','online_booking','site_outdated','paid_leads',
+            'google_business','gbp_incomplete','gbp_photos','stale_reviews','no_before_after',
+            'no_gallery','no_testimonials','dead_facebook','freemail','no_trust_signals','yelp_unclaimed'];
+}
+
 function ho_gap_label(string $gap): string {
     static $labels = [
         'contact_form'    => 'Contact & Quote Form',
