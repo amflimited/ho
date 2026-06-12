@@ -2890,6 +2890,8 @@ var llmIdx      = 0;
 var llmRunning  = false;
 var llmRetries  = 0;
 var llmPolls    = 0;
+var llmPollTimer = null;          // handle for pending poll setTimeout
+var llmPollArgs  = null;          // {bizId,total,apiKey} while actively polling; null = not polling
 var LLM_PACE_MS  = 2000;   // gap between leads
 var LLM_POLL_MS  = 6000;   // gap between status polls
 var LLM_POLL_MAX = 30;     // ~3 min of polling before giving up on one lead
@@ -2913,6 +2915,7 @@ function startLlmResearch() {
 
 function stopLlmResearch() {
   llmRunning = false;
+  llmClearPoll();
   document.getElementById('llmBtn').disabled = false;
   document.getElementById('llmStop').style.display = 'none';
   document.getElementById('llmStatus').textContent = 'Stopped at ' + llmIdx + ' of ' + llmIds.length + '. Research already started keeps running in the background — refresh to see results.';
@@ -2926,7 +2929,16 @@ function llmIsRateLimit(msg) {
 function llmSetStatus(s) { document.getElementById('llmStatus').textContent = s; }
 function llmSetBar()     { document.getElementById('llmBar').style.width = Math.round(llmIdx / llmIds.length * 100) + '%'; }
 
+// Schedule the next poll and remember args so visibilitychange can resume it.
+function llmSchedulePoll(bizId, total, apiKey) {
+  llmPollArgs = { bizId: bizId, total: total, apiKey: apiKey };
+  clearTimeout(llmPollTimer);
+  llmPollTimer = setTimeout(function() { llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
+}
+function llmClearPoll() { llmPollArgs = null; clearTimeout(llmPollTimer); llmPollTimer = null; }
+
 function llmAdvance(msg) {           // record a finished lead, move to the next
+  llmClearPoll();
   llmIdx++; llmRetries = 0; llmPolls = 0; llmSetBar();
   if (msg) llmSetStatus(msg);
   setTimeout(llmNext, LLM_PACE_MS);
@@ -2962,11 +2974,11 @@ function llmNext() {
       llmAdvance('Skipped biz ' + bizId + ': ' + (d.error || 'could not start') + ' — continuing…');
       return;
     }
-    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
+    llmSchedulePoll(bizId, total, apiKey);
   })
   .catch(function() {
     // POST itself failed to send — but the work may have started. Poll anyway.
-    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
+    llmSchedulePoll(bizId, total, apiKey);
   });
 }
 
@@ -2989,6 +3001,7 @@ function llmPoll(bizId, total, apiKey) {
         llmRetries++;
         var secs = Math.round(LLM_BACKOFF / 1000);
         llmSetStatus('Rate limit — pausing ' + secs + 's, then retrying lead ' + (llmIdx + 1) + ' of ' + total + ' (retry ' + llmRetries + '/' + LLM_MAXRETRY + ')…');
+        llmClearPoll();  // not polling during backoff — don't resume on tab switch
         setTimeout(llmNext, LLM_BACKOFF);
         return;
       }
@@ -2999,13 +3012,22 @@ function llmPoll(bizId, total, apiKey) {
       llmAdvance('Lead ' + (llmIdx + 1) + ' still processing after ' + Math.round(LLM_POLL_MAX * LLM_POLL_MS / 1000) + 's — left it running, moving on. Refresh later to confirm.');
       return;
     }
-    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
+    llmSchedulePoll(bizId, total, apiKey);
   })
   .catch(function() {
     if (llmPolls >= LLM_POLL_MAX) { llmAdvance('Lead ' + (llmIdx + 1) + ' — lost contact while polling, moving on.'); return; }
-    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
+    llmSchedulePoll(bizId, total, apiKey);
   });
 }
+
+// iOS Safari throttles timers in background tabs.  The server keeps researching
+// regardless (ignore_user_abort), but the poll loop pauses.  The moment the tab
+// is visible again, fire a poll immediately so the result appears right away.
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible' || !llmRunning || !llmPollArgs) return;
+  clearTimeout(llmPollTimer);
+  llmPoll(llmPollArgs.bizId, llmPollArgs.total, llmPollArgs.apiKey);
+});
 </script>
 
 </body>
