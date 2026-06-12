@@ -16,7 +16,25 @@ spl_autoload_register(function (string $class): void {
 function ho_pdo(): PDO
 {
     static $pdo = null;
-    return $pdo ??= require dirname(__DIR__) . '/config/db.php';
+    if ($pdo instanceof PDO) { return $pdo; }
+
+    // config/db.php may return either a ready PDO (legacy) or a config array.
+    // Accept both so the one file format question can never break the app again.
+    $c = require dirname(__DIR__) . '/config/db.php';
+    if ($c instanceof PDO) { return $pdo = $c; }
+
+    $pdo = new PDO(
+        "mysql:host={$c['host']};dbname={$c['dbname']};charset=utf8mb4",
+        $c['user'], $c['pass'],
+        [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            // Real prepared statements bind PHP null as SQL NULL — the fix for the
+            // "Incorrect integer value: '' for column has_online_booking" error.
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]
+    );
+    return $pdo;
 }
 
 function ho_setting(PDO $pdo, string $key): string
