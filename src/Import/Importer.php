@@ -136,7 +136,20 @@ final class Importer
         $updates = implode(',', array_map(fn($c) => "`{$c}`=VALUES(`{$c}`)", $cols));
         $sql = 'INSERT INTO business_profile (`business_id`,`' . implode('`,`', $cols) . '`) '
              . "VALUES (?,{$place}) ON DUPLICATE KEY UPDATE {$updates}";
-        $this->pdo->prepare($sql)->execute([$bizId, ...array_values($profile)]);
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(1, $bizId, PDO::PARAM_INT);
+        $i = 2;
+        foreach ($profile as $val) {
+            if ($val === null) {
+                $stmt->bindValue($i, null, PDO::PARAM_NULL);
+            } elseif (is_bool($val) || is_int($val)) {
+                $stmt->bindValue($i, (int)$val, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue($i, $val, PDO::PARAM_STR);
+            }
+            $i++;
+        }
+        $stmt->execute();
 
         $b = $this->load($bizId);
         $route = Score::route($b);
