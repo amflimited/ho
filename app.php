@@ -1659,7 +1659,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
           <input type="hidden" name="tab"    value="send">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="hidden"   name="setting_key"   value="livesite_enabled">
-            <input type="checkbox" name="setting_value" value="1"<?= ($liveSiteEnabled !== '0' && $liveSiteEnabled !== '') ? ' checked' : '' ?>>
+            <input type="checkbox" name="setting_value" value="1"<?= $liveSiteEnabled === '1' ? ' checked' : '' ?>>
             <span>Enable live site renderer on /go/{slug} preview pages</span>
           </label>
           <button type="submit" class="cp-btn-primary" style="margin-top:4px">Save</button>

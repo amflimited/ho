@@ -965,7 +965,7 @@ endif; ?>
   <!-- ══ DESIGN PREVIEW — phone frame + template picker ══════════════════════ -->
   <div id="preview"></div>
   <?php
-  $liveSiteEnabled = ho_get_setting($pdo, 'livesite_enabled') !== '0' && is_file(__DIR__ . '/site.php');
+  $liveSiteEnabled = ho_get_setting($pdo, 'livesite_enabled') === '1' && is_file(__DIR__ . '/site.php');
   if ($liveSiteEnabled):
     // ── LIVE SITE PATH ─────────────────────────────────────────────────────────
     $liveSkins      = ho_site_skins_for_category($catSlug);
@@ -996,7 +996,7 @@ endif; ?>
         <iframe id="fd-live-frame"
                 src="/site/<?= ho_h($slug) ?>?embed=1&amp;skin=<?= ho_h($defaultSkinKey) ?>"
                 loading="lazy"
-                style="width:100%;height:100%;border:0;display:block"
+                style="width:100%;height:560px;border:0;display:block"
                 title="Live preview of <?= ho_h($name) ?>"></iframe>
       </div>
     </div>
