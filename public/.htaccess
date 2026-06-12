@@ -1,0 +1,4 @@
+RewriteEngine On
+RewriteRule ^go/([a-z0-9-]+)/?$ go.php?slug=$1 [L,QSA]
+RewriteRule ^status/([a-f0-9]+)/?$ status.php?token=$1 [L,QSA]
+Options -Indexes

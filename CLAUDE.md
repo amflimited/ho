@@ -105,14 +105,21 @@ ho-v2/
   prompts/        sourcing.md hunt.md research.md verify.md pitch.md repdraft.md
   src/
     Domain/       Business.php (generated) Pipeline.php Score.php Gaps.php
-    Import/       Importer.php Validator.php (generated) JsonCleaner.php
-    Llm/          Client.php AnthropicDriver.php GeminiDriver.php
+    Import/       Importer.php Validator.php (generated) JsonCleaner.php V1Etl.php
+    Llm/          Client.php
     Render/       Preview.php Pitch.php FollowUp.php Site.php ReviewReply.php
-    Outreach/     Sender.php Gate.php Suppression.php Heat.php
+    Workers/      Runner.php Research.php Verify.php Personalize.php
+    Outreach/     Sender.php Gate.php Suppression.php Heat.php Notify.php Mailer.php
     Billing/      StripeWebhook.php Orders.php
-  public/         index.php go.php site.php status.php webhook.php cockpit/
+  public/         index.php go.php checkout.php status.php webhook.php cron.php cockpit/
   tests/
 ```
+
+Amendment (Milestone 2): the operator is phone-only, so every worker is also
+triggerable over the web — `public/cron.php?job=…&key=…` (admin key) and the
+cockpit run buttons. `bin/cron.php` remains for real cron. `Notify` carries
+operator/transactional mail only (digest, captured-lead forwarding) and must
+never send cold outreach — that path is Mailer → Gate, no exceptions.
 
 ## Pipeline (unchanged from v1 — it was right)
 

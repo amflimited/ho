@@ -50,7 +50,11 @@ final class Importer
             }
 
             $bizId = $this->upsertBusiness($name, $city, $row, $isNew);
-            $this->upsertProfile($bizId, $profile);
+            // Identity-only rows (sourcing pastes) stay 'identified' — no profile,
+            // no routing. Research presence is what moves the pipeline.
+            if (self::hasResearch($row)) {
+                $this->upsertProfile($bizId, $profile);
+            }
             $this->rescore($bizId);
             $isNew ? $imported++ : $updated++;
         }
@@ -65,11 +69,28 @@ final class Importer
         return true;
     }
 
+    private static function hasResearch(array $r): bool
+    {
+        return array_key_exists('has_website', $r)
+            || array_key_exists('website_quality', $r)
+            || array_key_exists('has_google_business', $r);
+    }
+
     private function upsertBusiness(string $name, string $city, array $r, ?bool &$isNew): int
     {
-        $stmt = $this->pdo->prepare('SELECT id FROM businesses WHERE business_name = ? AND location_city = ?');
-        $stmt->execute([$name, $city]);
-        $id = $stmt->fetchColumn();
+        $id = false;
+        // Re-research of a known business carries its id — trust it over name matching
+        $givenId = (int)($r['business_id'] ?? 0);
+        if ($givenId > 0) {
+            $stmt = $this->pdo->prepare('SELECT id FROM businesses WHERE id = ?');
+            $stmt->execute([$givenId]);
+            $id = $stmt->fetchColumn();
+        }
+        if ($id === false) {
+            $stmt = $this->pdo->prepare('SELECT id FROM businesses WHERE business_name = ? AND location_city = ?');
+            $stmt->execute([$name, $city]);
+            $id = $stmt->fetchColumn();
+        }
         $isNew = ($id === false);
 
         $contact = [
