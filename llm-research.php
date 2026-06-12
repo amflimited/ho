@@ -31,19 +31,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     lr_out(405, ['ok' => false, 'error' => 'POST only.']);
 }
 
+// Legacy server config file (still honored); DB config is preferred and loaded
+// via ho_llm_boot() once $pdo is available, just below.
 $llmConfigPath = '/home1/spofnkte/llm-config.php';
-if (!is_file($llmConfigPath)) {
-    lr_out(503, ['ok' => false, 'error' => 'LLM config not found.']);
-}
-require_once $llmConfigPath;
-if (!defined('LLM_API_KEY') || LLM_API_KEY === '') {
-    lr_out(503, ['ok' => false, 'error' => 'LLM API key not configured.']);
-}
+if (is_file($llmConfigPath)) require_once $llmConfigPath;
 
 try {
     $pdo = ho_db();
 } catch (Throwable) {
     lr_out(503, ['ok' => false, 'error' => 'Database unavailable.']);
+}
+
+// Seed the AI engine from DB settings, then confirm a provider is configured.
+ho_llm_boot($pdo);
+$llmCfg = ho_llm_settings();
+if (($llmCfg['key'] ?? '') === '') {
+    lr_out(503, ['ok' => false, 'error' => 'No AI engine configured. Add a key in the cockpit (Send → Autopilot → AI engine).']);
 }
 
 // Auth: same key as gpt-import.php

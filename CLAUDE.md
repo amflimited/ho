@@ -157,7 +157,16 @@ cap, email_log present).
   thresholds, `noSite` definition, quote length, and channel-specific copy.
   Don't collapse them into one selector; it regresses live outreach.
 - **LLM calls go through `ho_llm_call()` + `ho_llm_extract_json()`** in
-  ho-model.php (web_search messages API). llm-research.php uses them too.
+  ho-model.php — provider-agnostic, web-search-grounded. Config resolves via
+  `ho_llm_settings()`: a DB key (set in the cockpit, Send → Autopilot → AI
+  engine: `llm_provider`/`llm_api_key`/`llm_model`) wins over the legacy
+  `/home1/spofnkte/llm-config.php` file. Entry points seed it with
+  `ho_llm_boot($pdo)`; `ho_llm_ready($pdo)` reports availability. Two providers:
+  `anthropic` (Claude, paid, default model `claude-sonnet-4-6`, web_search tool)
+  and `gemini` (Google free tier, no card, default `gemini-2.5-flash`,
+  google_search grounding) — switch providers to dodge Anthropic's per-minute
+  token rate limit (429s). The zero-touch batch in app.php paces calls and
+  retries the same lead on a 429 instead of skipping it.
 - **Sourcing is Claude-first (Adam's Max plan, zero API spend).** The DEEP
   HUNT is the default: `ho_generate_hunt_prompt()` (one Claude pass that
   sources AND fully researches) → paste → `ho_import_hunt_json()` creates

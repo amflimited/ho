@@ -733,6 +733,10 @@ body::after {
 .cp-ap-fields label { font-size: 10px; font-weight: 700; color: var(--ink2); display: flex; flex-direction: column; gap: 4px; font-family: var(--fn); }
 .cp-ap-fields .cp-input { width: 100%; }
 .cp-ap-cron { font-size: 11px; border-top: 1px dashed var(--border); padding-top: 12px; color: var(--ink2); }
+.cp-ai-form { background: rgba(65,255,139,.03); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; }
+.cp-ai-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); }
+.cp-ai-head .cp-ap-sub { margin-left: auto; }
+.cp-ai-form select.cp-input { width: 100%; }
 
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

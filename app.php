@@ -16,6 +16,7 @@ try {
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
 }
+if ($pdo !== null) ho_llm_boot($pdo); // seed AI engine config from DB
 
 if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = trim((string)($_POST['action'] ?? ''));
@@ -228,6 +229,20 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ?tab=send&flash=' . urlencode("No-contact leads moved back to the contact-research queue."));
                 exit;
 
+            case 'save_ai':
+                $prov = in_array(($_POST['llm_provider'] ?? ''), ['anthropic','gemini'], true)
+                    ? (string)$_POST['llm_provider'] : 'anthropic';
+                ho_set_setting($pdo, 'llm_provider', $prov);
+                ho_set_setting($pdo, 'llm_model', mb_substr(trim((string)($_POST['llm_model'] ?? '')), 0, 60));
+                $newKey = trim((string)($_POST['llm_api_key'] ?? ''));
+                if ($newKey !== '' && !str_contains($newKey, "\u{2022}")) { // ignore the masked placeholder
+                    if (!ho_set_setting($pdo, 'llm_api_key', $newKey)) {
+                        throw new RuntimeException('Could not save — run the app_settings CREATE TABLE migration first.');
+                    }
+                }
+                header('Location: ?tab=send&flash=' . urlencode('AI engine saved.'));
+                exit;
+
             case 'save_autopilot':
                 $apToggles = ['ap_master','ap_drip','ap_hotstrike','ap_autopitch','ap_research','ap_source','ap_digest','ap_verify','ap_repdraft'];
                 foreach ($apToggles as $tk) {
@@ -368,8 +383,9 @@ $followupHeat  = $pdo && !empty($followupDue)
     : [];
 $hotLeadIds    = array_keys(array_filter($heatStats, fn($s) => $s['is_hot']));
 
-// LLM (zero-touch) research availability
-$llmAvailable = is_file('/home1/spofnkte/llm-config.php') && $gptImportKey !== '';
+// LLM (zero-touch) research availability — needs an AI engine + the import key
+// (the /llm-research.php endpoint authenticates with gpt_import_key).
+$llmAvailable = ($pdo && ho_llm_ready($pdo)) && $gptImportKey !== '';
 try { $pendingOrders = $pdo ? ho_get_pending_orders($pdo) : []; } catch (Throwable) { $pendingOrders = []; }
 
 if (isset($_GET['demo']) && empty($pendingOrders)) {
@@ -1411,7 +1427,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
     $apSentToday  = $pdo ? ho_sends_today($pdo) : -1;
     $apTableOk    = $apSentToday >= 0;
     $apCap        = max(1, (int)($ap['ap_daily_cap'] ?: '30'));
-    $apLlmReady   = is_file('/home1/spofnkte/llm-config.php');
+    $apLlmReady   = $pdo ? ho_llm_ready($pdo) : false;
     $apCronUrl    = 'https://' . $_SERVER['HTTP_HOST'] . '/cron.php?key=' . $ap['gpt_import_key'];
     $apGateReason = ($pdo && $apOn) ? ho_autopilot_gate($pdo) : null;
   ?>
@@ -1446,6 +1462,50 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
         </div>
         <?php endif; ?>
 
+        <?php
+          $aiProvider = $pdo ? ho_get_setting($pdo, 'llm_provider') : '';
+          $aiModel    = $pdo ? ho_get_setting($pdo, 'llm_model')    : '';
+          $aiKeySet   = $pdo ? (ho_get_setting($pdo, 'llm_api_key') !== '') : false;
+          $aiFileOnly = !$aiKeySet && is_file('/home1/spofnkte/llm-config.php');
+          if ($aiProvider === '') $aiProvider = 'anthropic';
+        ?>
+        <form method="POST" class="cp-ap-form cp-ai-form">
+          <input type="hidden" name="action" value="save_ai">
+          <input type="hidden" name="tab" value="send">
+          <div class="cp-ai-head">
+            <span class="cp-ap-dot <?= ($aiKeySet || $aiFileOnly) ? 'cp-ap-dot-on' : 'cp-ap-dot-off' ?>"></span>
+            <strong>🧠 AI engine</strong>
+            <span class="cp-ap-sub">
+              <?php if ($aiKeySet): ?>Key saved &middot; <?= ho_h(ucfirst($aiProvider)) ?>
+              <?php elseif ($aiFileOnly): ?>Using server config file
+              <?php else: ?>Not set — automation is off<?php endif; ?>
+            </span>
+          </div>
+          <p class="cp-hint">Powers zero-touch research, the truth gate, auto-source and Concierge drafting. Paste a key once — it&rsquo;s stored in your database, no file to create.</p>
+          <div class="cp-ap-fields">
+            <label>Provider
+              <select class="cp-input" name="llm_provider">
+                <option value="anthropic"<?= $aiProvider === 'anthropic' ? ' selected' : '' ?>>Claude (Anthropic) — paid, top quality</option>
+                <option value="gemini"<?= $aiProvider === 'gemini' ? ' selected' : '' ?>>Gemini (Google) — free tier, no card</option>
+              </select>
+            </label>
+            <label>API key
+              <input class="cp-input" type="password" name="llm_api_key" autocomplete="off"
+                     placeholder="<?= $aiKeySet ? '•••••••• saved — leave blank to keep' : 'Paste your key here' ?>">
+            </label>
+            <label>Model (optional — blank uses the default)
+              <input class="cp-input" type="text" name="llm_model" value="<?= ho_h($aiModel) ?>"
+                     placeholder="claude-sonnet-4-6  ·  gemini-2.5-flash">
+            </label>
+          </div>
+          <p class="cp-hint">
+            Claude key: <strong>console.anthropic.com</strong> &rarr; API Keys.<br>
+            Gemini key (free, no card): <strong>aistudio.google.com</strong> &rarr; Get API Key.<br>
+            Hitting <strong>rate limits</strong> on Claude? Switch the provider to Gemini — its free tier sidesteps Anthropic&rsquo;s per-minute token cap.
+          </p>
+          <button type="submit" class="cp-btn-primary">Save AI engine</button>
+        </form>
+
         <form method="POST" class="cp-ap-form">
           <input type="hidden" name="action" value="save_autopilot">
           <input type="hidden" name="tab" value="send">
@@ -1459,11 +1519,11 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_drip"<?= $ap['ap_drip'] === '1' ? ' checked' : '' ?>> <span><strong>Auto follow-ups</strong> — touches 2–4 send themselves when due</span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_hotstrike"<?= $ap['ap_hotstrike'] === '1' ? ' checked' : '' ?>> <span><strong>Hot-lead auto-reply</strong> — “saw you took a look” within hours of a visit</span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_autopitch"<?= $ap['ap_autopitch'] === '1' ? ' checked' : '' ?>> <span><strong>Auto-pitch</strong> — first touch to ready leads with email, no tap needed</span></label>
-            <label class="cp-ap-toggle"><input type="checkbox" name="ap_research"<?= $ap['ap_research'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-research</strong> — Claude researches the queue around the clock<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
-            <label class="cp-ap-toggle"><input type="checkbox" name="ap_source"<?= $ap['ap_source'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-source</strong> — one fresh sourcing run a day, least-covered category<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?></span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_research"<?= $ap['ap_research'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-research</strong> — the AI engine researches the queue around the clock<?= !$apLlmReady ? ' (needs AI engine — set one below)' : '' ?></span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_source"<?= $ap['ap_source'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Auto-source</strong> — one fresh sourcing run a day, least-covered category<?= !$apLlmReady ? ' (needs AI engine — set one below)' : '' ?></span></label>
             <label class="cp-ap-toggle"><input type="checkbox" name="ap_digest"<?= $ap['ap_digest'] === '1' ? ' checked' : '' ?>> <span><strong>Morning digest</strong> — one email: hot leads, counts, what sent yesterday</span></label>
-            <label class="cp-ap-toggle"><input type="checkbox" name="ap_repdraft"<?= $ap['ap_repdraft'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Review Concierge drafting</strong> — writes reply sets for businesses with ignored reviews (incl. the excluded/good-website pile); they join the send queue at $99 + $29/mo.<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?> Needs migration: <code>CREATE TABLE review_replies …</code> (see CLAUDE.md)</span></label>
-            <label class="cp-ap-toggle"><input type="checkbox" name="ap_verify"<?= $ap['ap_verify'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Truth gate</strong> — a second AI pass fact-checks every claim (reviews, quotes, competitor, “no website”) and fixes or blanks bad data. Auto-pitch only emails leads that passed.<?= !$apLlmReady ? ' (needs llm-config.php)' : '' ?> Needs migration: <code>ALTER TABLE research_records ADD COLUMN verified_at DATETIME NULL, ADD COLUMN verification_json TEXT NULL;</code></span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_repdraft"<?= $ap['ap_repdraft'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Review Concierge drafting</strong> — writes reply sets for businesses with ignored reviews (incl. the excluded/good-website pile); they join the send queue at $99 + $29/mo.<?= !$apLlmReady ? ' (needs AI engine — set one below)' : '' ?> Needs migration: <code>CREATE TABLE review_replies …</code> (see CLAUDE.md)</span></label>
+            <label class="cp-ap-toggle"><input type="checkbox" name="ap_verify"<?= $ap['ap_verify'] === '1' ? ' checked' : '' ?> <?= !$apLlmReady ? 'disabled' : '' ?>> <span><strong>Truth gate</strong> — a second AI pass fact-checks every claim (reviews, quotes, competitor, “no website”) and fixes or blanks bad data. Auto-pitch only emails leads that passed.<?= !$apLlmReady ? ' (needs AI engine — set one below)' : '' ?> Needs migration: <code>ALTER TABLE research_records ADD COLUMN verified_at DATETIME NULL, ADD COLUMN verification_json TEXT NULL;</code></span></label>
           </div>
 
           <div class="cp-ap-fields">
@@ -2817,9 +2877,16 @@ function hoCopyThenClaude() {
 }
 
 // ── Zero-touch LLM research ──────────────────────────────────────────────────
-var llmIds     = [];
-var llmIdx     = 0;
-var llmRunning = false;
+// Each call uses web search and burns a lot of input tokens, so back-to-back
+// requests blow past per-minute rate limits. We pace successful calls and, on a
+// rate-limit (429), wait and RETRY the same business instead of skipping it.
+var llmIds      = [];
+var llmIdx      = 0;
+var llmRunning  = false;
+var llmRetries  = 0;
+var LLM_PACE_MS = 5000;   // gap between successful calls (stay under token/min cap)
+var LLM_BACKOFF = 35000;  // wait after a rate-limit before retrying the same lead
+var LLM_MAXRETRY= 5;      // give up on one lead after this many rate-limit retries
 
 function startLlmResearch() {
   var raw = document.getElementById('llmBizIds');
@@ -2827,6 +2894,7 @@ function startLlmResearch() {
   try { llmIds = JSON.parse(raw.value || '[]'); } catch(e) { llmIds = []; }
   if (llmIds.length === 0) return;
   llmIdx     = 0;
+  llmRetries = 0;
   llmRunning = true;
   document.getElementById('llmBtn').disabled = true;
   document.getElementById('llmStop').style.display = 'inline-flex';
@@ -2842,21 +2910,27 @@ function stopLlmResearch() {
   document.getElementById('llmStatus').textContent = 'Stopped at ' + llmIdx + ' of ' + llmIds.length + '. Refresh to see results.';
 }
 
+function llmIsRateLimit(msg) {
+  msg = (msg || '').toLowerCase();
+  return msg.indexOf('429') !== -1 || msg.indexOf('rate limit') !== -1 || msg.indexOf('rate_limit') !== -1;
+}
+
+function llmSetStatus(s) { document.getElementById('llmStatus').textContent = s; }
+function llmSetBar()     { document.getElementById('llmBar').style.width = Math.round(llmIdx / llmIds.length * 100) + '%'; }
+
 function llmNext() {
   if (!llmRunning || llmIdx >= llmIds.length) {
     document.getElementById('llmBtn').disabled = false;
     document.getElementById('llmStop').style.display = 'none';
-    if (llmIdx >= llmIds.length) {
-      document.getElementById('llmStatus').textContent = 'All ' + llmIds.length + ' done! Refresh to see results.';
-    }
+    if (llmIdx >= llmIds.length) llmSetStatus('All ' + llmIds.length + ' done! Refresh to see results.');
     llmRunning = false;
     return;
   }
   var bizId  = llmIds[llmIdx];
   var total  = llmIds.length;
   var apiKey = (document.getElementById('llmApiKey') || {}).value || '';
-  document.getElementById('llmStatus').textContent = (llmIdx + 1) + ' of ' + total + ' — researching…';
-  document.getElementById('llmBar').style.width = Math.round(llmIdx / total * 100) + '%';
+  llmSetStatus((llmIdx + 1) + ' of ' + total + ' — researching…' + (llmRetries > 0 ? ' (retry ' + llmRetries + ')' : ''));
+  llmSetBar();
 
   fetch('/llm-research.php', {
     method: 'POST',
@@ -2865,19 +2939,29 @@ function llmNext() {
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    llmIdx++;
-    document.getElementById('llmBar').style.width = Math.round(llmIdx / total * 100) + '%';
     if (d.ok) {
-      document.getElementById('llmStatus').textContent = (llmIdx) + ' of ' + total + ' — ' + (d.message || 'done');
-    } else {
-      document.getElementById('llmStatus').textContent = 'Error (biz ' + bizId + '): ' + (d.error || 'unknown') + ' — continuing…';
+      llmIdx++; llmRetries = 0; llmSetBar();
+      llmSetStatus(llmIdx + ' of ' + total + ' — ' + (d.message || 'done'));
+      setTimeout(llmNext, LLM_PACE_MS);
+      return;
     }
-    setTimeout(llmNext, 800);
+    // Rate-limited → wait and retry the SAME business (don't lose it).
+    if (llmIsRateLimit(d.error) && llmRetries < LLM_MAXRETRY) {
+      llmRetries++;
+      var secs = Math.round(LLM_BACKOFF / 1000);
+      llmSetStatus('Rate limit hit — pausing ' + secs + 's, then retrying lead ' + (llmIdx + 1) + ' of ' + total + ' (retry ' + llmRetries + '/' + LLM_MAXRETRY + ')…');
+      setTimeout(llmNext, LLM_BACKOFF);
+      return;
+    }
+    // Non-rate-limit error, or out of retries → skip and move on.
+    llmIdx++; llmRetries = 0; llmSetBar();
+    llmSetStatus('Skipped biz ' + bizId + ': ' + (d.error || 'unknown') + ' — continuing…');
+    setTimeout(llmNext, LLM_PACE_MS);
   })
   .catch(function(err) {
-    llmIdx++;
-    document.getElementById('llmStatus').textContent = 'Network error on biz ' + bizId + ': ' + err.message + ' — continuing…';
-    setTimeout(llmNext, 1500);
+    llmIdx++; llmRetries = 0;
+    llmSetStatus('Network error on biz ' + bizId + ': ' + err.message + ' — continuing…');
+    setTimeout(llmNext, 2000);
   });
 }
 </script>

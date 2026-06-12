@@ -41,9 +41,11 @@ if (!$isCli) {
     }
 }
 
-// LLM config (outside public_html) powers auto-research + auto-source when present
+// AI engine powers auto-research + auto-source. Prefer DB-stored config (set
+// from the cockpit); fall back to the legacy server config file if present.
 $llmConfigPath = '/home1/spofnkte/llm-config.php';
 if (is_file($llmConfigPath)) require_once $llmConfigPath;
+ho_llm_boot($pdo);
 
 $out = ['ok' => true, 'ran_at' => date('Y-m-d H:i:s')];
 

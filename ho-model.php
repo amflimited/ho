@@ -3979,12 +3979,72 @@ function ho_run_auto_pitch(PDO $pdo, int $max = 0): array {
 
 // ─── Claude API plumbing (shared by auto-research + auto-source) ─────────────
 
-/** Requires LLM_API_KEY to be defined (cron.php loads llm-config.php). */
-function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000): array {
-    if (!defined('LLM_API_KEY') || LLM_API_KEY === '') {
-        return ['ok' => false, 'text' => '', 'error' => 'LLM config not loaded.'];
+/**
+ * AI engine config — single source of truth, provider-agnostic.
+ *
+ * Resolution order:
+ *   1. DB settings (llm_provider / llm_api_key / llm_model) — set from the
+ *      cockpit, so Adam pastes a key once from his phone. No file to create.
+ *   2. Legacy server file /home1/spofnkte/llm-config.php (LLM_API_KEY / LLM_MODEL)
+ *      — still honored if present, treated as Anthropic.
+ *
+ * ho_llm_boot($pdo) seeds the static from the DB; entry points call it once.
+ * Without a boot, the static lazy-defaults to the legacy file constants.
+ */
+function ho_llm_settings(?array $set = null): array {
+    static $cfg = null;
+    if ($set !== null) {
+        $cfg = [
+            'provider' => (string)($set['provider'] ?? 'anthropic'),
+            'key'      => (string)($set['key']      ?? ''),
+            'model'    => (string)($set['model']    ?? ''),
+        ];
+        return $cfg;
     }
-    $model   = defined('LLM_MODEL') ? LLM_MODEL : 'claude-sonnet-4-6';
+    if ($cfg === null) {
+        if (defined('LLM_API_KEY') && LLM_API_KEY !== '') {
+            $cfg = ['provider' => 'anthropic', 'key' => (string)LLM_API_KEY, 'model' => defined('LLM_MODEL') ? (string)LLM_MODEL : ''];
+        } else {
+            $cfg = ['provider' => '', 'key' => '', 'model' => ''];
+        }
+    }
+    return $cfg;
+}
+
+/** Seed the AI config from DB settings (a DB key wins over the legacy file). */
+function ho_llm_boot(PDO $pdo): void {
+    $key = trim(ho_get_setting($pdo, 'llm_api_key'));
+    if ($key === '') return; // no DB key → keep legacy/file fallback
+    $provider = ho_get_setting($pdo, 'llm_provider');
+    ho_llm_settings([
+        'provider' => $provider !== '' ? $provider : 'anthropic',
+        'key'      => $key,
+        'model'    => trim(ho_get_setting($pdo, 'llm_model')),
+    ]);
+}
+
+/** True if any AI engine is configured (DB key, loaded constant, or legacy file). */
+function ho_llm_ready(PDO $pdo): bool {
+    if (trim(ho_get_setting($pdo, 'llm_api_key')) !== '') return true;
+    if (defined('LLM_API_KEY') && LLM_API_KEY !== '')     return true;
+    if (is_file('/home1/spofnkte/llm-config.php'))         return true;
+    return false;
+}
+
+/** Provider-agnostic web-search-grounded call. Returns ['ok','text','error']. */
+function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000): array {
+    $cfg = ho_llm_settings();
+    if (($cfg['key'] ?? '') === '') {
+        return ['ok' => false, 'text' => '', 'error' => 'No AI engine configured — add a key in the cockpit (Send → Autopilot → AI engine).'];
+    }
+    return ($cfg['provider'] === 'gemini')
+        ? ho_llm_call_gemini($prompt, $system, $maxTokens, $cfg)
+        : ho_llm_call_anthropic($prompt, $system, $maxTokens, $cfg);
+}
+
+/** Anthropic Claude messages API with the web_search tool. */
+function ho_llm_call_anthropic(string $prompt, string $system, int $maxTokens, array $cfg): array {
+    $model   = ($cfg['model'] ?? '') !== '' ? $cfg['model'] : 'claude-sonnet-4-6';
     $payload = json_encode([
         'model'      => $model,
         'max_tokens' => $maxTokens,
@@ -3999,7 +4059,7 @@ function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000): arr
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_HTTPHEADER     => [
             'Content-Type: application/json',
-            'x-api-key: ' . LLM_API_KEY,
+            'x-api-key: ' . $cfg['key'],
             'anthropic-version: 2023-06-01',
             'anthropic-beta: web-search-2025-03-05',
         ],
@@ -4014,7 +4074,7 @@ function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000): arr
     if ($resp === false || $resp === '') return ['ok' => false, 'text' => '', 'error' => 'cURL: ' . $curlErr];
     if ($httpCode !== 200) {
         $apiErr = json_decode((string)$resp, true);
-        return ['ok' => false, 'text' => '', 'error' => 'API ' . $httpCode . ': ' . ($apiErr['error']['message'] ?? substr((string)$resp, 0, 200))];
+        return ['ok' => false, 'text' => '', 'error' => 'Claude API ' . $httpCode . ': ' . ($apiErr['error']['message'] ?? substr((string)$resp, 0, 200))];
     }
     $api = json_decode((string)$resp, true);
     $text = '';
@@ -4022,7 +4082,46 @@ function ho_llm_call(string $prompt, string $system, int $maxTokens = 8000): arr
         if (($block['type'] ?? '') === 'text' && isset($block['text'])) $text .= $block['text'];
     }
     return $text !== '' ? ['ok' => true, 'text' => $text, 'error' => '']
-                        : ['ok' => false, 'text' => '', 'error' => 'No text in API response.'];
+                        : ['ok' => false, 'text' => '', 'error' => 'No text in Claude response.'];
+}
+
+/** Google Gemini generateContent with google_search grounding (free tier). */
+function ho_llm_call_gemini(string $prompt, string $system, int $maxTokens, array $cfg): array {
+    $model = ($cfg['model'] ?? '') !== '' ? $cfg['model'] : 'gemini-2.5-flash';
+    $url   = 'https://generativelanguage.googleapis.com/v1beta/models/'
+           . rawurlencode($model) . ':generateContent?key=' . urlencode($cfg['key']);
+    $payload = json_encode([
+        'systemInstruction' => ['parts' => [['text' => $system]]],
+        'contents'          => [['parts' => [['text' => $prompt]]]],
+        'tools'             => [['google_search' => new stdClass()]],
+        'generationConfig'  => ['maxOutputTokens' => $maxTokens, 'temperature' => 0.2],
+    ]);
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        CURLOPT_TIMEOUT        => 150,
+        CURLOPT_CONNECTTIMEOUT => 15,
+    ]);
+    $resp     = curl_exec($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr  = curl_error($ch);
+    curl_close($ch);
+
+    if ($resp === false || $resp === '') return ['ok' => false, 'text' => '', 'error' => 'cURL: ' . $curlErr];
+    if ($httpCode !== 200) {
+        $apiErr = json_decode((string)$resp, true);
+        return ['ok' => false, 'text' => '', 'error' => 'Gemini API ' . $httpCode . ': ' . ($apiErr['error']['message'] ?? substr((string)$resp, 0, 200))];
+    }
+    $api  = json_decode((string)$resp, true);
+    $text = '';
+    foreach ((array)($api['candidates'][0]['content']['parts'] ?? []) as $part) {
+        if (isset($part['text'])) $text .= $part['text'];
+    }
+    return $text !== '' ? ['ok' => true, 'text' => $text, 'error' => '']
+                        : ['ok' => false, 'text' => '', 'error' => 'No text in Gemini response.'];
 }
 
 /** Pull the outermost JSON object out of a model reply. */
