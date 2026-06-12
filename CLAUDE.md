@@ -158,6 +158,17 @@ cap, email_log present).
   Don't collapse them into one selector; it regresses live outreach.
 - **LLM calls go through `ho_llm_call()` + `ho_llm_extract_json()`** in
   ho-model.php (web_search messages API). llm-research.php uses them too.
+- **Sourcing is Claude-first (Adam's Max plan, zero API spend).** The DEEP
+  HUNT is the default: `ho_generate_hunt_prompt()` (one Claude pass that
+  sources AND fully researches) → paste → `ho_import_hunt_json()` creates
+  businesses (triaged=1), routes entries through `ho_import_research_json()`
+  (contacts, research record, preview) — leads land pitch-ready. JSON root key
+  `hunt_results` routes the cockpit paste importer to `import_hunt`; the
+  classic candidates-only sweep survives at `?tab=source&run_id=N&mode=sweep`.
+  Both prompts share `ho_research_record_spec()` — extend the schema THERE so
+  hunt and research never drift. A re-hunt never touches a business already in
+  play (pitched/converted/excluded/not_a_fit). `cp_claude_row()` renders the
+  one-tap claude.ai deep link (falls back to Copy for prompts > ~6KB).
 - **Public-page chrome** is `ho_fd_nav()` / `ho_fd_footer()` in `fd-chrome.php`.
 - `ho_is_lead_platform_url()` blocks Angi/Thumbtack/Yelp/etc. as contact paths.
 

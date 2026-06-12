@@ -306,7 +306,8 @@ function ho_create_source_run(PDO $pdo, int $categoryId, string $area, int $coun
 }
 
 /**
- * Single source of truth for how every GPT prompt must hand back its result.
+ * Single source of truth for how every Claude paste-back prompt must hand
+ * back its result.
  * Paste-friendly: the reply must be raw JSON only — no summary sentence, no
  * markdown fences — so the one-tap paste/import parser never chokes on prose.
  */
@@ -474,6 +475,176 @@ function ho_import_sourcing_json(PDO $pdo, int $runId, string $rawJson): array {
         ->execute([$imported, $runId]);
 
     return ['imported' => $imported, 'skipped' => $skipped, 'total' => count($candidates), 'dead_urls' => $deadUrls];
+}
+
+/**
+ * THE DEEP HUNT — one Claude prompt that sources AND fully researches in a
+ * single pass. Built for the Claude app on a Max plan: web search on (or the
+ * Research button for the deepest sweep), paste the prompt, paste back one
+ * JSON blob. ho_import_hunt_json() turns that blob into businesses + complete
+ * research records + previews — leads land pitch-ready, no triage leg, no
+ * second prompt, no API spend.
+ */
+function ho_generate_hunt_prompt(array $category, string $area, int $count, array $exclusions, int $runId = 0): string {
+    $name    = $category['name'];
+    $runLine = $runId > 0 ? "\n  \"run_id\": {$runId}," : '';
+
+    $services = json_decode($category['typical_services'] ?? '[]', true);
+    $serviceHint = count($services) > 0
+        ? 'Typical services include: ' . implode(', ', $services) . '.'
+        : '';
+
+    $regions  = ho_indiana_regions();
+    $cityList = $regions[$area] ?? $area;
+    $footer   = ho_prompt_delivery_footer();
+
+    $exclude = count($exclusions) > 0
+        ? "\n\nEXCLUSIONS — do not return any of these businesses (already in the database):\n" . implode("\n", array_map(fn($n) => "- $n", $exclusions))
+        : '';
+
+    $spec = ho_research_record_spec(
+        'hunt_results',
+        $runLine,
+        "\n      \"city\": \"City Name\",\n      \"found_via\": \"where you verified this business exists\",\n      \"confidence\": \"high\",",
+        'business_id: Always 0 — these are new discoveries; the importer assigns real IDs.',
+        "\n\nHUNT FIELDS (per entry, in addition to everything above):\n"
+        . "- city: the Indiana city this business operates from. Required — an entry without a city is discarded.\n"
+        . "- found_via: where you verified it exists, e.g. \"live Google Maps listing\", \"active Facebook page, posted last week\".\n"
+        . "- confidence: \"high\" (you saw a live listing/page/site naming this business in this city) or \"medium\" (strong indirect evidence). Do NOT include low-confidence finds at all.\n"
+        . ($runId > 0 ? "- run_id: include exactly as shown above — it routes this batch on import.\n" : '')
+    );
+
+    return <<<PROMPT
+THE HUNT — source and research in ONE pass. Use web search throughout; verify everything you return.
+
+Find up to {$count} REAL, currently-operating {$name} businesses in the {$area} region of Indiana, then fully research each one and return one complete record per business. Cities in this region include: {$cityList}. Spread finds across these cities where possible. {$serviceHint}
+
+WHO WE WANT — small, owner-operated outfits where the owner does the work. The GOLD-standard find: a business with real customers and real reviews but a weak online front door — no website, a Facebook-only presence, a clearly outdated site, or a pile of unanswered Google reviews. A {$name} business with 40 reviews and no website is a perfect find. Businesses with decent websites are still worth returning (we sell upgrades and review management), but weak-web-presence finds come first. Do NOT include national franchises, corporate chains, or multi-territory platforms (e.g., 1-800-GOT-JUNK, LoadUp, College Hunks, Molly Maid, TruGreen, ServiceMaster, Junk King, MaidPro, Lawn Love).
+
+HOW TO HUNT — work through all of these:
+- Google Maps: search "{$name} CITY Indiana" for each city listed above and walk the local results.
+- Facebook: local business pages, and buy/sell/recommendation groups for those towns ("who do you recommend for...").
+- "best {$name} in CITY" roundups and local directories — then verify every name independently at a primary source.
+
+VERIFICATION — these rules outrank the count:
+- Only include a business you can verify exists RIGHT NOW: a live Google Business listing, an active Facebook page, or a working website that names the business and city.
+- Every business MUST have at least one real contact path: phone, email, website, or Facebook page. No contact path — leave it out.
+- NEVER guess or construct a URL from a business name. An empty string always beats a guess.
+- Returning fewer than {$count} is completely fine. 5 fully-verified records beat {$count} guesses. Do not pad.
+
+For EVERY business that passes, research it thoroughly — website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, BBB — and fill in the complete record:
+
+{$spec}
+
+{$footer}{$exclude}
+PROMPT;
+}
+
+/**
+ * Import a deep-hunt result: create (or match) each business, then push every
+ * entry through the standard research importer — which fills contacts, writes
+ * the research record, sets pipeline status, and auto-generates the preview.
+ * One paste in, pitch-ready leads out.
+ *
+ * Safety rails: low-confidence and franchise entries are dropped at the door;
+ * blocklisted names are dropped; an entry matching an existing business that
+ * is already in play (pitched/converted/excluded/not_a_fit) is skipped so a
+ * re-hunt can never yank a live deal back to 'researched'.
+ */
+function ho_import_hunt_json(PDO $pdo, int $runId, string $rawJson): array {
+    $data = json_decode(ho_clean_json($rawJson), true, 512, JSON_THROW_ON_ERROR);
+    $entries = $data['hunt_results'] ?? $data['research_results'] ?? $data['candidates']
+        ?? (array_is_list($data) ? $data : []);
+
+    $run = $pdo->prepare("SELECT * FROM source_runs WHERE id = ?");
+    $run->execute([$runId]);
+    $runRow = $run->fetch();
+    if (!$runRow) throw new RuntimeException('Source run not found.');
+    $categoryId = (int)$runRow['category_id'];
+
+    $blocklist = ho_get_blocklist_norms($pdo);
+    $created = 0; $refreshed = 0; $skipped = 0;
+    $researchEntries = [];
+
+    foreach ($entries as $e) {
+        if (!is_array($e)) continue;
+        $name = trim((string)($e['raw_name'] ?? $e['business_name'] ?? ''));
+        $city = trim((string)($e['city'] ?? ''));
+        if ($name === '' || $city === '') { $skipped++; continue; }
+        $conf = strtolower(trim((string)($e['confidence'] ?? 'high')));
+        if ($conf === 'low') { $skipped++; continue; }
+        if ((bool)($e['is_franchise'] ?? false)) { $skipped++; continue; }
+        if ($blocklist !== [] && in_array(ho_norm_name($name), $blocklist, true)) { $skipped++; continue; }
+
+        $slug = ho_slugify($name, $city);
+        $chk = $pdo->prepare("
+            SELECT id, pipeline_status FROM businesses
+            WHERE business_slug = ? OR (business_name = ? AND location_city = ?)
+            LIMIT 1
+        ");
+        $chk->execute([$slug, $name, $city]);
+        $existing = $chk->fetch();
+
+        if ($existing) {
+            if (!in_array((string)$existing['pipeline_status'], ['identified', 'researched', 'needs_contact'], true)) {
+                $skipped++; // already in play — never regress a live deal
+                continue;
+            }
+            $e['business_id'] = (int)$existing['id'];
+            $refreshed++;
+        } else {
+            $finalSlug = $slug; $i = 2;
+            while (true) {
+                $c = $pdo->prepare("SELECT id FROM businesses WHERE business_slug = ?");
+                $c->execute([$finalSlug]);
+                if (!$c->fetch()) break;
+                $finalSlug = substr($slug, 0, 170) . '-' . $i++;
+            }
+            try {
+                $pdo->prepare("
+                    INSERT INTO businesses
+                      (business_uid, business_slug, business_name, category_id,
+                       location_city, location_state, pipeline_status, triaged)
+                    VALUES (?, ?, ?, ?, ?, 'IN', 'identified', 1)
+                ")->execute([ho_uid('biz'), $finalSlug, $name, $categoryId, $city]);
+            } catch (PDOException) {
+                // triaged column not migrated yet
+                $pdo->prepare("
+                    INSERT INTO businesses
+                      (business_uid, business_slug, business_name, category_id,
+                       location_city, location_state, pipeline_status)
+                    VALUES (?, ?, ?, ?, ?, 'IN', 'identified')
+                ")->execute([ho_uid('biz'), $finalSlug, $name, $categoryId, $city]);
+            }
+            $e['business_id'] = (int)$pdo->lastInsertId();
+            $created++;
+        }
+
+        $e['raw_name'] = $name;
+        $researchEntries[] = $e;
+    }
+
+    // The standard research importer does the rest: research record upsert,
+    // contact fill, status routing, tech check, preview generation.
+    $research = ['updated' => 0, 'errors' => []];
+    if ($researchEntries !== []) {
+        @set_time_limit(300); // tech-checks fetch each claimed live site
+        $research = ho_import_research_json(
+            $pdo,
+            json_encode(['research_results' => $researchEntries], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    $pdo->prepare("UPDATE source_runs SET status = 'imported', businesses_found = ? WHERE id = ?")
+        ->execute([$created + $refreshed, $runId]);
+
+    return [
+        'created'    => $created,
+        'refreshed'  => $refreshed,
+        'skipped'    => $skipped,
+        'researched' => (int)$research['updated'],
+        'errors'     => $research['errors'],
+    ];
 }
 
 function ho_promote_candidates(PDO $pdo, int $runId): int {
@@ -707,30 +878,25 @@ function ho_template_dir_for_slug(string $slug): string {
     return '';
 }
 
-function ho_generate_research_prompt(array $businesses): string {
-    $list = '';
-    foreach ($businesses as $i => $b) {
-        $n = $i + 1;
-        $list .= "{$n}. [ID:{$b['id']}] {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN";
-        if (($b['website_url']         ?? '') !== '') $list .= " — website: {$b['website_url']}";
-        if (($b['facebook_url']        ?? '') !== '') $list .= " — facebook: {$b['facebook_url']}";
-        if (($b['google_business_url'] ?? '') !== '') $list .= " — google: {$b['google_business_url']}";
-        $list .= "\n";
-    }
-    $footer = ho_prompt_delivery_footer();
-
-    return <<<PROMPT
-Research these Indiana local service businesses for Hoosier Online lead qualification. For each one, check every public source: their website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, and BBB. Search Google for each business name + city + Indiana to find anything not immediately linked. ALSO find the best way to contact each business — a public email and/or working website — so this single pass fully qualifies the lead with no follow-up steps.
-
-Businesses to research:
-{$list}
-Return ONLY valid JSON — no markdown fences, no explanations. One entry per business:
-
-{
-  "research_results": [
+/**
+ * The research-record contract — per-entry JSON schema + field rules — shared
+ * by the per-lead research prompt and the deep-hunt prompt (one Claude pass
+ * that sources AND researches). The $rootKey matters: the cockpit's paste
+ * importer routes the JSON to the right import action by its root key.
+ */
+function ho_research_record_spec(
+    string $rootKey = 'research_results',
+    string $envelopePrefix = '',
+    string $extraEntryFields = '',
+    string $idRule = 'business_id: Copy the [ID:N] number exactly.',
+    string $extraRules = ''
+): string {
+    return <<<SPEC
+{{$envelopePrefix}
+  "{$rootKey}": [
     {
       "business_id": 0,
-      "raw_name": "Exact business name from the list above",
+      "raw_name": "Exact business name from the list above",{$extraEntryFields}
 
       "email": "",
       "phone": "",
@@ -825,7 +991,7 @@ Return ONLY valid JSON — no markdown fences, no explanations. One entry per bu
 
 FIELD RULES:
 
-business_id: Copy the [ID:N] number exactly.
+{$idRule}
 
 CONTACT — how a customer (and we) can reach them:
 - email: a public business email if one is visibly listed (site, GBP, Facebook). Empty string if none found. Never guess.
@@ -908,7 +1074,31 @@ AI ASSESSMENT:
 - opportunity_summary: 1-2 sentences to the owner using you/your. Be specific. Do NOT state review count as a number.
 - strengths: specific things working in their favor (strong reviews, active Facebook, area reputation, etc.)
 - gaps: specific things missing or broken (no website, no contact form, inactive social, paying Angi, etc.)
-- recommended_package: "standard" ($499 site build) | "managed" ($999, businesses that need ongoing content)
+- recommended_package: "standard" ($499 site build) | "managed" ($999, businesses that need ongoing content){$extraRules}
+SPEC;
+}
+
+function ho_generate_research_prompt(array $businesses): string {
+    $list = '';
+    foreach ($businesses as $i => $b) {
+        $n = $i + 1;
+        $list .= "{$n}. [ID:{$b['id']}] {$b['business_name']} — {$b['category_name']} — {$b['location_city']}, IN";
+        if (($b['website_url']         ?? '') !== '') $list .= " — website: {$b['website_url']}";
+        if (($b['facebook_url']        ?? '') !== '') $list .= " — facebook: {$b['facebook_url']}";
+        if (($b['google_business_url'] ?? '') !== '') $list .= " — google: {$b['google_business_url']}";
+        $list .= "\n";
+    }
+    $footer = ho_prompt_delivery_footer();
+    $spec   = ho_research_record_spec();
+
+    return <<<PROMPT
+Research these Indiana local service businesses for Hoosier Online lead qualification. For each one, check every public source: their website, Google Business Profile, Facebook, Instagram, Yelp, Angi, Thumbtack, YouTube, Nextdoor, and BBB. Search Google for each business name + city + Indiana to find anything not immediately linked. ALSO find the best way to contact each business — a public email and/or working website — so this single pass fully qualifies the lead with no follow-up steps.
+
+Businesses to research:
+{$list}
+Return ONLY valid JSON — no markdown fences, no explanations. One entry per business:
+
+{$spec}
 
 {$footer}
 PROMPT;
