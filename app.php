@@ -209,7 +209,7 @@ if ($pdo !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
 
             case 'save_setting':
-                $allowedKeys = ['gpt_actions_url', 'gpt_import_key'];
+                $allowedKeys = ['gpt_actions_url', 'gpt_import_key', 'sitedomains', 'livesite_enabled'];
                 $sKey = trim((string)($_POST['setting_key'] ?? ''));
                 $sVal = trim((string)($_POST['setting_value'] ?? ''));
                 if (!in_array($sKey, $allowedKeys, true)) throw new RuntimeException('Unknown setting.');
@@ -1515,6 +1515,40 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
   </section>
 
   <?php
+  $liveSiteEnabled = $pdo ? ho_get_setting($pdo, 'livesite_enabled') : '';
+  $siteDomains     = $pdo ? ho_get_setting($pdo, 'sitedomains')      : '';
+  ?>
+  <section class="cp-section">
+    <details class="cp-ap-wrap">
+      <summary class="cp-ap-summary">🌐 Live Site renderer</summary>
+      <div class="cp-ap-body">
+        <p class="cp-hint">When enabled, preview pages show the lead's real personalized website in a live iframe instead of a static PNG mockup. Turn off for instant rollback to the PNG picker.</p>
+        <form method="POST" class="cp-ap-form" style="gap:10px">
+          <input type="hidden" name="action" value="save_setting">
+          <input type="hidden" name="tab"    value="send">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="hidden"   name="setting_key"   value="livesite_enabled">
+            <input type="checkbox" name="setting_value" value="1"<?= ($liveSiteEnabled !== '0' && $liveSiteEnabled !== '') ? ' checked' : '' ?>>
+            <span>Enable live site renderer on /go/{slug} preview pages</span>
+          </label>
+          <button type="submit" class="cp-btn-primary" style="margin-top:4px">Save</button>
+        </form>
+        <form method="POST" class="cp-ap-form" style="margin-top:14px">
+          <input type="hidden" name="action" value="save_setting">
+          <input type="hidden" name="tab"    value="send">
+          <input type="hidden" name="setting_key" value="sitedomains">
+          <label>Custom domain map (JSON: <code>{"theirdomain.com":"slug"}</code>)
+            <textarea class="cp-input" name="setting_value" rows="3"
+                      placeholder='{"acmecleaning.com":"acme-cleaning-noblesville"}'
+                      style="font-family:monospace;font-size:12px"><?= ho_h($siteDomains) ?></textarea>
+          </label>
+          <button type="submit" class="cp-btn-primary">Save domain map</button>
+        </form>
+      </div>
+    </details>
+  </section>
+
+  <?php
   // Load current gap prices for the editor
   $editorPrices = [];
   if ($pdo) {
@@ -1829,6 +1863,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <?php if ((string)$b['business_slug'] !== ''): ?><a class="cp-btn-ghost" href="/site/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Live site ↗</a><?php endif; ?>
               <?php if ($hasTextChannel): ?><button type="button" class="cp-btn-ghost" onclick="copyMessage(this)">Copy message ⧉</button><?php endif; ?>
               <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Their Google listing — check review count and rating">Reviews ↗</a>
               <?php $ccQuote = trim((string)($b['review_quote_1'] ?? '')); if ($ccQuote !== ''):
@@ -2032,6 +2067,7 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
             <div class="cp-send-secondary">
               <a class="cp-btn-ghost" href="/go/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Preview ↗</a>
+              <?php if ((string)$b['business_slug'] !== ''): ?><a class="cp-btn-ghost" href="/site/<?= ho_h((string)$b['business_slug']) ?>" target="_blank">Live site ↗</a><?php endif; ?>
               <?php if ($hasTextChannel): ?><button type="button" class="cp-btn-ghost" onclick="copyMessage(this)">Copy message ⧉</button><?php endif; ?>
               <a class="cp-btn-ghost" href="<?= ho_h('https://www.google.com/search?q=' . rawurlencode('"' . $b['business_name'] . '" ' . $b['location_city'] . ' Indiana')) ?>" target="_blank" title="Their Google listing — check review count and rating">Reviews ↗</a>
               <?php $ccQuote = trim((string)($b['review_quote_1'] ?? '')); if ($ccQuote !== ''):

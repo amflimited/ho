@@ -1,0 +1,736 @@
+/* =========================================================
+   live-site.css — Hoosier Online Live Site Renderer
+   Loaded ONLY by site.php — never shares styles with front-door.css
+   ========================================================= */
+
+/* ── Reset / base ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--ls-font-sans, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif);
+  background: var(--s-bg, #f8f8f6);
+  color: var(--s-ink, #1a1a1a);
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+[data-type="serif"] body,
+[data-type="serif"] .ls-section,
+[data-type="serif"] .ls-hero,
+[data-type="serif"] .ls-about-body {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+img { max-width: 100%; display: block; }
+a { color: var(--s-primary, #2d6a2d); }
+a:hover { opacity: .85; }
+
+/* ── Skin variable blocks ──────────────────────────────── */
+
+/* forest_pro — lawn / landscaping */
+[data-skin="forest_pro"] {
+  --s-primary:      #2d6a2d;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #7ab648;
+  --s-bg:           #f5f7f2;
+  --s-surface:      #ffffff;
+  --s-ink:          #1c2a1c;
+  --s-muted:        #6b7c6b;
+  --s-hero-from:    #1e4f1e;
+  --s-hero-to:      #3a7d3a;
+  --s-radius:       6px;
+}
+
+/* bold_orange — junk removal / hauling */
+[data-skin="bold_orange"] {
+  --s-primary:      #c94d00;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #f5a623;
+  --s-bg:           #faf8f5;
+  --s-surface:      #ffffff;
+  --s-ink:          #2a1800;
+  --s-muted:        #7a6045;
+  --s-hero-from:    #8a2e00;
+  --s-hero-to:      #c94d00;
+  --s-radius:       4px;
+}
+
+/* navy_trust — cleaning / maid */
+[data-skin="navy_trust"] {
+  --s-primary:      #1a3a5c;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #4e9dcf;
+  --s-bg:           #f4f7fa;
+  --s-surface:      #ffffff;
+  --s-ink:          #0d1f33;
+  --s-muted:        #5a7a99;
+  --s-hero-from:    #0d2240;
+  --s-hero-to:      #1a3a5c;
+  --s-radius:       6px;
+}
+
+/* warm_clay — general contractor / handyman */
+[data-skin="warm_clay"] {
+  --s-primary:      #8b4513;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #d4824a;
+  --s-bg:           #faf5f0;
+  --s-surface:      #ffffff;
+  --s-ink:          #2c1a0e;
+  --s-muted:        #8a6a50;
+  --s-hero-from:    #5c2e0a;
+  --s-hero-to:      #8b4513;
+  --s-radius:       8px;
+}
+
+/* slate_modern — HVAC / plumbing / electrical */
+[data-skin="slate_modern"] {
+  --s-primary:      #334155;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #38bdf8;
+  --s-bg:           #f1f5f9;
+  --s-surface:      #ffffff;
+  --s-ink:          #0f172a;
+  --s-muted:        #64748b;
+  --s-hero-from:    #1e293b;
+  --s-hero-to:      #334155;
+  --s-radius:       4px;
+}
+
+/* gold_premium — pest control / pressure washing */
+[data-skin="gold_premium"] {
+  --s-primary:      #7c5c10;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #d4a017;
+  --s-bg:           #fdf9f0;
+  --s-surface:      #ffffff;
+  --s-ink:          #2a1f00;
+  --s-muted:        #8a7040;
+  --s-hero-from:    #4a3500;
+  --s-hero-to:      #7c5c10;
+  --s-radius:       2px;
+}
+
+/* fresh_teal — pool / irrigation / sprinkler */
+[data-skin="fresh_teal"] {
+  --s-primary:      #0e7490;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #22d3ee;
+  --s-bg:           #f0fdff;
+  --s-surface:      #ffffff;
+  --s-ink:          #083344;
+  --s-muted:        #4a8fa0;
+  --s-hero-from:    #065162;
+  --s-hero-to:      #0e7490;
+  --s-radius:       8px;
+}
+
+/* eco_sage — tree trimming / arborist / mulch */
+[data-skin="eco_sage"] {
+  --s-primary:      #4a6741;
+  --s-primary-ink:  #ffffff;
+  --s-accent:       #8fbe7a;
+  --s-bg:           #f4f7f1;
+  --s-surface:      #ffffff;
+  --s-ink:          #1e2d1a;
+  --s-muted:        #6a8060;
+  --s-hero-from:    #2e4228;
+  --s-hero-to:      #4a6741;
+  --s-radius:       10px;
+}
+
+/* ── Preview ribbon ────────────────────────────────────── */
+.ls-ribbon {
+  background: var(--s-primary, #2d6a2d);
+  color: var(--s-primary-ink, #fff);
+  text-align: center;
+  font-size: .85rem;
+  font-weight: 600;
+  padding: .55rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  line-height: 1.4;
+}
+
+.ls-ribbon a {
+  color: var(--s-primary-ink, #fff);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 700;
+}
+
+.ls-ribbon a:hover { opacity: .85; }
+
+.ls-embed .ls-ribbon { display: none; }
+
+/* ── Sticky header ─────────────────────────────────────── */
+.ls-header {
+  background: var(--s-surface, #fff);
+  border-bottom: 2px solid var(--s-primary, #2d6a2d);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: .7rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ls-ribbon ~ .ls-header {
+  top: 2.5rem;
+}
+
+.ls-header-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--s-ink, #1a1a1a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ls-header-tel {
+  background: var(--s-primary, #2d6a2d);
+  color: var(--s-primary-ink, #fff);
+  text-decoration: none;
+  font-size: .85rem;
+  font-weight: 700;
+  padding: .45rem .9rem;
+  border-radius: var(--s-radius, 6px);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ls-header-tel:hover { opacity: .88; }
+
+.ls-embed .ls-header {
+  position: static;
+  padding: .5rem .75rem;
+}
+
+/* ── Hero section ──────────────────────────────────────── */
+.ls-hero {
+  background: linear-gradient(135deg, var(--s-hero-from, #1e4f1e), var(--s-hero-to, #3a7d3a));
+  color: #fff;
+  padding: 4rem 1.5rem 3.5rem;
+  text-align: center;
+}
+
+.ls-hero-headline {
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: .75rem;
+  text-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+.ls-hero-sub {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  opacity: .9;
+  margin-bottom: 1.75rem;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ls-hero-cta {
+  display: inline-block;
+  background: var(--s-accent, #7ab648);
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: .8rem 2rem;
+  border-radius: var(--s-radius, 6px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+  transition: transform .15s, opacity .15s;
+}
+
+.ls-hero-cta:hover {
+  opacity: .9;
+  transform: translateY(-1px);
+  color: #fff;
+}
+
+.ls-embed .ls-hero { padding: 2rem 1rem 1.75rem; }
+
+/* ── Section wrapper ───────────────────────────────────── */
+.ls-section {
+  padding: 3rem 1.5rem;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.ls-section + .ls-section { padding-top: 0; }
+
+.ls-section-alt {
+  background: var(--s-surface, #fff);
+  max-width: none;
+  padding: 3rem 1.5rem;
+}
+
+.ls-section-alt > .ls-section-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.ls-section-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--s-primary, #2d6a2d);
+  margin-bottom: 1.25rem;
+  border-left: 4px solid var(--s-accent, #7ab648);
+  padding-left: .75rem;
+}
+
+.ls-embed .ls-section { padding: 1.5rem 1rem; }
+.ls-embed .ls-section-alt { padding: 1.5rem 1rem; }
+
+/* ── Trust bar ─────────────────────────────────────────── */
+.ls-trust {
+  background: var(--s-primary, #2d6a2d);
+  color: var(--s-primary-ink, #fff);
+  padding: 1rem 1.5rem;
+}
+
+.ls-trust-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 2rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.ls-trust-item {
+  font-size: .9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.ls-trust-stars {
+  color: var(--s-accent, #7ab648);
+  letter-spacing: .05em;
+}
+
+/* ── Services grid ─────────────────────────────────────── */
+.ls-services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.1rem;
+  margin-top: 1.25rem;
+}
+
+.ls-service-card {
+  background: var(--s-surface, #fff);
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: var(--s-radius, 6px);
+  padding: 1.25rem 1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+.ls-service-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--s-primary, #2d6a2d);
+  margin-bottom: .4rem;
+}
+
+.ls-service-desc {
+  font-size: .88rem;
+  color: var(--s-muted, #6b7c6b);
+  line-height: 1.5;
+}
+
+/* ── About section ─────────────────────────────────────── */
+.ls-about-body {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--s-ink, #1a1a1a);
+}
+
+.ls-about-years {
+  display: inline-block;
+  background: var(--s-primary, #2d6a2d);
+  color: var(--s-primary-ink, #fff);
+  font-size: .82rem;
+  font-weight: 700;
+  padding: .25rem .65rem;
+  border-radius: 20px;
+  margin-top: .9rem;
+}
+
+/* ── Reviews section ───────────────────────────────────── */
+.ls-reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.1rem;
+  margin-top: 1.25rem;
+}
+
+.ls-review-card {
+  background: var(--s-surface, #fff);
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: var(--s-radius, 6px);
+  padding: 1.25rem 1.1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  position: relative;
+}
+
+.ls-review-stars {
+  color: var(--s-accent, #7ab648);
+  font-size: 1.1rem;
+  margin-bottom: .5rem;
+}
+
+.ls-review-quote {
+  font-size: .95rem;
+  line-height: 1.6;
+  font-style: italic;
+  color: var(--s-ink, #1a1a1a);
+  margin-bottom: .7rem;
+}
+
+.ls-review-author {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--s-muted, #6b7c6b);
+}
+
+/* ── FAQ ───────────────────────────────────────────────── */
+.ls-faq-list {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+.ls-faq-item {
+  background: var(--s-surface, #fff);
+  border: 1px solid rgba(0,0,0,.1);
+  border-radius: var(--s-radius, 6px);
+  overflow: hidden;
+}
+
+.ls-faq-item summary {
+  cursor: pointer;
+  padding: 1rem 1.1rem;
+  font-weight: 600;
+  font-size: .97rem;
+  color: var(--s-ink, #1a1a1a);
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.ls-faq-item summary::-webkit-details-marker { display: none; }
+
+.ls-faq-item summary::after {
+  content: "+";
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--s-primary, #2d6a2d);
+  flex-shrink: 0;
+  margin-left: .5rem;
+  transition: transform .2s;
+}
+
+.ls-faq-item[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.ls-faq-item[open] summary {
+  color: var(--s-primary, #2d6a2d);
+  border-bottom: 1px solid rgba(0,0,0,.08);
+}
+
+.ls-faq-answer {
+  padding: .9rem 1.1rem 1rem;
+  font-size: .92rem;
+  line-height: 1.65;
+  color: var(--s-ink, #1a1a1a);
+}
+
+/* ── Service area ──────────────────────────────────────── */
+.ls-area-blurb {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--s-ink, #1a1a1a);
+}
+
+/* ── Contact form (preview / delivered) ───────────────── */
+.ls-contact-wrap {
+  background: var(--s-primary, #2d6a2d);
+  padding: 3rem 1.5rem;
+}
+
+.ls-contact-inner {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.ls-contact-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--s-primary-ink, #fff);
+  text-align: center;
+  margin-bottom: .4rem;
+}
+
+.ls-contact-sub {
+  font-size: .95rem;
+  color: var(--s-primary-ink, #fff);
+  opacity: .85;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.ls-form {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.ls-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+
+.ls-form input,
+.ls-form textarea,
+.ls-form select {
+  width: 100%;
+  padding: .7rem .9rem;
+  border: 2px solid rgba(255,255,255,.3);
+  border-radius: var(--s-radius, 6px);
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  font-size: .95rem;
+  font-family: inherit;
+  transition: border-color .15s;
+  -webkit-appearance: none;
+}
+
+.ls-form input::placeholder,
+.ls-form textarea::placeholder {
+  color: rgba(255,255,255,.6);
+}
+
+.ls-form input:focus,
+.ls-form textarea:focus {
+  outline: none;
+  border-color: rgba(255,255,255,.8);
+  background: rgba(255,255,255,.18);
+}
+
+.ls-form textarea { min-height: 90px; resize: vertical; }
+
+.ls-form-hp { display: none !important; }
+
+.ls-form-submit {
+  background: var(--s-accent, #7ab648);
+  color: #fff;
+  border: none;
+  border-radius: var(--s-radius, 6px);
+  padding: .85rem 1.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity .15s, transform .15s;
+  width: 100%;
+}
+
+.ls-form-submit:hover { opacity: .9; transform: translateY(-1px); }
+.ls-form-submit:active { transform: none; }
+
+.ls-form-msg {
+  text-align: center;
+  font-size: .9rem;
+  font-weight: 600;
+  color: #fff;
+  min-height: 1.5rem;
+  padding-top: .25rem;
+}
+
+.ls-embed .ls-contact-wrap { padding: 1.75rem 1rem; }
+
+/* ── HO buy-CTA (preview mode only) ───────────────────── */
+.ls-buy-cta {
+  background: var(--s-surface, #fff);
+  border-top: 3px solid var(--s-accent, #7ab648);
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.ls-buy-cta-text {
+  font-size: 1rem;
+  color: var(--s-ink, #1a1a1a);
+  margin-bottom: 1rem;
+}
+
+.ls-buy-cta-btn {
+  display: inline-block;
+  background: var(--s-primary, #2d6a2d);
+  color: var(--s-primary-ink, #fff);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: .95rem;
+  padding: .7rem 1.6rem;
+  border-radius: var(--s-radius, 6px);
+}
+
+.ls-buy-cta-btn:hover { opacity: .88; color: var(--s-primary-ink, #fff); }
+
+.ls-embed .ls-buy-cta { display: none; }
+
+/* ── Footer ────────────────────────────────────────────── */
+.ls-footer {
+  background: var(--s-ink, #1a1a1a);
+  color: rgba(255,255,255,.7);
+  text-align: center;
+  padding: 1.5rem 1rem;
+  font-size: .8rem;
+  line-height: 1.7;
+}
+
+.ls-footer a {
+  color: rgba(255,255,255,.75);
+  text-decoration: underline;
+}
+
+.ls-footer-credit {
+  margin-top: .4rem;
+  opacity: .5;
+  font-size: .73rem;
+}
+
+.ls-embed .ls-footer {
+  padding: 1rem;
+}
+
+/* ── Success / error state on contact form ─────────────── */
+.ls-form-success {
+  background: rgba(255,255,255,.2);
+  border-radius: var(--s-radius, 6px);
+  padding: 1.25rem;
+  text-align: center;
+  color: #fff;
+  font-weight: 600;
+  display: none;
+}
+
+/* ── Rating stars helper ───────────────────────────────── */
+.ls-stars {
+  display: inline-block;
+  unicode-bidi: bidi-override;
+  direction: ltr;
+}
+
+/* ── Embed (iframe in go.php phone frame) ──────────────── */
+.ls-embed .ls-section {
+  padding: 1.25rem .9rem;
+}
+
+.ls-embed .ls-section-alt {
+  padding: 1.25rem .9rem;
+}
+
+.ls-embed .ls-hero {
+  padding: 1.75rem .9rem 1.5rem;
+}
+
+.ls-embed .ls-hero-headline {
+  font-size: 1.35rem;
+}
+
+.ls-embed .ls-hero-sub {
+  font-size: .88rem;
+}
+
+.ls-embed .ls-trust {
+  padding: .75rem .9rem;
+}
+
+.ls-embed .ls-trust-inner {
+  gap: .4rem 1rem;
+  font-size: .8rem;
+}
+
+.ls-embed .ls-services-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: .7rem;
+}
+
+.ls-embed .ls-service-card {
+  padding: .85rem .75rem;
+}
+
+.ls-embed .ls-service-name {
+  font-size: .88rem;
+}
+
+.ls-embed .ls-service-desc {
+  font-size: .78rem;
+}
+
+.ls-embed .ls-faq-item summary {
+  padding: .75rem .9rem;
+  font-size: .88rem;
+}
+
+.ls-embed .ls-faq-answer {
+  padding: .65rem .9rem .75rem;
+  font-size: .84rem;
+}
+
+.ls-embed .ls-reviews-grid {
+  grid-template-columns: 1fr;
+}
+
+.ls-embed .ls-section-title {
+  font-size: 1.15rem;
+}
+
+/* ── Responsive (non-embed) ────────────────────────────── */
+@media (max-width: 600px) {
+  .ls-form-row { grid-template-columns: 1fr; }
+  .ls-services-grid { grid-template-columns: 1fr 1fr; }
+  .ls-header-name { font-size: .95rem; }
+  .ls-hero { padding: 2.75rem 1rem 2.25rem; }
+  .ls-section { padding: 2.25rem 1rem; }
+  .ls-section-alt { padding: 2.25rem 1rem; }
+  .ls-contact-wrap { padding: 2.25rem 1rem; }
+}
+
+@media (max-width: 380px) {
+  .ls-services-grid { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 700px) {
+  .ls-reviews-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Accessibility ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+:focus-visible {
+  outline: 3px solid var(--s-accent, #7ab648);
+  outline-offset: 2px;
+}
