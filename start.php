@@ -182,7 +182,7 @@ $srcParam   = preg_replace('/[^a-z0-9_-]/', '', strtolower((string)($_GET['src']
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>See your business&rsquo;s new website — free, 60 seconds | Hoosier Online</title>
   <meta name="description" content="Type your business name and watch a personalized website preview build itself — free, no signup, built for Indiana service businesses.">
-  <link rel="stylesheet" href="/assets/css/front-door.css?v=2">
+  <link rel="stylesheet" href="/assets/css/front-door.css?v=<?= filemtime(__DIR__ . '/assets/css/front-door.css') ?>">
 </head>
 <body class="front-door-preview-page">
 

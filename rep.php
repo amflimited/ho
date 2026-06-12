@@ -61,7 +61,7 @@ $worst      = $drafts[0] ?? null;
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title><?= $row ? ho_h($name) . ' — your reviews, answered' : 'Hoosier Online' ?></title>
-  <link rel="stylesheet" href="/assets/css/front-door.css?v=2">
+  <link rel="stylesheet" href="/assets/css/front-door.css?v=<?= filemtime(__DIR__ . '/assets/css/front-door.css') ?>">
 </head>
 <body class="front-door-preview-page">
 
