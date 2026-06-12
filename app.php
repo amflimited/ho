@@ -2881,16 +2881,20 @@ function hoCopyThenClaude() {
 }
 
 // ── Zero-touch LLM research ──────────────────────────────────────────────────
-// Each call uses web search and burns a lot of input tokens, so back-to-back
-// requests blow past per-minute rate limits. We pace successful calls and, on a
-// rate-limit (429), wait and RETRY the same business instead of skipping it.
+// Shared hosting severs long connections, so we DON'T wait on the research call.
+// Per lead: POST to start it (server finishes the HTTP request immediately and
+// researches in the background), then POLL a status endpoint until it's done.
+// The phone never holds a long-lived connection, so "load failed" can't happen.
 var llmIds      = [];
 var llmIdx      = 0;
 var llmRunning  = false;
 var llmRetries  = 0;
-var LLM_PACE_MS = 5000;   // gap between successful calls (stay under token/min cap)
-var LLM_BACKOFF = 35000;  // wait after a rate-limit before retrying the same lead
-var LLM_MAXRETRY= 5;      // give up on one lead after this many rate-limit retries
+var llmPolls    = 0;
+var LLM_PACE_MS  = 2000;   // gap between leads
+var LLM_POLL_MS  = 6000;   // gap between status polls
+var LLM_POLL_MAX = 30;     // ~3 min of polling before giving up on one lead
+var LLM_BACKOFF  = 35000;  // wait after a rate-limit before retrying the same lead
+var LLM_MAXRETRY = 5;      // rate-limit retries per lead
 
 function startLlmResearch() {
   var raw = document.getElementById('llmBizIds');
@@ -2911,7 +2915,7 @@ function stopLlmResearch() {
   llmRunning = false;
   document.getElementById('llmBtn').disabled = false;
   document.getElementById('llmStop').style.display = 'none';
-  document.getElementById('llmStatus').textContent = 'Stopped at ' + llmIdx + ' of ' + llmIds.length + '. Refresh to see results.';
+  document.getElementById('llmStatus').textContent = 'Stopped at ' + llmIdx + ' of ' + llmIds.length + '. Research already started keeps running in the background — refresh to see results.';
 }
 
 function llmIsRateLimit(msg) {
@@ -2921,6 +2925,12 @@ function llmIsRateLimit(msg) {
 
 function llmSetStatus(s) { document.getElementById('llmStatus').textContent = s; }
 function llmSetBar()     { document.getElementById('llmBar').style.width = Math.round(llmIdx / llmIds.length * 100) + '%'; }
+
+function llmAdvance(msg) {           // record a finished lead, move to the next
+  llmIdx++; llmRetries = 0; llmPolls = 0; llmSetBar();
+  if (msg) llmSetStatus(msg);
+  setTimeout(llmNext, LLM_PACE_MS);
+}
 
 function llmNext() {
   if (!llmRunning || llmIdx >= llmIds.length) {
@@ -2933,64 +2943,67 @@ function llmNext() {
   var bizId  = llmIds[llmIdx];
   var total  = llmIds.length;
   var apiKey = (document.getElementById('llmApiKey') || {}).value || '';
-  llmSetStatus((llmIdx + 1) + ' of ' + total + ' — researching…' + (llmRetries > 0 ? ' (retry ' + llmRetries + ')' : ''));
+  llmPolls   = 0;
+  llmSetStatus((llmIdx + 1) + ' of ' + total + ' — starting…' + (llmRetries > 0 ? ' (retry ' + llmRetries + ')' : ''));
   llmSetBar();
-
-  // A grounded research call can run 30–90s. Give it room; abort at 175s.
-  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, 175000) : null;
-  var httpStatus = 0;
 
   fetch('/llm-research.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ business_id: bizId }),
-    signal: ctrl ? ctrl.signal : undefined
+    body: JSON.stringify({ business_id: bizId })
   })
-  .then(function(r) {
-    httpStatus = r.status;
-    return r.text(); // read raw so a non-JSON error page is visible, not swallowed
-  })
+  .then(function(r) { return r.text(); })
   .then(function(raw) {
-    if (timer) clearTimeout(timer);
-    var d;
-    try { d = JSON.parse(raw); }
-    catch (e) {
-      // Server returned non-JSON (timeout page, PHP error, etc.) — surface it.
-      var snip = (raw || '').replace(/\s+/g, ' ').trim().slice(0, 160);
-      llmIdx++; llmRetries = 0; llmSetBar();
-      llmSetStatus('Skipped biz ' + bizId + ' — server returned ' + (httpStatus || '?') +
-                   (snip ? ' (' + snip + ')' : ' (empty response)') + ' — continuing…');
-      setTimeout(llmNext, LLM_PACE_MS);
+    var d = null;
+    try { d = JSON.parse(raw); } catch (e) {}
+    // A clean start returns {started:true}. Any non-JSON/odd response is fine
+    // too — the work is underway server-side — so fall through to polling.
+    if (d && d.ok === false && !d.started) {
+      llmAdvance('Skipped biz ' + bizId + ': ' + (d.error || 'could not start') + ' — continuing…');
       return;
     }
-    if (d.ok) {
-      llmIdx++; llmRetries = 0; llmSetBar();
-      llmSetStatus(llmIdx + ' of ' + total + ' — ' + (d.message || 'done'));
-      setTimeout(llmNext, LLM_PACE_MS);
-      return;
-    }
-    // Rate-limited → wait and retry the SAME business (don't lose it).
-    if (llmIsRateLimit(d.error) && llmRetries < LLM_MAXRETRY) {
-      llmRetries++;
-      var secs = Math.round(LLM_BACKOFF / 1000);
-      llmSetStatus('Rate limit hit — pausing ' + secs + 's, then retrying lead ' + (llmIdx + 1) + ' of ' + total + ' (retry ' + llmRetries + '/' + LLM_MAXRETRY + ')…');
-      setTimeout(llmNext, LLM_BACKOFF);
-      return;
-    }
-    // Non-rate-limit error, or out of retries → skip and move on.
-    llmIdx++; llmRetries = 0; llmSetBar();
-    llmSetStatus('Skipped biz ' + bizId + ': ' + (d.error || 'unknown') + ' — continuing…');
-    setTimeout(llmNext, LLM_PACE_MS);
+    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
   })
-  .catch(function(err) {
-    if (timer) clearTimeout(timer);
-    llmIdx++; llmRetries = 0; llmSetBar();
-    var why = (err && err.name === 'AbortError')
-      ? 'request timed out after 175s (the call ran too long for shared hosting)'
-      : (err ? err.message : 'connection failed');
-    llmSetStatus('Skipped biz ' + bizId + ' — ' + why + ' — continuing…');
-    setTimeout(llmNext, 2000);
+  .catch(function() {
+    // POST itself failed to send — but the work may have started. Poll anyway.
+    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
+  });
+}
+
+function llmPoll(bizId, total, apiKey) {
+  if (!llmRunning) return;
+  llmPolls++;
+  llmSetStatus((llmIdx + 1) + ' of ' + total + ' — researching…' +
+               (llmRetries > 0 ? ' (retry ' + llmRetries + ')' : '') +
+               ' · checking ' + llmPolls + '/' + LLM_POLL_MAX);
+
+  fetch('/llm-research.php?check=' + encodeURIComponent(bizId) + '&key=' + encodeURIComponent(apiKey))
+  .then(function(r) { return r.text(); })
+  .then(function(raw) {
+    var d = null;
+    try { d = JSON.parse(raw); } catch (e) {}
+    if (d && d.done) {
+      var failed = (d.result_ok === false);
+      // Rate-limited in the background → wait and retry the SAME lead.
+      if (failed && llmIsRateLimit(d.message) && llmRetries < LLM_MAXRETRY) {
+        llmRetries++;
+        var secs = Math.round(LLM_BACKOFF / 1000);
+        llmSetStatus('Rate limit — pausing ' + secs + 's, then retrying lead ' + (llmIdx + 1) + ' of ' + total + ' (retry ' + llmRetries + '/' + LLM_MAXRETRY + ')…');
+        setTimeout(llmNext, LLM_BACKOFF);
+        return;
+      }
+      llmAdvance((llmIdx + 1) + ' of ' + total + ' — ' + (d.message || (failed ? 'failed' : 'done')));
+      return;
+    }
+    if (llmPolls >= LLM_POLL_MAX) {
+      llmAdvance('Lead ' + (llmIdx + 1) + ' still processing after ' + Math.round(LLM_POLL_MAX * LLM_POLL_MS / 1000) + 's — left it running, moving on. Refresh later to confirm.');
+      return;
+    }
+    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
+  })
+  .catch(function() {
+    if (llmPolls >= LLM_POLL_MAX) { llmAdvance('Lead ' + (llmIdx + 1) + ' — lost contact while polling, moving on.'); return; }
+    setTimeout(function(){ llmPoll(bizId, total, apiKey); }, LLM_POLL_MS);
   });
 }
 </script>

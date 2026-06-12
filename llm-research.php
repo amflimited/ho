@@ -27,8 +27,9 @@ function lr_out(int $code, array $data): never {
     exit;
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    lr_out(405, ['ok' => false, 'error' => 'POST only.']);
+$method = $_SERVER['REQUEST_METHOD'] ?? '';
+if ($method !== 'POST' && $method !== 'GET') {
+    lr_out(405, ['ok' => false, 'error' => 'GET or POST only.']);
 }
 
 // Legacy server config file (still honored); DB config is preferred and loaded
@@ -42,14 +43,7 @@ try {
     lr_out(503, ['ok' => false, 'error' => 'Database unavailable.']);
 }
 
-// Seed the AI engine from DB settings, then confirm a provider is configured.
-ho_llm_boot($pdo);
-$llmCfg = ho_llm_settings();
-if (($llmCfg['key'] ?? '') === '') {
-    lr_out(503, ['ok' => false, 'error' => 'No AI engine configured. Add a key in the cockpit (Send → Autopilot → AI engine).']);
-}
-
-// Auth: same key as gpt-import.php
+// Auth: same key as gpt-import.php. Header for POST; ?key= allowed for the GET poll.
 $configuredKey = ho_get_setting($pdo, 'gpt_import_key');
 if ($configuredKey === '') {
     lr_out(503, ['ok' => false, 'error' => 'Import key not configured.']);
@@ -58,12 +52,54 @@ $givenKey = trim((string)($_SERVER['HTTP_X_API_KEY'] ?? ''));
 if ($givenKey === '' && preg_match('/^Bearer\s+(.+)$/i', (string)($_SERVER['HTTP_AUTHORIZATION'] ?? ''), $m)) {
     $givenKey = trim($m[1]);
 }
+if ($givenKey === '' && $method === 'GET') {
+    $givenKey = trim((string)($_GET['key'] ?? ''));
+}
 if ($givenKey === '' || !hash_equals($configuredKey, $givenKey)) {
     lr_out(401, ['ok' => false, 'error' => 'Unauthorized.']);
 }
 
-$raw  = (string)file_get_contents('php://input');
-$body = json_decode($raw, true);
+// ── GET ?check=BIZID — lightweight status poll (no AI work) ──────────────────
+// The browser fires the slow research as fire-and-forget, then polls here. We
+// stash each run's outcome in app_settings (key llmres_<id>) so the poll can
+// report the real result — including errors — even though the work ran after
+// the client's connection closed. Falls back to the research-record state.
+if ($method === 'GET') {
+    $checkId = (int)($_GET['check'] ?? 0);
+    if ($checkId === 0) lr_out(400, ['ok' => false, 'error' => 'check id required.']);
+
+    $stash = ho_get_setting($pdo, 'llmres_' . $checkId);
+    if ($stash !== '') {
+        $d = json_decode($stash, true);
+        if (is_array($d) && !empty($d['done'])) {
+            lr_out(200, ['ok' => true, 'done' => true, 'result_ok' => (bool)($d['ok'] ?? false), 'message' => (string)($d['msg'] ?? '')]);
+        }
+    }
+    // Fallback: consider it done if the research record is now complete.
+    $st = $pdo->prepare("
+        SELECT b.pipeline_status, r.id AS rid, r.has_contact_form
+        FROM businesses b
+        LEFT JOIN research_records r ON r.business_id = b.id
+        WHERE b.id = ? LIMIT 1
+    ");
+    $st->execute([$checkId]);
+    $row = $st->fetch();
+    if (!$row) lr_out(404, ['ok' => false, 'error' => 'Business not found.', 'done' => true]);
+    $done = ($row['rid'] !== null && $row['has_contact_form'] !== null)
+         || in_array((string)$row['pipeline_status'], ['pitched','converted','not_a_fit','excluded','preview_ready','enhancement_ready','needs_contact'], true);
+    lr_out(200, ['ok' => true, 'done' => $done, 'message' => $done ? 'Done.' : 'Working…']);
+}
+
+// ── POST — start a research run ──────────────────────────────────────────────
+// Seed the AI engine from DB settings, then confirm a provider is configured.
+ho_llm_boot($pdo);
+$llmCfg = ho_llm_settings();
+if (($llmCfg['key'] ?? '') === '') {
+    lr_out(503, ['ok' => false, 'error' => 'No AI engine configured. Add a key in the cockpit (Send → Autopilot → AI engine).']);
+}
+
+$raw   = (string)file_get_contents('php://input');
+$body  = json_decode($raw, true);
 $bizId = (int)($body['business_id'] ?? 0);
 if ($bizId === 0) {
     lr_out(400, ['ok' => false, 'error' => 'business_id required.']);
@@ -84,8 +120,30 @@ if (!$biz) {
     lr_out(404, ['ok' => false, 'error' => "Business {$bizId} not found or not in research queue."]);
 }
 
-// Build research prompt for this one business, then strip the ChatGPT-specific
-// DELIVERY section and replace it with a direct-JSON instruction for the API.
+// Mark in-progress (clears any prior stashed outcome so the poll waits for THIS run).
+ho_set_setting($pdo, 'llmres_' . $bizId, json_encode(['done' => false, 'at' => time()]));
+
+// Respond to the browser NOW and finish the HTTP request, then keep researching.
+// Shared hosting severs long connections; this hands the work to the background
+// so the phone never waits on a 30–90s call.
+$startedPayload = json_encode([
+    'ok'      => true,
+    'started' => true,
+    'message' => "Researching {$biz['business_name']}…",
+]);
+while (ob_get_level() > 0) { @ob_end_clean(); }
+header('Content-Type: application/json');
+header('Content-Length: ' . strlen($startedPayload));
+header('Connection: close');
+echo $startedPayload;
+@ob_flush();
+@flush();
+if (function_exists('fastcgi_finish_request'))      { fastcgi_finish_request(); }
+elseif (function_exists('litespeed_finish_request')) { litespeed_finish_request(); }
+
+// ── Background work (client already has its response) ─────────────────────────
+@set_time_limit(280);
+
 $prompt = ho_generate_research_prompt([$biz]);
 $prompt = preg_replace(
     '/DELIVERY:.*$/s',
@@ -93,30 +151,31 @@ $prompt = preg_replace(
     $prompt
 ) ?? $prompt;
 
-@set_time_limit(180);
-
-// Single source of truth for the Anthropic call lives in ho-model.php — the
-// web-search messages call + JSON extraction are shared with autopilot.
-$r = ho_llm_call(
-    $prompt,
-    'You are a business research assistant. Use web search to find accurate, current data. Return ONLY the JSON object requested — no explanation, no markdown, no preamble.'
-);
-if (!$r['ok']) {
-    lr_out(502, ['ok' => false, 'error' => $r['error']]);
-}
-$jsonStr = ho_llm_extract_json($r['text']);
-if ($jsonStr === null) {
-    lr_out(502, ['ok' => false, 'error' => 'No JSON found in response.', 'snippet' => substr($r['text'], 0, 300)]);
-}
-
+$ok = false;
+$msg = '';
 try {
-    $result = ho_import_research_json($pdo, $jsonStr);
-    lr_out(200, [
-        'ok'      => true,
-        'updated' => $result['updated'],
-        'errors'  => $result['errors'],
-        'message' => "Researched {$biz['business_name']}." . ($result['updated'] > 0 ? ' Moved to Send tab.' : ''),
-    ]);
+    $r = ho_llm_call(
+        $prompt,
+        'You are a business research assistant. Use web search to find accurate, current data. Return ONLY the JSON object requested — no explanation, no markdown, no preamble.'
+    );
+    if (!$r['ok']) {
+        $msg = $r['error'];
+    } else {
+        $jsonStr = ho_llm_extract_json($r['text']);
+        if ($jsonStr === null) {
+            $msg = 'No JSON found in AI response.';
+        } else {
+            $result = ho_import_research_json($pdo, $jsonStr);
+            $ok  = ($result['updated'] ?? 0) > 0;
+            $msg = $ok
+                ? "Researched {$biz['business_name']} — moved to Send tab."
+                : ('Imported but nothing updated' . (!empty($result['errors']) ? ': ' . implode('; ', (array)$result['errors']) : '.'));
+        }
+    }
 } catch (Throwable $e) {
-    lr_out(500, ['ok' => false, 'error' => 'Import failed: ' . $e->getMessage()]);
+    $msg = 'Failed: ' . $e->getMessage();
 }
+
+// Stash the outcome for the status poll to read.
+ho_set_setting($pdo, 'llmres_' . $bizId, json_encode(['done' => true, 'ok' => $ok, 'msg' => $msg, 'at' => time()]));
+exit;
