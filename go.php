@@ -197,14 +197,8 @@ if ($email !== '' && !ho_is_freemail($email)) {
 $hasExistingDomain = $existingDomain !== '';
 $ownDotCom = $hasExistingDomain ? $existingDomain : $suggestedCom;
 
-// ── Porkbun domain availability check (skip if they already have one) ─────
-$domainCheck = null;
-if (!$hasExistingDomain && $ownDotCom !== '' && $row) {
-    try {
-        require_once __DIR__ . '/porkbun.php';
-        $domainCheck = ho_porkbun_check($ownDotCom);
-    } catch (Throwable) {}
-}
+// ── Domain availability check is async — JS auto-triggers fdCheckDomain() on load ─
+$domainCheck = null; // retained for compat; check is now client-side only
 
 // Phone display + tel link
 $telRaw = preg_replace('/\D/', '', $phone) ?? '';
@@ -1401,12 +1395,6 @@ endif; ?>
   <div class="fd-bridge" aria-hidden="true"><span class="fd-bridge-dot"></span></div>
   <!-- ── THE OFFER ────────────────────────────────────────────────────────── -->
   <?php
-  $initAvailClass = '';
-  $initAvailText  = '';
-  if ($domainCheck !== null) {
-      if ($domainCheck['available']) { $initAvailClass = 'fd-avail-yes'; $initAvailText = '✓ Available'; }
-      else                           { $initAvailClass = 'fd-avail-no';  $initAvailText = '✗ Taken'; }
-  }
   $domainInputVal = preg_replace('/\.com$/i', '', $ownDotCom);
   ?>
   <section class="fd-card fd-offer fd-reveal" id="pricing">
@@ -1459,8 +1447,7 @@ endif; ?>
             <span class="fd-addr-tag" style="background:rgba(47,94,54,.12);color:var(--fd-green)">Your existing domain</span>
           <?php else: ?>
             <span class="fd-addr-tag fd-addr-tag-free">Included free</span>
-            <span class="fd-avail-badge <?= ho_h($initAvailClass) ?>" id="fd-com-avail-badge"
-                  <?= $initAvailText === '' ? 'hidden' : '' ?>><?= ho_h($initAvailText) ?></span>
+            <span class="fd-avail-badge fd-avail-checking" id="fd-com-avail-badge">Checking…</span>
           <?php endif; ?>
         </div>
       </div>
@@ -1472,11 +1459,7 @@ endif; ?>
           <span class="fd-domain-tld">.com</span>
           <button type="button" class="fd-domain-check-btn" onclick="fdCheckDomain()">Check</button>
         </div>
-        <div class="fd-domain-hint" id="fd-domain-hint"><?php
-          if ($domainCheck !== null && !$domainCheck['available']) echo 'That name is taken &mdash; try a variation above.';
-          elseif ($hasExistingDomain) echo 'Using a different address? Type it above.';
-          else echo 'Want a different name? Type it and tap Check.';
-        ?></div>
+        <div class="fd-domain-hint" id="fd-domain-hint"><?= $hasExistingDomain ? 'Using a different address? Type it above.' : 'Want a different name? Type it and tap Check.' ?></div>
       </div>
     </div>
 
@@ -1577,6 +1560,8 @@ endif; ?>
         if (checkBtn) { checkBtn.disabled = false; checkBtn.textContent = 'Check'; }
       });
   }
+  // Auto-check the suggested domain on page load — no blocking PHP needed
+  fdCheckDomain();
   // Validate domain before checkout — normalize and warn if blank
   (function(){
     var form = document.querySelector('.fd-checkout-form');
