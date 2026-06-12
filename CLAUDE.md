@@ -44,7 +44,7 @@ framework, no Composer · GitHub Actions FTP auto-deploy.
   public_html) — **NEVER commit**.
 - `/home1/spofnkte/llm-config.php` (`LLM_API_KEY`, optional `LLM_MODEL`) —
   **NEVER commit**.
-- Database schema changes = **phpMyAdmin SQL tab only** (Adam runs them).
+- Database schema changes: write the SQL, but Adam runs it via phpMyAdmin (no direct DB access from here).
 - Adam works exclusively on **iPhone** — never instruct file downloads,
   terminal commands, git pulls, or multi-step desktop flows.
 - Secrets discipline absorbed from the old SECURITY_NOTES.txt: never commit
