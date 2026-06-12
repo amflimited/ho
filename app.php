@@ -787,6 +787,47 @@ $researchPrompt = !empty($researchBatch) ? ho_generate_research_prompt($research
 
   <?php else: ?>
 
+    <!-- ── 0. ZERO-TOUCH SOURCING ─────────────────────────────────────────── -->
+    <?php if ($llmAvailable): ?>
+    <section class="cp-section" id="llmSrcSection">
+      <div class="cp-llm-header">
+        <div>
+          <strong style="font-size:15px">Source with <?= ho_h($aiEngineName) ?> — zero touch</strong>
+          <p class="cp-hint" style="margin:2px 0 0"><?= ho_h($aiEngineName) ?> finds and fully researches leads in one pass — they land pitch-ready, no copy/paste.</p>
+        </div>
+      </div>
+      <input type="hidden" id="llmSrcApiKey" value="<?= ho_h($gptImportKey) ?>">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <label class="cp-label" style="margin:0;flex:1;min-width:140px">Category
+          <select class="cp-select" id="llmSrcCat">
+            <option value="">Choose…</option>
+            <?php foreach ($templatedCategories as $cat): ?>
+              <option value="<?= (int)$cat['id'] ?>"<?= ($cat['id'] == $smartNextCatId) ? ' selected' : '' ?>><?= ho_h((string)$cat['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <label class="cp-label" style="margin:0;flex:1;min-width:140px">Region
+          <select class="cp-select" id="llmSrcArea">
+            <?php foreach ($allRegionNames as $region): ?>
+              <option value="<?= ho_h($region) ?>"<?= ($region === $smartNextRegion) ? ' selected' : '' ?>><?= ho_h($region) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <label class="cp-label" style="margin:0;width:70px">Count
+          <input class="cp-input" type="number" id="llmSrcCount" value="10" min="5" max="15">
+        </label>
+      </div>
+      <div class="cp-llm-controls" style="margin-top:10px">
+        <button id="llmSrcBtn" type="button" class="cp-btn-primary" onclick="startLlmSource()">Find leads with <?= ho_h($aiEngineName) ?> &rarr;</button>
+        <button id="llmSrcStop" type="button" class="cp-btn-ghost" onclick="stopLlmSource()" style="display:none">Stop</button>
+      </div>
+      <div id="llmSrcProgressWrap" style="display:none;margin-top:10px">
+        <div class="cp-llm-prog-bg"><div class="cp-llm-prog-bar" id="llmSrcBar" style="width:0%"></div></div>
+      </div>
+      <p id="llmSrcStatus" class="cp-hint" style="margin-top:6px;min-height:18px"></p>
+    </section>
+    <?php endif; ?>
+
     <!-- ── 2. SMART NEXT RECOMMENDATION ──────────────────────────────────── -->
     <?php if ($smartNextCat !== ''): ?>
     <section class="cp-section cp-src-rec-wrap">
@@ -3027,6 +3068,119 @@ document.addEventListener('visibilitychange', function() {
   if (document.visibilityState !== 'visible' || !llmRunning || !llmPollArgs) return;
   clearTimeout(llmPollTimer);
   llmPoll(llmPollArgs.bizId, llmPollArgs.total, llmPollArgs.apiKey);
+});
+
+// ── Zero-touch sourcing ──────────────────────────────────────────────────────
+// Single-run: POST to start, poll until done. Same fire-and-forget pattern.
+var llmSrcRunning   = false;
+var llmSrcRunId     = 0;
+var llmSrcPolls     = 0;
+var llmSrcPollTimer = null;
+var LLM_SRC_POLL_MS  = 8000;  // sourcing + website checks take 3–5 min
+var LLM_SRC_POLL_MAX = 45;    // ~6 min before giving up
+
+function startLlmSource() {
+  var catId  = (document.getElementById('llmSrcCat')   || {}).value || '';
+  var area   = (document.getElementById('llmSrcArea')  || {}).value || '';
+  var count  = parseInt((document.getElementById('llmSrcCount') || {}).value || '10', 10);
+  var apiKey = (document.getElementById('llmSrcApiKey') || {}).value || '';
+  if (!catId || !area) { llmSrcSetStatus('Pick a category and region first.'); return; }
+
+  llmSrcRunning = true;
+  llmSrcRunId   = 0;
+  llmSrcPolls   = 0;
+  document.getElementById('llmSrcBtn').disabled = true;
+  document.getElementById('llmSrcStop').style.display = 'inline-flex';
+  document.getElementById('llmSrcProgressWrap').style.display = '';
+  document.getElementById('llmSrcBar').style.width = '5%';
+  llmSrcSetStatus('Starting…');
+
+  fetch('/llm-source.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ category_id: parseInt(catId, 10), area: area, count: count })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok || !d.run_id) {
+      llmSrcFinish(false, d.error || 'Failed to start — check AI engine settings.');
+      return;
+    }
+    llmSrcRunId = d.run_id;
+    llmSrcSetStatus(d.message || 'Sourcing…');
+    llmSrcSchedulePoll();
+  })
+  .catch(function() { llmSrcFinish(false, 'Network error — try again.'); });
+}
+
+function stopLlmSource() {
+  llmSrcRunning = false;
+  clearTimeout(llmSrcPollTimer);
+  llmSrcPollTimer = null;
+  document.getElementById('llmSrcBtn').disabled = false;
+  document.getElementById('llmSrcStop').style.display = 'none';
+  llmSrcSetStatus('Stopped. Any sourcing already running keeps going — refresh in a few minutes to see results.');
+}
+
+function llmSrcSchedulePoll() {
+  // Creep the progress bar toward 85% while the AI works
+  var bar = document.getElementById('llmSrcBar');
+  if (bar) {
+    var cur = parseFloat(bar.style.width) || 5;
+    bar.style.width = Math.min(cur + (80 / LLM_SRC_POLL_MAX), 85) + '%';
+  }
+  llmSrcPollTimer = setTimeout(llmSrcPoll, LLM_SRC_POLL_MS);
+}
+
+function llmSrcSetStatus(s) {
+  var el = document.getElementById('llmSrcStatus');
+  if (el) el.textContent = s;
+}
+
+function llmSrcPoll() {
+  if (!llmSrcRunning) return;
+  llmSrcPolls++;
+  var apiKey = (document.getElementById('llmSrcApiKey') || {}).value || '';
+  llmSrcSetStatus('Searching for leads… · check ' + llmSrcPolls + '/' + LLM_SRC_POLL_MAX);
+
+  fetch('/llm-source.php?check=' + encodeURIComponent(llmSrcRunId) + '&key=' + encodeURIComponent(apiKey))
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.done) {
+      llmSrcFinish(!!d.result_ok, d.message || (d.result_ok ? 'Done!' : 'Nothing found.'));
+      return;
+    }
+    if (llmSrcPolls >= LLM_SRC_POLL_MAX) {
+      llmSrcFinish(false, 'Still running after ' + Math.round(LLM_SRC_POLL_MAX * LLM_SRC_POLL_MS / 1000) + 's — refresh in a minute to see results.');
+      return;
+    }
+    llmSrcSchedulePoll();
+  })
+  .catch(function() {
+    if (llmSrcPolls >= LLM_SRC_POLL_MAX) {
+      llmSrcFinish(false, 'Lost connection — refresh to see if leads arrived.');
+      return;
+    }
+    llmSrcSchedulePoll();
+  });
+}
+
+function llmSrcFinish(ok, msg) {
+  llmSrcRunning = false;
+  clearTimeout(llmSrcPollTimer);
+  llmSrcPollTimer = null;
+  document.getElementById('llmSrcBtn').disabled = false;
+  document.getElementById('llmSrcStop').style.display = 'none';
+  var bar = document.getElementById('llmSrcBar');
+  if (bar) bar.style.width = ok ? '100%' : '20%';
+  llmSrcSetStatus((ok ? '✓ ' : '⚠ ') + msg);
+}
+
+// Resume poll when user returns to the tab (iOS timer throttling)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible' || !llmSrcRunning || !llmSrcRunId) return;
+  clearTimeout(llmSrcPollTimer);
+  llmSrcPoll();
 });
 </script>
 
