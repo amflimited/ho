@@ -11,7 +11,15 @@ amended explicitly. No silent drift.
 **Branch:** `v2` in `amflimited/ho`. Deploy target: `v2.hoosieronline.com` (document root `public_html/ho-v2/public`). GitHub Actions FTP deploys on every push to `v2`.
 
 **Milestone 1** (schema, codegen, importer, migrations 001–002): DONE and deployed.
-**Milestone 2** (workers, renderers, billing, public endpoints): code DONE, not yet bootstrapped on the live server.
+**Milestone 2** (workers, renderers, billing, public endpoints): code DONE, server bootstrapped (admin_key live, settings configured).
+**Receptionist track** (June 2026): the second offer — $149/mo AI receptionist with
+audio demos. Read `docs/RECEPTIONIST.md` (product, economics, fulfillment runbook).
+Code DONE: `migrations/004_receptionist.sql`, `prompts/callscripts.md`,
+`src/Llm/Tts.php` (Gemini multi-speaker TTS), `src/Workers/Voice.php` (job `voice`),
+`public/listen.php` (`/listen/{slug}`), subscription checkout
+(`checkout.php?offer=receptionist&biz={business_slug}`), webhook `package=receptionist`
++ operator order notification. Needs on live server: run `migrate` job (applies 004),
+set `tts_api_key` (a Gemini key) in cockpit settings.
 
 ### First thing to do in this session
 

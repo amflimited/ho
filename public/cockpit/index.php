@@ -68,7 +68,8 @@ button{width:100%;padding:.8rem;border:0;border-radius:8px;background:#1f6f43;co
 $SETTINGS = [
     'ap_master', 'ap_postal', 'ap_from_email', 'ap_digest_email', 'ap_digest',
     'ap_daily_cap', 'ap_pitch_per_run', 'ap_research_per_run', 'ap_verify_per_run',
-    'ap_site_base', 'llm_provider', 'llm_api_key', 'llm_model',
+    'ap_voice_per_run', 'ap_site_base', 'llm_provider', 'llm_api_key', 'llm_model',
+    'tts_api_key', 'rcpt_price_cents',
     'stripe_secret_key', 'stripe_webhook_secret',
 ];
 
@@ -213,7 +214,7 @@ a{color:#6cb6ff}
 <div class="card">
   <h2>Run</h2>
   <div class="runs">
-    <?php foreach (['migrate','research','verify','personalize','send','heat','all'] as $job): ?>
+    <?php foreach (['migrate','research','verify','personalize','voice','send','heat','all'] as $job): ?>
       <form class="inline" method="post"><input type="hidden" name="action" value="run"><input type="hidden" name="job" value="<?= $job ?>">
         <button type="submit" class="<?= $job === 'send' ? 'warn' : 'ghost' ?>"><?= $job ?></button></form>
     <?php endforeach; ?>
@@ -240,6 +241,7 @@ a{color:#6cb6ff}
       <div class="who"><?= $h($r['business_name']) ?> <span class="tag"><?= (int)$r['fit_score'] ?></span>
         <small><?= $h($r['location_city']) ?> · <?= $h($r['pipeline_status']) ?> · <?= $r['email_address'] ? $h($r['email_address']) : 'no email' ?></small></div>
       <a href="<?= $h($base . '/go/' . $r['business_slug']) ?>" target="_blank">preview ↗</a>
+      <a href="<?= $h($base . '/listen/' . $r['business_slug']) ?>" target="_blank">listen ↗</a>
       <form class="inline" method="post"><input type="hidden" name="action" value="suppress"><input type="hidden" name="id" value="<?= (int)$r['id'] ?>"><button class="bad">not a fit</button></form>
     </div>
   <?php endforeach; ?>
