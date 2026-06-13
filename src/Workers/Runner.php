@@ -20,12 +20,14 @@ final class Runner
         $llm = new Client($pdo);
         return match ($job) {
             'migrate'     => self::migrate($pdo),
+            'source'      => Source::run($pdo, $llm, self::limit($pdo, 'ap_source_per_run', 8)),
             'research'    => Research::run($pdo, $llm, self::limit($pdo, 'ap_research_per_run', 3)),
             'verify'      => Verify::run($pdo, $llm, self::limit($pdo, 'ap_verify_per_run', 3)),
-            'personalize' => Personalize::run($pdo, $llm, 5),
+            'personalize' => Personalize::run($pdo, $llm, self::limit($pdo, 'ap_personalize_per_run', 5)),
             'voice'       => Voice::run($pdo, $llm, self::limit($pdo, 'ap_voice_per_run', 3)),
             'send'        => Sender::run($pdo),
             'heat'        => ['digest_sent_to' => Heat::digest($pdo)],
+            'autopilot'   => self::autopilot($pdo, $llm),
             'all'         => [
                 'research'    => self::run($pdo, 'research'),
                 'verify'      => self::run($pdo, 'verify'),
@@ -54,6 +56,34 @@ final class Runner
             $done[] = $name;
         }
         return ['applied' => $done, 'note' => $done === [] ? 'already up to date' : 'migrations applied'];
+    }
+
+    /** @return array<string,mixed> */
+    private static function autopilot(PDO $pdo, Client $llm): array
+    {
+        $locked = (int)$pdo->query("SELECT GET_LOCK('ho_autopilot', 0)")->fetchColumn();
+        if (!$locked) {
+            return ['skipped' => true, 'note' => 'another run in progress'];
+        }
+        try {
+            $summary = [
+                'source'      => self::run($pdo, 'source'),
+                'research'    => self::run($pdo, 'research'),
+                'verify'      => self::run($pdo, 'verify'),
+                'personalize' => self::run($pdo, 'personalize'),
+                'send'        => self::run($pdo, 'send'),
+                'heat'        => self::run($pdo, 'heat'),
+            ];
+            $set = $pdo->prepare(
+                'INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+            );
+            $set->execute(['ap_last_run', date('Y-m-d H:i:s')]);
+            $set->execute(['ap_last_run_summary', (string)json_encode($summary)]);
+            return $summary;
+        } finally {
+            $pdo->query("SELECT RELEASE_LOCK('ho_autopilot')");
+        }
     }
 
     private static function limit(PDO $pdo, string $key, int $default): int

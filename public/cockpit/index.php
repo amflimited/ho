@@ -68,7 +68,9 @@ button{width:100%;padding:.8rem;border:0;border-radius:8px;background:#1f6f43;co
 $SETTINGS = [
     'ap_master', 'ap_postal', 'ap_from_email', 'ap_digest_email', 'ap_digest',
     'ap_daily_cap', 'ap_pitch_per_run', 'ap_research_per_run', 'ap_verify_per_run',
-    'ap_voice_per_run', 'ap_site_base', 'llm_provider', 'llm_api_key', 'llm_model',
+    'ap_voice_per_run', 'ap_source_per_run', 'ap_personalize_per_run',
+    'ap_source_area_idx', 'ap_last_run', 'ap_last_run_summary',
+    'ap_site_base', 'llm_provider', 'llm_api_key', 'llm_model',
     'tts_api_key', 'rcpt_price_cents',
     'stripe_secret_key', 'stripe_webhook_secret',
 ];
@@ -163,6 +165,9 @@ $leads = $pdo->query(
 )->fetchAll(PDO::FETCH_ASSOC);
 $base = rtrim(ho_setting($pdo, 'ap_site_base') ?: 'https://v2.hoosieronline.com', '/');
 $set = static fn(string $k): string => ho_setting($pdo, $k);
+$lastRun = $set('ap_last_run');
+$lastSummary = $set('ap_last_run_summary');
+$apMaster = $set('ap_master');
 ?>
 <!doctype html>
 <html lang="en"><head>
@@ -212,14 +217,30 @@ a{color:#6cb6ff}
 </div>
 
 <div class="card">
-  <h2>Run</h2>
+  <h2>Autopilot</h2>
+  <p class="mut" style="margin:.3rem 0 .7rem;color:var(--mut);font-size:.88rem">Last run: <?= $lastRun !== '' ? $h($lastRun) : 'never' ?> &middot; Master switch: <b><?= $apMaster === '1' ? 'ON (sending)' : 'OFF (pipeline only)' ?></b></p>
+  <?php if ($lastSummary !== ''): ?>
+    <details style="margin-bottom:.7rem"><summary style="cursor:pointer;font-size:.85rem;color:var(--mut)">Last run detail</summary><pre><?= $h($lastSummary) ?></pre></details>
+  <?php endif; ?>
+  <form method="post">
+    <input type="hidden" name="action" value="run">
+    <input type="hidden" name="job" value="autopilot">
+    <button>Run autopilot now</button>
+  </form>
+  <p style="font-size:.78rem;color:var(--mut);margin:.6rem 0 0">cPanel cron (8 am daily): <code>curl -s "<?= $h($base) ?>/cron.php?job=autopilot&amp;key=YOUR_KEY" &gt;/dev/null 2&gt;&amp;1</code></p>
+</div>
+
+<details>
+<summary style="cursor:pointer;background:var(--card);border-radius:12px;padding:.75rem 1rem;margin-bottom:1rem;list-style:none;font-size:.85rem;color:var(--mut)">&#9881; Diagnostics (individual workers)</summary>
+<div class="card" style="margin-top:.5rem">
   <div class="runs">
-    <?php foreach (['migrate','research','verify','personalize','voice','send','heat','all'] as $job): ?>
+    <?php foreach (['migrate','source','research','verify','personalize','voice','send','heat','all','autopilot'] as $job): ?>
       <form class="inline" method="post"><input type="hidden" name="action" value="run"><input type="hidden" name="job" value="<?= $job ?>">
         <button type="submit" class="<?= $job === 'send' ? 'warn' : 'ghost' ?>"><?= $job ?></button></form>
     <?php endforeach; ?>
   </div>
 </div>
+</details>
 
 <div class="card">
   <h2>Triage (<?= count($triage) ?>)</h2>
