@@ -1,0 +1,36 @@
+{
+  "settings": {
+    "triage_start": "08:00",
+    "triage_end": "17:00",
+    "grocery_gold_start": "06:00",
+    "grocery_gold_end": "23:00",
+    "gm_gold_start": "06:00",
+    "gm_gold_end": "21:00",
+    "slot_minutes": "15",
+    "ops_blackout_start": "10:00",
+    "ops_blackout_end": "12:00",
+    "ops_flex_per_person": "30",
+    "tl_flex_per_day": "15",
+    "investigator_flex": "never"
+  },
+  "tasks": [
+    {"name":"Dust EAS pedestals","category":"Entrance Readiness","priority":"Medium","weight":2,"frequency":"Daily"},
+    {"name":"Cart wipes dispenser cleaned","category":"Entrance Readiness","priority":"High","weight":3,"frequency":"Daily"},
+    {"name":"Benches cleaned","category":"Entrance Readiness","priority":"Medium","weight":2,"frequency":"Daily"},
+    {"name":"Windows cleaned","category":"Entrance Readiness","priority":"High","weight":3,"frequency":"Daily"},
+    {"name":"Doors cleaned","category":"Entrance Readiness","priority":"High","weight":3,"frequency":"Daily"},
+    {"name":"Door track swept","category":"Entrance Readiness","priority":"Medium","weight":2,"frequency":"Daily"},
+    {"name":"Closets NCO","category":"Organization","priority":"Low","weight":1,"frequency":"Daily/Weekly"},
+    {"name":"Bottom of Mart Carts wiped","category":"Entrance Readiness","priority":"High","weight":4,"frequency":"Daily"},
+    {"name":"Vestibules clean and clear of spills/trash","category":"Safety","priority":"Critical","weight":5,"frequency":"Continuous"},
+    {"name":"Inclement weather response","category":"Safety","priority":"Critical","weight":5,"frequency":"Triggered"},
+    {"name":"Front entrance safety/security observation","category":"Coverage","priority":"Critical","weight":5,"frequency":"Continuous"},
+    {"name":"Greet, help, and thank customers","category":"Service","priority":"High","weight":3,"frequency":"Continuous"},
+    {"name":"Visual theft deterrence","category":"Coverage","priority":"High","weight":4,"frequency":"Continuous"},
+    {"name":"Merchandise protection device support","category":"Merchandise Protection","priority":"Medium","weight":3,"frequency":"As Needed"},
+    {"name":"Suspicious activity report/escalation","category":"Reporting","priority":"High","weight":2,"frequency":"As Needed"}
+  ],
+  "associates": [],
+  "schedule": [],
+  "completions": []
+}
