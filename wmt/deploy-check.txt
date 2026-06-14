@@ -1,5 +1,0 @@
-AP Services coverage tool added on branch claude/admin-site-assessment-4Zrig.
-Files:
-- wmt/index.php
-- wmt/README.md
-- wmt/ap-services-starter-import.json
