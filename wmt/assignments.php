@@ -1,58 +1,504 @@
 <?php
-error_reporting(E_ALL);ini_set('display_errors',isset($_GET['debug'])?'1':'0');session_start();
-function h($s){return htmlspecialchars((string)$s,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');}
-function has($s,$n){return strpos((string)$s,(string)$n)!==false;}
-function m($t){if(!preg_match('/^(\d{1,2}):(\d{2})/',(string)$t,$x))return 0;return((int)$x[1]*60)+(int)$x[2];}
-function nt($x){$x=(($x%1440)+1440)%1440;$h=(int)floor($x/60);$ap=$h>=12?'PM':'AM';$hh=$h%12;if(!$hh)$hh=12;return$hh.':'.sprintf('%02d',$x%60).$ap;}
-function team($r){$x=strtolower(($r['team']??'').' '.($r['role_type']??''));if(has($x,'invest'))return'Investigator';if(has($x,'lead')||has($x,'tl'))return'Team Lead';if(has($x,'ops')||has($x,'operation'))return'Ops';return'Services';}
-function db(){static$p=null;if($p)return$p;foreach(array(__DIR__.'/../../database.php',__DIR__.'/../database.php')as$f){if(is_file($f)){require_once$f;break;}}if(function_exists('ho_db'))$p=ho_db();elseif(isset($GLOBALS['pdo'])&&$GLOBALS['pdo']instanceof PDO)$p=$GLOBALS['pdo'];else throw new Exception('No DB connection found.');$p->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);$p->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE,PDO::FETCH_ASSOC);return$p;}
-function qv($p,$k,$d=null){try{$s=$p->prepare('SELECT v FROM wmt_settings WHERE k=?');$s->execute(array($k));$v=$s->fetchColumn();return$v===false?$d:$v;}catch(Exception$e){return$d;}}
-function setup($p){
-$p->exec("CREATE TABLE IF NOT EXISTS wmt_assignment_items(id INT AUTO_INCREMENT PRIMARY KEY,code VARCHAR(80) NOT NULL UNIQUE,name VARCHAR(180) NOT NULL,scope VARCHAR(20) NOT NULL DEFAULT 'both',category VARCHAR(80) NOT NULL DEFAULT 'Task',priority VARCHAR(20) NOT NULL DEFAULT 'Medium',estimated_minutes INT NOT NULL DEFAULT 10,preferred_role VARCHAR(30) NOT NULL DEFAULT 'door_owner',active TINYINT(1) NOT NULL DEFAULT 1,instructions TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-$p->exec("CREATE TABLE IF NOT EXISTS wmt_auto_assignments(id INT AUTO_INCREMENT PRIMARY KEY,work_date DATE NOT NULL,assignment_type VARCHAR(50) NOT NULL,side VARCHAR(20),associate_name VARCHAR(120),start_time TIME NULL,end_time TIME NULL,item_code VARCHAR(80),item_name VARCHAR(180),target_associate VARCHAR(120),status VARCHAR(30) NOT NULL DEFAULT 'Assigned',source VARCHAR(40) NOT NULL DEFAULT 'auto',notes TEXT,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,KEY d(work_date),KEY assoc(associate_name),KEY item(item_code)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-seed_items($p);
+/**
+ * assignments.php — the source of truth for daily AP Services output.
+ *
+ * Builds on wmt-engine.php (shared planner). Views:
+ *   ?v=day        daily plan: door posts, breaks, floater, side + general tasks
+ *   ?v=week       imported-date overview + Generate Week / Generate All
+ *   ?v=signoff    completion / sign-off for a saved day
+ *   ?v=tasks      editable task definitions
+ *   ?v=team       associate preferred-door editor
+ *   ?v=packet     printable weekly packet
+ */
+error_reporting(E_ALL);
+ini_set('display_errors', isset($_GET['debug']) ? '1' : '0');
+ini_set('log_errors', '1');
+session_start();
+require_once __DIR__ . '/wmt-engine.php';
+
+/* ---------- small render helpers ---------- */
+
+function asg_win($st, $en)
+{
+    if ($st === null || $st === '') {
+        return 'As able';
+    }
+    if (is_string($st)) {
+        $st = wmt_mins(substr($st, 0, 5));
+        $en = wmt_mins(substr($en, 0, 5));
+    }
+    return wmt_nice($st) . '-' . wmt_nice($en);
 }
-function seed_items($p){$items=array(
-array('SIDE_VESTIBULE','Vestibule clean and clear of spills/trash','both','Safety','Critical',10,'door_owner','Complete for assigned side. Keep path clear; report anything that cannot be corrected immediately.'),
-array('SIDE_CART_WIPES','Cart wipes dispenser cleaned/stocked','both','Entrance Readiness','High',8,'door_owner','Check and clean the dispenser area for assigned side.'),
-array('SIDE_BENCHES','Benches cleaned','both','Entrance Readiness','Medium',8,'door_owner','Clean benches on assigned side.'),
-array('SIDE_WINDOWS','Windows cleaned','both','Entrance Readiness','High',15,'door_owner','Clean visible customer-facing windows on assigned side.'),
-array('SIDE_DOORS','Doors cleaned','both','Entrance Readiness','High',15,'door_owner','Clean handles/glass/visible smudges on assigned side.'),
-array('SIDE_TRACK','Door track swept','both','Entrance Readiness','Medium',10,'door_owner','Sweep door track on assigned side when traffic allows.'),
-array('SIDE_EAS','Dust EAS pedestals','both','Entrance Readiness','Medium',8,'door_owner','Dust EAS pedestals on assigned side.'),
-array('SIDE_MART_CARTS','Bottom of Mart Carts wiped','both','Entrance Readiness','High',20,'floater','Complete for assigned side. Floater preferred; door owner only when coverage allows.'),
-array('SIDE_PROTECTION_DEVICES','Protection devices returned/organized check','both','Merchandise Protection','Medium',10,'door_owner','Organize/return protection devices for assigned side as applicable.'),
-array('SIDE_EQUIPMENT','Door/vestibule equipment issue check','both','Safety','Medium',6,'door_owner','Check for door, mat, cone, cart wipe, or equipment issues on assigned side.'),
-array('GEN_GO_BACKS','Go backs / front-end returns support','general','Front End Support','Medium',20,'floater','Floater task only after doors, breaks, and lunches are protected.'),
-array('GEN_CLOSETS','Closets NCO','general','Organization','Low',15,'floater','Keep AP/vestibule storage neat, clean, and organized.'),
-array('GEN_HANDOFF','AP Services handoff note','general','Communication','Medium',8,'floater','Document open issues, missed tasks, weather/safety concerns, and coverage gaps.'),
-array('TRG_WEATHER','Inclement weather vestibule response','triggered','Safety','Critical',20,'floater','Triggered task. Mats/cones/residual water response overrides lower-priority tasks.'),
-array('TRG_SUSPICIOUS','Suspicious activity report/escalation','triggered','Reporting','High',5,'door_owner','Triggered task. Observe/report only; do not investigate or detain.')
-);$q=$p->prepare('INSERT IGNORE INTO wmt_assignment_items(code,name,scope,category,priority,estimated_minutes,preferred_role,instructions) VALUES(?,?,?,?,?,?,?,?)');foreach($items as$i)$q->execute($i);}
-function auth($p){$hash=qv($p,'admin_hash');if(!$hash){header('Location:index.php');exit;}if(($_POST['form']??'')==='login'&&password_verify($_POST['password']??'',$hash)){$_SESSION['wmt']=1;header('Location:assignments.php');exit;}if(empty($_SESSION['wmt'])){echo'<!doctype html><title>Login</title><link rel="stylesheet" href="walmart-theme.css"><div class="card" style="max-width:420px;margin:12vh auto"><h1>AP Services Login</h1><form method="post"><input type="hidden" name="form" value="login"><input type="password" name="password" placeholder="Password"><button>Continue</button></form></div>';exit;}}
-function shifts($p,$d){$q=$p->prepare('SELECT s.*,a.preferred_door,a.can_cover,a.reliability FROM wmt_shifts s LEFT JOIN wmt_associates a ON a.id=s.associate_id WHERE work_date=? ORDER BY start_time,associate_name');$q->execute(array($d));return$q->fetchAll();}
-function span($s){$st=m(substr($s['start_time'],0,5));$en=m(substr($s['end_time'],0,5));if($en<=$st)$en+=1440;return array($st,$en,$en-$st);}
-function covers($s,$a,$b){$x=span($s);return$a>=$x[0]&&$b<=$x[1];}
-function breaks($s,$slot){$x=span($s);$st=$x[0];$en=$x[1];$dur=$x[2];$out=array();if($dur>=480){$q=$dur/4;$out[]=array('Break 1',(int)(round(($st+$q-8)/$slot)*$slot),15);$out[]=array('Lunch',(int)(round(($st+2*$q-30)/$slot)*$slot),60);$out[]=array('Break 2',(int)(round(($st+3*$q-8)/$slot)*$slot),15);}elseif($dur>=360){$out[]=array('Break',(int)(round(($st+$dur/3-8)/$slot)*$slot),15);$out[]=array('Lunch',(int)(round(($st+$dur*2/3-15)/$slot)*$slot),30);}elseif($dur>=240){$out[]=array('Break',(int)(round(($st+$dur/2-8)/$slot)*$slot),15);}return$out;}
-function off($s,$t,$slot){foreach(breaks($s,$slot)as$b){if($t>=$b[1]&&$t<$b[1]+$b[2])return$b[0];}return'';}
-function hist($p,$d){$out=array();try{$q=$p->prepare('SELECT associate_name,assignment_type,side,item_code,COUNT(*) c,SUM(TIMESTAMPDIFF(MINUTE,start_time,end_time)) mins FROM wmt_auto_assignments WHERE work_date<? AND associate_name IS NOT NULL GROUP BY associate_name,assignment_type,side,item_code');$q->execute(array($d));foreach($q->fetchAll()as$r){$n=$r['associate_name'];$out[$n]['total']=($out[$n]['total']??0)+(int)$r['c'];if($r['side'])$out[$n]['side_'.$r['side']]=($out[$n]['side_'.$r['side']]??0)+(int)$r['c'];if($r['item_code'])$out[$n]['item_'.$r['item_code']]=($out[$n]['item_'.$r['item_code']]??0)+(int)$r['c'];$out[$n]['minutes']=($out[$n]['minutes']??0)+(int)$r['mins'];}}catch(Exception$e){}return$out;}
-function score_person($n,$side,$pref,$hist,$dayMin,$weekLoad){$s=0;$s+=($dayMin[$n][$side]??0)/15;$s+=($hist[$n]['side_'.$side]??0)*3;$s+=($hist[$n]['minutes']??0)/180;$s+=($weekLoad[$n]??0)/60;if($pref===$side)$s-=8;elseif($pref==='Either')$s-=2;return$s;}
-function pick_service($c,$side,$used,$hist,$dayMin,$weekLoad){$best=null;$bs=999999;foreach($c as$r){$n=$r['associate_name'];if(isset($used[$n]))continue;$s=score_person($n,$side,$r['preferred_door']??'Either',$hist,$dayMin,$weekLoad)-((float)($r['reliability']??3));if($s<$bs){$bs=$s;$best=$r;}}return$best;}
-function build_plan($p,$d){$sh=shifts($p,$d);$slot=(int)qv($p,'slot_minutes',15);if($slot<5)$slot=15;$start=m(qv($p,'triage_start','08:00'));$end=m(qv($p,'triage_end','17:00'));$opsB=m(qv($p,'ops_blackout_start','10:00'));$opsE=m(qv($p,'ops_blackout_end','12:00'));$opsMax=(int)qv($p,'ops_flex_per_person',30);$tlMax=(int)qv($p,'tl_flex_per_day',15);$hist=hist($p,$d);$rows=array();$dayMin=array();$weekLoad=array();$opsUsed=array();$tlUsed=0;$sideMin=array('Grocery'=>array(),'GM'=>array());$floaterMin=array();for($t=$start;$t<$end;$t+=$slot){$avail=array();$off=array();foreach($sh as$s){if(!covers($s,$t,$t+$slot))continue;$o=off($s,$t,$slot);if($o)$off[]=array('name'=>$s['associate_name'],'label'=>$o);else$avail[]=$s;}$svc=array();$ops=array();$tls=array();foreach($avail as$x){$tm=team($x);if($tm==='Services'&&(int)($x['can_cover']??1))$svc[]=$x;elseif($tm==='Ops')$ops[]=$x;elseif($tm==='Team Lead')$tls[]=$x;}$used=array();$g=pick_service($svc,'Grocery',$used,$hist,$dayMin,$weekLoad);if($g){$n=$g['associate_name'];$used[$n]=1;$dayMin[$n]['Grocery']=($dayMin[$n]['Grocery']??0)+$slot;$sideMin['Grocery'][$n]=($sideMin['Grocery'][$n]??0)+$slot;}$gm=pick_service($svc,'GM',$used,$hist,$dayMin,$weekLoad);if($gm){$n=$gm['associate_name'];$used[$n]=1;$dayMin[$n]['GM']=($dayMin[$n]['GM']??0)+$slot;$sideMin['GM'][$n]=($sideMin['GM'][$n]??0)+$slot;}$flex=array();foreach(array('Grocery','GM')as$side){$covered=$side==='Grocery'?$g:$gm;if($covered)continue;$assigned=null;if(count($ops)>=2&&!($t<$opsE&&$t+$slot>$opsB)){foreach($ops as$o){$n=$o['associate_name'];if(!isset($used[$n])&&(($opsUsed[$n]??0)+$slot)<=$opsMax){$assigned=$o;$used[$n]=1;$opsUsed[$n]=($opsUsed[$n]??0)+$slot;$flex[]=$n.' Ops flex';break;}}}if(!$assigned&&$tlUsed+$slot<=$tlMax&&$tls){foreach($tls as$tl){$n=$tl['associate_name'];if(!isset($used[$n])){$assigned=$tl;$used[$n]=1;$tlUsed+=$slot;$flex[]=$n.' TL flex';break;}}}if($assigned){if($side==='Grocery')$g=$assigned;else$gm=$assigned;}}$fl='';foreach($svc as$s){$n=$s['associate_name'];if(!isset($used[$n])){$fl=$n;$floaterMin[$n]=($floaterMin[$n]??0)+$slot;break;}}$rows[]=array('start'=>$t,'end'=>$t+$slot,'Grocery'=>$g?$g['associate_name']:'','GM'=>$gm?$gm['associate_name']:'','floater'=>$fl,'off'=>$off,'flex'=>implode(', ',$flex));}return array('rows'=>$rows,'side_minutes'=>$sideMin,'floater_minutes'=>$floaterMin,'shifts'=>$sh,'hist'=>$hist);}
-function blocks($rows,$field,$name){$b=array();foreach($rows as$r){if(($r[$field]??'')!==$name)continue;$i=count($b)-1;if($i>=0&&$b[$i]['end']===$r['start'])$b[$i]['end']=$r['end'];else$b[]=array('start'=>$r['start'],'end'=>$r['end']);}return$b;}
-function add(&$a,$type,$side,$name,$st,$en,$code,$item,$target,$notes){$a[]=array('assignment_type'=>$type,'side'=>$side,'associate_name'=>$name,'start'=>$st,'end'=>$en,'item_code'=>$code,'item_name'=>$item,'target_associate'=>$target,'notes'=>$notes);}
-function items($p){$rows=$p->query("SELECT * FROM wmt_assignment_items WHERE active=1 ORDER BY FIELD(priority,'Critical','High','Medium','Low'),estimated_minutes DESC,name")->fetchAll();return$rows;}
-function task_score($n,$item,$side,$owners,$floats,$hist,$load){$s=($load[$n]??0)/10+($hist[$n]['item_'.$item['code']]??0)*5+($hist[$n]['total']??0);$s-=($owners[$n]??0)/90;$s-=($floats[$n]??0)/45;if($item['preferred_role']==='floater')$s-=($floats[$n]??0)/30;return$s;}
-function choose_task_owner($item,$side,$pl,&$load){$hist=$pl['hist'];$owners=$side?$pl['side_minutes'][$side]:array();$floats=$pl['floater_minutes'];$pool=array();if($item['preferred_role']==='floater'&&$floats)$pool=array_keys($floats);if(!$pool&&$owners)$pool=array_keys($owners);if(!$pool&&$floats)$pool=array_keys($floats);if(!$pool)return'Unassigned';$best='Unassigned';$bs=999999;foreach($pool as$n){$s=task_score($n,$item,$side,$owners,$floats,$hist,$load);if($s<$bs){$bs=$s;$best=$n;}}$load[$best]=($load[$best]??0)+(int)$item['estimated_minutes'];return$best;}
-function window_for($pl,$side,$n){if($n==='Unassigned')return array(null,null,'No owner/floater available');if($side){$b=blocks($pl['rows'],$side,$n);if($b)return array($b[0]['start'],$b[0]['end'],nt($b[0]['start']).'-'.nt($b[0]['end']));}$b=blocks($pl['rows'],'floater',$n);if($b)return array($b[0]['start'],$b[0]['end'],nt($b[0]['start']).'-'.nt($b[0]['end']));return array(null,null,'During assigned coverage when traffic allows');}
-function generate($p,$d){$pl=build_plan($p,$d);$out=array();$load=array();foreach(array('Grocery','GM')as$side){$names=array_keys($pl['side_minutes'][$side]);foreach($names as$n){foreach(blocks($pl['rows'],$side,$n)as$b)add($out,'Door Post',$side,$n,$b['start'],$b['end'],null,$side.' Door',null,'Primary post assignment generated from schedule.');}}foreach($pl['floater_minutes']as$n=>$min){foreach(blocks($pl['rows'],'floater',$n)as$b)add($out,'Floater / Break Cover','Both',$n,$b['start'],$b['end'],null,'Floater / Break Cover',null,'Stay available for break/lunch relief first; complete general tasks only when doors are protected.');}foreach($pl['rows']as$r){foreach($r['off']as$o)add($out,'Break/Lunch',null,$o['name'],$r['start'],$r['end'],null,$o['label'],null,'Scheduled '.$o['label'].'. Do not leave until relieved if posted.');}
-foreach(items($p)as$item){if($item['scope']==='triggered')continue;if($item['scope']==='both'){foreach(array('Grocery','GM')as$side){$n=choose_task_owner($item,$side,$pl,$load);$w=window_for($pl,$side,$n);add($out,'Door Task',$side,$n,$w[0],$w[1],$item['code'],$item['name'],null,$item['instructions'].' Suggested: '.$w[2]);}}elseif($item['scope']==='general'){$n=choose_task_owner($item,null,$pl,$load);$w=window_for($pl,null,$n);add($out,'General Task','Both',$n,$w[0],$w[1],$item['code'],$item['name'],null,$item['instructions'].' Suggested: '.$w[2]);}}
-return array($out,$pl);}
-function save_day($p,$d,$rows){$p->prepare('DELETE FROM wmt_auto_assignments WHERE work_date=?')->execute(array($d));$q=$p->prepare('INSERT INTO wmt_auto_assignments(work_date,assignment_type,side,associate_name,start_time,end_time,item_code,item_name,target_associate,notes) VALUES(?,?,?,?,?,?,?,?,?,?)');foreach($rows as$r){$st=$r['start']===null?null:sprintf('%02d:%02d:00',floor($r['start']/60)%24,$r['start']%60);$en=$r['end']===null?null:sprintf('%02d:%02d:00',floor($r['end']/60)%24,$r['end']%60);$q->execute(array($d,$r['assignment_type'],$r['side'],$r['associate_name'],$st,$en,$r['item_code'],$r['item_name'],$r['target_associate'],$r['notes']));}return count($rows);}
-function add_item($p){$name=trim($_POST['name']??'');if(!$name)return'No task name entered.';$code='CUSTOM_'.strtoupper(preg_replace('/[^A-Z0-9]+/','_',substr($name,0,50))).'_'.date('His');$scope=$_POST['scope']??'general';if(!in_array($scope,array('both','general','triggered'))) $scope='general';$p->prepare('INSERT INTO wmt_assignment_items(code,name,scope,category,priority,estimated_minutes,preferred_role,instructions) VALUES(?,?,?,?,?,?,?,?)')->execute(array($code,$name,$scope,$_POST['category']??'Custom',$_POST['priority']??'Medium',(int)($_POST['estimated_minutes']??10),$_POST['preferred_role']??'floater',$_POST['instructions']??''));return'Added task definition: '.$name;}
-function headp($t){echo'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.h($t).'</title><link rel="stylesheet" href="walmart-theme.css"><div class="top no-print"><div class="wrap"><b>AP Services Tool</b><div class="nav"><a href="index.php">Dashboard</a><a href="assignments.php">Assignments</a><a href="tasks.php">Door Tasks</a><a href="index.php?v=week">Week</a><a href="index.php?v=turnin">Turn-In</a></div></div></div><main class="wrap">';}
-function foot(){echo'</main>';}
-try{$p=db();setup($p);auth($p);$d=$_GET['date']??date('Y-m-d');$msg='';if($_SERVER['REQUEST_METHOD']==='POST'){if(($_POST['form']??'')==='add_item')$msg=add_item($p);}$gen=generate($p,$d);$rows=$gen[0];$pl=$gen[1];if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['form']??'')==='save')$msg='Saved '.save_day($p,$d,$rows).' assignments for '.$d.'.';headp('Daily Assignments');if($msg)echo'<div class="card"><b>'.h($msg).'</b></div>';echo'<div class="card no-print"><form><input type="date" name="date" value="'.h($d).'"><button>Load</button></form><form method="post"><input type="hidden" name="form" value="save"><button>Generate and save today</button></form></div>';echo'<div class="card"><h1 class="print-title">Automatic Daily Assignment Plan - '.h($d).'</h1><p class="muted">This generates full daily ownership: door posts, break/lunch coverage, floater/break cover, side-specific tasks for Grocery and GM, and general tasks like go-backs. Assignment choices use today\'s schedule plus saved historical assignments to spread work over time.</p></div>';
-$by=array();foreach($rows as$r){$by[$r['associate_name']?:'Unassigned'][]=$r;}ksort($by);foreach($by as$n=>$list){echo'<div class="card"><h2>'.h($n).'</h2><table><tr><th>Type</th><th>Side</th><th>Time</th><th>Assignment</th><th>Notes</th></tr>';foreach($list as$r){$time=$r['start']===null?'As able':nt($r['start']).'-'.nt($r['end']);echo'<tr><td>'.h($r['assignment_type']).'</td><td>'.h($r['side']?:'-').'</td><td>'.h($time).'</td><td><b>'.h($r['item_name']).'</b></td><td>'.h($r['notes']).'</td></tr>';}echo'</table></div>';}
-echo'<div class="card"><h2>Task definitions</h2><table><tr><th>Code</th><th>Name</th><th>Scope</th><th>Priority</th><th>Minutes</th><th>Preferred Role</th></tr>';foreach(items($p)as$i)echo'<tr><td>'.h($i['code']).'</td><td>'.h($i['name']).'</td><td>'.h($i['scope']).'</td><td>'.h($i['priority']).'</td><td>'.h($i['estimated_minutes']).'</td><td>'.h($i['preferred_role']).'</td></tr>';echo'</table></div>';
-echo'<div class="card no-print"><h2>Add a new task definition</h2><form method="post"><input type="hidden" name="form" value="add_item"><p><input name="name" placeholder="Task name, e.g. Go backs from Service Desk"></p><p><select name="scope"><option value="both">Both doors / side task</option><option value="general">General floater task</option><option value="triggered">Triggered only</option></select></p><p><select name="priority"><option>Medium</option><option>Critical</option><option>High</option><option>Low</option></select></p><p><input name="estimated_minutes" type="number" value="10"> minutes</p><p><select name="preferred_role"><option value="door_owner">Door owner</option><option value="floater">Floater</option><option value="any">Any AP Service TA</option></select></p><p><textarea name="instructions" placeholder="Instructions"></textarea></p><button>Add task</button></form></div>';foot();}catch(Throwable$e){http_response_code(500);headp('Assignment error');echo'<div class="card"><h1>Assignment setup error</h1><pre>'.h($e->getMessage()).'</pre></div>';foot();}
+
+function asg_kpis($pl)
+{
+    echo '<div class="grid">';
+    echo '<div class="kpi">Coverage<b class="' . ($pl['pct'] >= 95 ? 'ok' : ($pl['pct'] < 80 ? 'bad' : '')) . '">' . wmt_e($pl['pct']) . '%</b></div>';
+    echo '<div class="kpi">Gap minutes<b class="' . ($pl['gap'] ? 'bad' : 'ok') . '">' . wmt_e($pl['gap']) . '</b></div>';
+    echo '<div class="kpi">Floater minutes<b>' . wmt_e($pl['float']) . '</b></div>';
+    echo '<div class="kpi">Scheduled<b>' . count($pl['shifts']) . '</b></div>';
+    echo '</div>';
+}
+
+function asg_sanity_banner($pl)
+{
+    foreach (wmt_sanity($pl) as $f) {
+        if ($f['level'] === 'critical') {
+            echo '<div class="crit">CRITICAL: ' . wmt_e($f['msg']) . '</div>';
+        } elseif ($f['level'] === 'warn') {
+            echo '<div class="warn">' . wmt_e($f['msg']) . '</div>';
+        } else {
+            echo '<div class="warn" style="border-left-color:var(--success);background:#EAF6E6">' . wmt_e($f['msg']) . '</div>';
+        }
+    }
+}
+
+/** Rank people: door owners first, then floaters, then alpha. */
+function asg_group_people($rows)
+{
+    $by = array();
+    $rank = array();
+    foreach ($rows as $r) {
+        if ($r['assignment_type'] === 'Triggered') {
+            continue;
+        }
+        $n = $r['associate_name'];
+        if ($n === null || $n === '' || $n === 'Unassigned') {
+            $n = 'Unassigned / no owner';
+        }
+        $by[$n][] = $r;
+        $cur = $rank[$n] ?? 9;
+        if ($r['assignment_type'] === 'Door Post') {
+            $cur = min($cur, 0);
+        } elseif ($r['assignment_type'] === 'Floater / Break Cover') {
+            $cur = min($cur, 1);
+        } else {
+            $cur = min($cur, 2);
+        }
+        $rank[$n] = $cur;
+    }
+    uksort($by, function ($a, $b) use ($rank) {
+        if (($rank[$a] ?? 9) !== ($rank[$b] ?? 9)) {
+            return ($rank[$a] ?? 9) - ($rank[$b] ?? 9);
+        }
+        return strcmp($a, $b);
+    });
+    return $by;
+}
+
+function asg_type_pill($t)
+{
+    return '<span class="pill">' . wmt_e($t) . '</span>';
+}
+
+/** Render the per-person assignment cards (mobile-first table.cards). */
+function asg_person_cards($rows)
+{
+    foreach (asg_group_people($rows) as $name => $list) {
+        echo '<div class="card"><h2>' . wmt_e($name) . '</h2><table class="cards"><tr><th>Time</th><th>Type</th><th>Assignment</th><th>Instruction</th></tr>';
+        foreach ($list as $r) {
+            $rel = !empty($r['release_required']) ? ' <span class="pill pill-rel">release first</span>' : '';
+            $st = $r['start'] ?? $r['start_time'] ?? null;
+            $en = $r['end'] ?? $r['end_time'] ?? null;
+            echo '<tr>';
+            echo '<td data-label="Time" class="time">' . wmt_e(asg_win($st, $en)) . '</td>';
+            echo '<td data-label="Type">' . asg_type_pill($r['assignment_type']) . '</td>';
+            echo '<td data-label="Assignment"><b>' . wmt_e($r['item_name']) . '</b>' . $rel . ($r['side'] && $r['side'] !== 'Both' ? ' <span class="muted small">(' . wmt_e($r['side']) . ')</span>' : '') . '</td>';
+            echo '<td data-label="Instruction" class="small">' . wmt_e($r['notes']) . '</td>';
+            echo '</tr>';
+        }
+        echo '</table></div>';
+    }
+}
+
+function asg_triggered_card($rows)
+{
+    $trg = array();
+    foreach ($rows as $r) {
+        if ($r['assignment_type'] === 'Triggered') {
+            $trg[] = $r;
+        }
+    }
+    if (!$trg) {
+        return;
+    }
+    echo '<div class="card"><h2>Triggered tasks (only when the condition occurs)</h2><table class="cards"><tr><th>Trigger</th><th>Category</th><th>Response</th></tr>';
+    foreach ($trg as $r) {
+        echo '<tr><td data-label="Trigger"><b>' . wmt_e($r['item_name']) . '</b></td><td data-label="Category">' . wmt_e($r['category']) . '</td><td data-label="Response" class="small">' . wmt_e($r['notes']) . '</td></tr>';
+    }
+    echo '</table></div>';
+}
+
+/* ---------- views ---------- */
+
+function asg_day_view($p, $d, $msg)
+{
+    $gen = wmt_generate_day($p, $d);
+    $rows = $gen['rows'];
+    $pl = $gen['plan'];
+    $saved = wmt_day_has_saved($p, $d);
+    wmt_head('Daily Assignments', 'Assignments');
+    if ($msg) {
+        echo '<div class="card"><b>' . wmt_e($msg) . '</b></div>';
+    }
+    echo '<div class="card no-print"><form style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="date" name="date" value="' . wmt_e($d) . '"><button>Load date</button>'
+        . ' <a class="btn" href="?v=week">Week / Generate</a>'
+        . ' <a class="btn" href="?v=signoff&date=' . wmt_e($d) . '">Sign-off</a>'
+        . ' <a class="btn" href="?v=packet&start=' . wmt_e($d) . '">Print packet</a>'
+        . '</form>'
+        . '<form method="post" style="margin-top:10px"><input type="hidden" name="form" value="generate_day"><input type="hidden" name="date" value="' . wmt_e($d) . '">'
+        . '<button>' . ($saved ? 'Regenerate &amp; overwrite this day' : 'Generate &amp; save this day') . '</button>'
+        . ($saved ? ' <span class="muted small">Saved assignments exist for this date.</span>' : '') . '</form></div>';
+
+    echo '<div class="card"><h1 class="print-title">Daily Assignment Plan &mdash; ' . wmt_e($d) . '</h1>';
+    echo '<p class="muted">Full daily ownership: door posts, staggered breaks/lunches, floater &amp; break cover, Grocery and GM side tasks, and general tasks. Door coverage is protected before any task; choices balance against saved history so work spreads over time.</p></div>';
+
+    asg_sanity_banner($pl);
+    echo '<div class="card">';
+    asg_kpis($pl);
+    echo '</div>';
+    asg_person_cards($rows);
+    asg_triggered_card($rows);
+    wmt_foot();
+}
+
+function asg_week_view($p, $msg)
+{
+    $dates = wmt_imported_dates($p);
+    $monday = new DateTime($_GET['date'] ?? date('Y-m-d'));
+    $monday->modify('monday this week');
+    wmt_head('Generate Week', 'Assignments');
+    if ($msg) {
+        echo '<div class="card"><b>' . wmt_e($msg) . '</b></div>';
+    }
+    echo '<div class="card"><h1>Generate assignments</h1><p class="muted">After importing a schedule, generate the daily plans for every imported date and save them to history. Saved days are skipped unless you confirm overwrite.</p>'
+        . '<form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+        . '<input type="hidden" name="form" value="generate_all">'
+        . '<label class="pill" style="cursor:pointer"><input type="checkbox" name="overwrite" value="1" style="width:auto;min-height:0;margin-right:6px">Overwrite existing</label>'
+        . '<button>Generate ALL imported dates</button></form>'
+        . '<form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px">'
+        . '<input type="hidden" name="form" value="generate_week">'
+        . '<input type="date" name="week_start" value="' . wmt_e($monday->format('Y-m-d')) . '">'
+        . '<label class="pill" style="cursor:pointer"><input type="checkbox" name="overwrite" value="1" style="width:auto;min-height:0;margin-right:6px">Overwrite existing</label>'
+        . '<button>Generate this week (7 days)</button></form></div>';
+
+    echo '<div class="card"><h2>Imported dates</h2><table class="cards"><tr><th>Date</th><th>Day</th><th>Shifts</th><th>Saved plan</th><th>Coverage</th><th>Open</th></tr>';
+    foreach ($dates as $d) {
+        $sh = wmt_shifts($p, $d);
+        $pl = wmt_plan_core($sh, wmt_settings_all($p), array(), $d);
+        $savedN = wmt_day_has_saved($p, $d);
+        $dow = date('D', strtotime($d));
+        echo '<tr>';
+        echo '<td data-label="Date"><b>' . wmt_e($d) . '</b></td>';
+        echo '<td data-label="Day">' . wmt_e($dow) . '</td>';
+        echo '<td data-label="Shifts">' . count($sh) . '</td>';
+        echo '<td data-label="Saved plan">' . ($savedN ? '<span class="ok">saved</span>' : '<span class="muted">not generated</span>') . '</td>';
+        echo '<td data-label="Coverage" class="' . ($pl['gap'] ? 'bad' : 'ok') . '">' . wmt_e($pl['pct']) . '%</td>';
+        echo '<td data-label="Open"><a href="?date=' . wmt_e($d) . '">plan</a> &middot; <a href="?v=signoff&date=' . wmt_e($d) . '">sign-off</a></td>';
+        echo '</tr>';
+    }
+    echo '</table></div>';
+    wmt_foot();
+}
+
+function asg_signoff_view($p, $d, $msg)
+{
+    $rows = wmt_load_saved($p, $d);
+    wmt_head('Sign-off', 'Assignments');
+    if ($msg) {
+        echo '<div class="card"><b>' . wmt_e($msg) . '</b></div>';
+    }
+    echo '<div class="card no-print"><form style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="hidden" name="v" value="signoff"><input type="date" name="date" value="' . wmt_e($d) . '"><button>Load date</button></form></div>';
+    echo '<div class="card"><h1 class="print-title">Daily Sign-off &mdash; ' . wmt_e($d) . '</h1>';
+    if (!$rows) {
+        echo '<p class="muted">No saved assignments for this date yet. Generate them from the <a href="?v=week">Week</a> tab or the day plan.</p></div>';
+        wmt_foot();
+        return;
+    }
+    echo '<p class="muted">Mark each assignment Completed, Missed, Deferred, or N/A. Completion feeds future historical balancing (repeatedly missed tasks are routed away from that associate).</p></div>';
+    echo '<form method="post"><input type="hidden" name="form" value="signoff"><input type="hidden" name="date" value="' . wmt_e($d) . '">';
+    echo '<div class="card"><table class="cards"><tr><th>Time</th><th>Assignment</th><th>Owner</th><th>Status</th><th>Completed by</th><th>Notes</th></tr>';
+    $statuses = array('Assigned', 'Completed', 'Missed', 'Deferred', 'N/A');
+    foreach ($rows as $r) {
+        if ($r['assignment_type'] === 'Triggered') {
+            continue;
+        }
+        $id = (int)$r['id'];
+        $rel = !empty($r['release_required']) ? ' <span class="pill pill-rel">release first</span>' : '';
+        echo '<tr>';
+        echo '<td data-label="Time" class="time">' . wmt_e(asg_win($r['start_time'], $r['end_time'])) . '</td>';
+        echo '<td data-label="Assignment"><b>' . wmt_e($r['item_name']) . '</b>' . $rel . '<br><span class="muted small">' . wmt_e($r['assignment_type'] . ($r['side'] ? ' · ' . $r['side'] : '')) . '</span></td>';
+        echo '<td data-label="Owner">' . wmt_e($r['associate_name'] ?: '-') . '</td>';
+        echo '<td data-label="Status"><select name="row[' . $id . '][status]">';
+        foreach ($statuses as $s) {
+            echo '<option' . ($r['status'] === $s ? ' selected' : '') . '>' . wmt_e($s) . '</option>';
+        }
+        echo '</select></td>';
+        echo '<td data-label="Completed by"><input name="row[' . $id . '][by]" value="' . wmt_e($r['completed_by'] ?? '') . '"></td>';
+        echo '<td data-label="Notes"><input name="row[' . $id . '][notes]" value="' . wmt_e($r['completion_notes'] ?? '') . '"></td>';
+        echo '</tr>';
+    }
+    echo '</table>';
+    echo '<p>Manager sign-off <input name="mgr" placeholder="Manager name"></p>';
+    echo '<button class="no-print">Save sign-off</button></div></form>';
+    wmt_foot();
+}
+
+function asg_tasks_view($p, $msg)
+{
+    $items = wmt_items($p, false);
+    $edit = null;
+    if (isset($_GET['edit'])) {
+        foreach ($items as $i) {
+            if ((int)$i['id'] === (int)$_GET['edit']) {
+                $edit = $i;
+            }
+        }
+    }
+    wmt_head('Task Definitions', 'Assignments');
+    if ($msg) {
+        echo '<div class="card"><b>' . wmt_e($msg) . '</b></div>';
+    }
+    echo '<div class="card"><h1>Task definitions</h1><p class="muted">These drive the daily generator. Scope decides which side(s) a task lands on; preferred role decides whether a door owner, floater, or any TA gets it.</p>'
+        . '<table class="cards"><tr><th>Name</th><th>Scope</th><th>Role</th><th>Priority</th><th>Min</th><th>Freq</th><th>Active</th><th>Edit</th></tr>';
+    foreach ($items as $i) {
+        echo '<tr>';
+        echo '<td data-label="Name"><b>' . wmt_e($i['name']) . '</b><br><span class="muted small">' . wmt_e($i['category']) . '</span></td>';
+        echo '<td data-label="Scope">' . wmt_e($i['scope']) . '</td>';
+        echo '<td data-label="Role">' . wmt_e($i['preferred_role']) . '</td>';
+        echo '<td data-label="Priority">' . wmt_e($i['priority']) . '</td>';
+        echo '<td data-label="Min">' . wmt_e($i['estimated_minutes']) . '</td>';
+        echo '<td data-label="Freq">' . wmt_e($i['frequency'] ?? 'Daily') . '</td>';
+        echo '<td data-label="Active">' . ((int)$i['active'] ? '<span class="ok">yes</span>' : '<span class="muted">no</span>') . '<form method="post" style="display:inline"><input type="hidden" name="form" value="item_toggle"><input type="hidden" name="id" value="' . (int)$i['id'] . '"><input type="hidden" name="active" value="' . ((int)$i['active'] ? '0' : '1') . '"><button class="btn small" style="padding:3px 8px">' . ((int)$i['active'] ? 'disable' : 'enable') . '</button></form></td>';
+        echo '<td data-label="Edit"><a href="?v=tasks&edit=' . (int)$i['id'] . '">edit</a></td>';
+        echo '</tr>';
+    }
+    echo '</table></div>';
+
+    // add / edit form
+    $f = $edit ?: array('id' => '', 'name' => '', 'scope' => 'general', 'category' => '', 'priority' => 'Medium', 'estimated_minutes' => 10, 'preferred_role' => 'floater', 'frequency' => 'Daily', 'instructions' => '');
+    $scopes = array('grocery' => 'Grocery only', 'gm' => 'GM only', 'both' => 'Both sides', 'general' => 'General floater', 'triggered' => 'Triggered only');
+    $roles = array('door_owner' => 'Door owner', 'floater' => 'Floater', 'any' => 'Any AP Service TA');
+    $prios = array('Critical', 'High', 'Medium', 'Low');
+    echo '<div class="card no-print"><h2>' . ($edit ? 'Edit task' : 'Add a task') . '</h2><form method="post">';
+    echo '<input type="hidden" name="form" value="item_save"><input type="hidden" name="id" value="' . wmt_e($f['id']) . '">';
+    echo '<p>Name<br><input name="name" value="' . wmt_e($f['name']) . '" placeholder="e.g. Go backs from Service Desk" style="width:100%"></p>';
+    echo '<p>Scope<br><select name="scope">';
+    foreach ($scopes as $k => $lbl) {
+        echo '<option value="' . $k . '"' . ($f['scope'] === $k ? ' selected' : '') . '>' . wmt_e($lbl) . '</option>';
+    }
+    echo '</select></p>';
+    echo '<p>Preferred role<br><select name="preferred_role">';
+    foreach ($roles as $k => $lbl) {
+        echo '<option value="' . $k . '"' . ($f['preferred_role'] === $k ? ' selected' : '') . '>' . wmt_e($lbl) . '</option>';
+    }
+    echo '</select></p>';
+    echo '<p>Priority<br><select name="priority">';
+    foreach ($prios as $pr) {
+        echo '<option' . ($f['priority'] === $pr ? ' selected' : '') . '>' . wmt_e($pr) . '</option>';
+    }
+    echo '</select></p>';
+    echo '<p>Category <input name="category" value="' . wmt_e($f['category']) . '"> &nbsp; Estimated minutes <input type="number" name="estimated_minutes" value="' . wmt_e($f['estimated_minutes']) . '" style="width:90px"> &nbsp; Frequency <input name="frequency" value="' . wmt_e($f['frequency'] ?? 'Daily') . '"></p>';
+    echo '<p>Instructions<br><textarea name="instructions">' . wmt_e($f['instructions']) . '</textarea></p>';
+    echo '<button>' . ($edit ? 'Save changes' : 'Add task') . '</button>' . ($edit ? ' <a class="btn" href="?v=tasks" style="background:#777;border-color:#777">Cancel</a>' : '') . '</form></div>';
+    wmt_foot();
+}
+
+function asg_team_view($p, $msg)
+{
+    $assoc = wmt_associates($p);
+    wmt_head('Team', 'Assignments');
+    if ($msg) {
+        echo '<div class="card"><b>' . wmt_e($msg) . '</b></div>';
+    }
+    echo '<div class="card"><h1>Associates &amp; preferred door</h1><p class="muted">Preferred door is favored by the planner when it does not hurt coverage. It is not overwritten when you re-import a weekly schedule.</p>'
+        . '<table class="cards"><tr><th>Name</th><th>Team</th><th>Role</th><th>Can cover</th><th>Preferred door</th></tr>';
+    foreach ($assoc as $a) {
+        echo '<tr>';
+        echo '<td data-label="Name"><b>' . wmt_e($a['name']) . '</b></td>';
+        echo '<td data-label="Team">' . wmt_e($a['team']) . '</td>';
+        echo '<td data-label="Role">' . wmt_e($a['role_type']) . '</td>';
+        echo '<td data-label="Can cover">' . ((int)$a['can_cover'] ? 'yes' : 'no') . '</td>';
+        echo '<td data-label="Preferred door"><form method="post" style="display:flex;gap:6px"><input type="hidden" name="form" value="assoc_pref"><input type="hidden" name="id" value="' . (int)$a['id'] . '"><select name="door">';
+        foreach (array('Either', 'Grocery', 'GM') as $door) {
+            echo '<option' . (($a['preferred_door'] ?? 'Either') === $door ? ' selected' : '') . '>' . $door . '</option>';
+        }
+        echo '</select><button class="btn small" style="padding:4px 10px">set</button></form></td>';
+        echo '</tr>';
+    }
+    echo '</table></div>';
+    wmt_foot();
+}
+
+function asg_packet_view($p, $start)
+{
+    $monday = new DateTime($start);
+    $monday->modify('monday this week');
+    $days = array();
+    for ($i = 0; $i < 7; $i++) {
+        $day = (clone $monday)->modify('+' . $i . ' day')->format('Y-m-d');
+        if (wmt_date_has_shifts($p, $day)) {
+            $days[] = $day;
+        }
+    }
+    wmt_head('Weekly Packet', 'Assignments');
+    echo '<div class="card no-print"><b>Printable weekly packet.</b> Use your browser Print to PDF. Week of ' . wmt_e($monday->format('Y-m-d')) . '. <a class="btn" href="?v=packet&start=' . wmt_e((clone $monday)->modify('-7 day')->format('Y-m-d')) . '">&larr; prev week</a> <a class="btn" href="?v=packet&start=' . wmt_e((clone $monday)->modify('+7 day')->format('Y-m-d')) . '">next week &rarr;</a></div>';
+    if (!$days) {
+        echo '<div class="card"><h1>No imported shifts for this week.</h1></div>';
+        wmt_foot();
+        return;
+    }
+    $weekGaps = array();
+    foreach ($days as $d) {
+        $gen = wmt_generate_day($p, $d);
+        $pl = $gen['plan'];
+        $rows = $gen['rows'];
+
+        // 1. Management daily review
+        echo '<div class="card page"><h1 class="print-title">Management Daily Review &mdash; ' . wmt_e($d) . ' (' . date('l', strtotime($d)) . ')</h1>';
+        echo '<p><b>Coverage:</b> ' . wmt_e($pl['pct']) . '% &nbsp; <b>Gap minutes:</b> ' . wmt_e($pl['gap']) . ' &nbsp; <b>Floater minutes:</b> ' . wmt_e($pl['float']) . ' &nbsp; <b>Scheduled:</b> ' . count($pl['shifts']) . '</p>';
+        echo '<p class="muted small">Rules: Services own doors. Breaks/lunches staggered coverage-first. Ops flex only with two Ops available and not 10AM&ndash;12PM. TL max 15 min/day. Investigator never flexes. One door covered beats both uncovered.</p>';
+        foreach (wmt_sanity($pl) as $f) {
+            if ($f['level'] === 'critical') {
+                echo '<div class="crit">' . wmt_e($f['msg']) . '</div>';
+                $weekGaps[] = $d . ': ' . $f['msg'];
+            }
+        }
+        echo '</div>';
+
+        // 2. Position sheets per AP Services associate
+        $names = array();
+        foreach ($pl['shifts'] as $s) {
+            if (wmt_team_of($s) === 'Services') {
+                $names[$s['associate_name']] = $s;
+            }
+        }
+        foreach ($names as $name => $s) {
+            echo '<div class="card page"><h1 class="print-title">Position Sheet &mdash; ' . wmt_e($name) . '</h1>';
+            echo '<p><b>Date:</b> ' . wmt_e($d) . ' &nbsp; <b>Shift:</b> ' . wmt_e(substr($s['start_time'], 0, 5)) . '-' . wmt_e(substr($s['end_time'], 0, 5)) . '</p>';
+            echo '<p><b>Do not leave your post until relieved or directed.</b> If relief does not arrive, contact leadership/AP.</p>';
+            echo '<table><tr><th>Time</th><th>Position</th><th>Handoff</th><th>Notes</th></tr>';
+            foreach (wmt_person_blocks($pl, $name) as $b) {
+                echo '<tr><td class="time">' . wmt_nice($b['start']) . '-' . wmt_nice($b['end']) . '</td><td><b>' . wmt_e($b['pos']) . '</b></td><td>' . wmt_e($b['handoff']) . '</td><td>' . wmt_e($b['notes']) . '</td></tr>';
+            }
+            echo '</table></div>';
+        }
+
+        // 3. Daily task / sign-off sheet
+        echo '<div class="card page"><h1 class="print-title">Daily Task &amp; Sign-off &mdash; ' . wmt_e($d) . '</h1><table><tr><th>Time</th><th>Owner</th><th>Task</th><th>Status</th><th>By</th><th>Mgr</th></tr>';
+        foreach ($rows as $r) {
+            if (!in_array($r['assignment_type'], array('Door Task', 'General Task'), true)) {
+                continue;
+            }
+            echo '<tr><td class="time">' . wmt_e(asg_win($r['start'], $r['end'])) . '</td><td>' . wmt_e($r['associate_name']) . '</td><td><b>' . wmt_e($r['item_name']) . '</b> <span class="muted small">' . wmt_e($r['side']) . '</span></td><td style="min-width:90px">&nbsp;</td><td style="min-width:80px">&nbsp;</td><td style="min-width:60px">&nbsp;</td></tr>';
+        }
+        echo '</table></div>';
+    }
+
+    // 4. Weekly summary of unavoidable gaps + staffing needs
+    echo '<div class="card page"><h1 class="print-title">Weekly Summary &mdash; Unavoidable Gaps &amp; Staffing Needs</h1>';
+    if ($weekGaps) {
+        echo '<p>The following windows could not be covered with the scheduled AP Services staff. These are staffing requests, not assignment errors:</p><ul>';
+        foreach ($weekGaps as $g) {
+            echo '<li>' . wmt_e($g) . '</li>';
+        }
+        echo '</ul>';
+    } else {
+        echo '<p class="ok">No unavoidable both-door gaps this week. Coverage held across all imported days.</p>';
+    }
+    echo '<p class="muted small">Target: both doors 8AM&ndash;5PM. Gold standard: Grocery 6AM&ndash;11PM, GM 6AM&ndash;9PM. Each both-door gap above is a window where additional AP Services coverage is needed.</p></div>';
+    wmt_foot();
+}
+
+/* ---------- POST handling ---------- */
+
+function asg_handle_post($p)
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        return '';
+    }
+    $f = $_POST['form'] ?? '';
+    if ($f === 'generate_day') {
+        $d = $_POST['date'] ?? date('Y-m-d');
+        $gen = wmt_generate_day($p, $d);
+        $n = wmt_save_day($p, $d, $gen['rows']);
+        return 'Saved ' . $n . ' assignments for ' . $d . '.';
+    }
+    if ($f === 'generate_all') {
+        $dates = wmt_imported_dates($p);
+        $made = wmt_generate_dates($p, $dates, !empty($_POST['overwrite']));
+        return asg_made_summary($made);
+    }
+    if ($f === 'generate_week') {
+        $monday = new DateTime($_POST['week_start'] ?? date('Y-m-d'));
+        $monday->modify('monday this week');
+        $dates = array();
+        for ($i = 0; $i < 7; $i++) {
+            $dates[] = (clone $monday)->modify('+' . $i . ' day')->format('Y-m-d');
+        }
+        $made = wmt_generate_dates($p, $dates, !empty($_POST['overwrite']));
+        return asg_made_summary($made);
+    }
+    if ($f === 'signoff') {
+        $d = $_POST['date'] ?? '';
+        $mgr = trim($_POST['mgr'] ?? '');
+        $n = 0;
+        foreach ($_POST['row'] ?? array() as $id => $row) {
+            wmt_update_completion($p, $id, $row['status'] ?? 'Assigned', trim($row['by'] ?? ''), trim($row['notes'] ?? ''), $mgr);
+            $n++;
+        }
+        return 'Saved sign-off for ' . $n . ' assignments' . ($d ? ' on ' . $d : '') . '.';
+    }
+    if ($f === 'item_save') {
+        return wmt_item_save($p, $_POST);
+    }
+    if ($f === 'item_toggle') {
+        wmt_item_set_active($p, $_POST['id'] ?? 0, !empty($_POST['active']));
+        return 'Task updated.';
+    }
+    if ($f === 'assoc_pref') {
+        wmt_associate_set_pref($p, $_POST['id'] ?? 0, $_POST['door'] ?? 'Either');
+        return 'Preferred door saved.';
+    }
+    return '';
+}
+
+function asg_made_summary($made)
+{
+    if (!$made) {
+        return 'No imported dates with shifts to generate.';
+    }
+    $parts = array();
+    foreach ($made as $d => $n) {
+        $parts[] = $d . ' (' . ($n === 'skipped' ? 'skipped' : $n . ' rows') . ')';
+    }
+    return 'Generated: ' . implode(', ', $parts) . '.';
+}
+
+/* ---------- main ---------- */
+
+try {
+    $p = wmt_db();
+    wmt_schema($p);
+    wmt_require_login($p, 'assignments.php');
+    wmt_auto_seed($p);
+    $msg = asg_handle_post($p);
+    $v = $_GET['v'] ?? 'day';
+    $d = $_GET['date'] ?? date('Y-m-d');
+    if ($v === 'week') {
+        asg_week_view($p, $msg);
+    } elseif ($v === 'signoff') {
+        asg_signoff_view($p, $d, $msg);
+    } elseif ($v === 'tasks') {
+        asg_tasks_view($p, $msg);
+    } elseif ($v === 'team') {
+        asg_team_view($p, $msg);
+    } elseif ($v === 'packet') {
+        asg_packet_view($p, $_GET['start'] ?? $d);
+    } else {
+        asg_day_view($p, $d, $msg);
+    }
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>' . wmt_theme_css() . '</style><body><div class="card" style="max-width:900px;margin:40px auto"><h1>Assignment engine error</h1><pre>' . wmt_e($e->getMessage()) . '</pre><p>Add <code>?debug=1</code> to the URL for details.</p></div>';
+}

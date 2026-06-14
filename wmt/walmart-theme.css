@@ -62,7 +62,12 @@ a{color:var(--wmt-blue-deep);}
   td{border:0!important;border-bottom:1px solid var(--wmt-border)!important;background:transparent!important;padding:9px 0!important;font-size:16px!important;display:grid!important;grid-template-columns:118px minmax(0,1fr)!important;gap:10px!important;align-items:start!important;overflow-wrap:anywhere!important;}
   td:last-child{border-bottom:0!important;}
   td::before{font-size:11px!important;letter-spacing:.04em!important;text-transform:uppercase!important;color:var(--wmt-muted)!important;font-weight:800!important;padding-top:3px!important;}
+  /* Robust labels for engine tables: explicit data-label wins over the
+     positional nth-child labels below (higher specificity), so any column
+     count renders correctly as a mobile card. */
+  table.cards td[data-label]::before{content:attr(data-label)!important;}
   .time{white-space:normal!important;font-weight:900!important;color:var(--wmt-blue-deep)!important;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px!important;font-weight:800;}
 
   /* 4-column cards: Associate Position Sheet and Turn-In rows. */
   td:nth-child(1):nth-last-child(4)::before{content:"Time / Task";}
