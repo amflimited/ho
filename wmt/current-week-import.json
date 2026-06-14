@@ -1,0 +1,539 @@
+{
+  "settings": {
+    "triage_start": "08:00",
+    "triage_end": "17:00",
+    "grocery_gold_start": "06:00",
+    "grocery_gold_end": "23:00",
+    "gm_gold_start": "06:00",
+    "gm_gold_end": "21:00",
+    "slot_minutes": "15",
+    "ops_blackout_start": "10:00",
+    "ops_blackout_end": "12:00",
+    "ops_flex_per_person": "30",
+    "tl_flex_per_day": "15",
+    "investigator_flex": "never"
+  },
+  "replace_schedule_dates": [
+    "2026-06-14",
+    "2026-06-15",
+    "2026-06-16",
+    "2026-06-17",
+    "2026-06-18",
+    "2026-06-19",
+    "2026-06-20",
+    "2026-06-21"
+  ],
+  "associates": [],
+  "schedule": [
+    {
+      "date": "2026-06-14",
+      "name": "Abby L Massengale",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "12:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-14",
+      "name": "Brittney N Morgan",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-14",
+      "name": "Charlene K Faulstich",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-14",
+      "name": "Darla Wright",
+      "team": "Investigator",
+      "role_type": "AP Investigator",
+      "start": "11:00",
+      "end": "19:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-15",
+      "name": "Mrs. Melanie S Heard",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-15",
+      "name": "Velma J Amstutz",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-15",
+      "name": "Charlene K Faulstich",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-15",
+      "name": "Ronald H Neubert Jr",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "14:00",
+      "end": "22:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-15",
+      "name": "Steve A Stone",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "16:00",
+      "end": "21:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-16",
+      "name": "Donna T Deiwert",
+      "team": "Team Lead",
+      "role_type": "AP Team Lead",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-16",
+      "name": "Mrs. Melanie S Heard",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-16",
+      "name": "Velma J Amstutz",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-16",
+      "name": "Charlene K Faulstich",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-16",
+      "name": "Ronald H Neubert Jr",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "14:00",
+      "end": "22:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-16",
+      "name": "Steve A Stone",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "16:00",
+      "end": "21:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Abby L Massengale",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "13:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Donna T Deiwert",
+      "team": "Team Lead",
+      "role_type": "AP Team Lead",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Velma J Amstutz",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "06:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Brittney N Morgan",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Charlene K Faulstich",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Darla Wright",
+      "team": "Investigator",
+      "role_type": "AP Investigator",
+      "start": "12:00",
+      "end": "20:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Tyrone Baker",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "12:00",
+      "end": "17:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Abby L Massengale",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "13:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Mrs. Melanie S Heard",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Velma J Amstutz",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "12:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Brittney N Morgan",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Charlene K Faulstich",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Darla Wright",
+      "team": "Investigator",
+      "role_type": "AP Investigator",
+      "start": "11:00",
+      "end": "19:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Donna T Deiwert",
+      "team": "Team Lead",
+      "role_type": "AP Team Lead",
+      "start": "12:00",
+      "end": "20:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Tyrone Baker",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "12:00",
+      "end": "17:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-18",
+      "name": "Ronald H Neubert Jr",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "14:00",
+      "end": "22:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Abby L Massengale",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "13:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Mrs. Melanie S Heard",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Velma J Amstutz",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "12:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Brittney N Morgan",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Donna T Deiwert",
+      "team": "Team Lead",
+      "role_type": "AP Team Lead",
+      "start": "08:00",
+      "end": "16:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Penny Penticuff",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Darla Wright",
+      "team": "Investigator",
+      "role_type": "AP Investigator",
+      "start": "11:00",
+      "end": "19:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Tyrone Baker",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "12:00",
+      "end": "17:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Ronald H Neubert Jr",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "14:00",
+      "end": "22:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Steve A Stone",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "16:00",
+      "end": "21:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-20",
+      "name": "Abby L Massengale",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-20",
+      "name": "Donna T Deiwert",
+      "team": "Team Lead",
+      "role_type": "AP Team Lead",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-20",
+      "name": "Tyrone Baker",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "09:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-20",
+      "name": "Darla Wright",
+      "team": "Investigator",
+      "role_type": "AP Investigator",
+      "start": "11:00",
+      "end": "20:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-20",
+      "name": "Valerie J Shaneyfelt",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "14:00",
+      "end": "22:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-20",
+      "name": "Ronald H Neubert Jr",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "14:30",
+      "end": "22:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-21",
+      "name": "Abby L Massengale",
+      "team": "Ops",
+      "role_type": "AP Operations TA",
+      "start": "05:00",
+      "end": "14:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-21",
+      "name": "Brittney N Morgan",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "16:30",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-21",
+      "name": "Charlene K Faulstich",
+      "team": "Services",
+      "role_type": "AP Service TA",
+      "start": "08:00",
+      "end": "17:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    },
+    {
+      "date": "2026-06-21",
+      "name": "Darla Wright",
+      "team": "Investigator",
+      "role_type": "AP Investigator",
+      "start": "09:00",
+      "end": "13:00",
+      "preferred_door": "Either",
+      "notes": "Imported from schedule screenshots"
+    }
+  ]
+}
