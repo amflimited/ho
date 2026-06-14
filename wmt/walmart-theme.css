@@ -1,0 +1,42 @@
+/* Walmart 2026-style UI palette for AP Services tool.
+   Uses Walmart Blue / True Blue family and Spark Yellow accents. */
+:root{
+  --wmt-blue:#0071DC;
+  --wmt-blue-dark:#0053E2;
+  --wmt-blue-deep:#004F9A;
+  --wmt-yellow:#FFC220;
+  --wmt-yellow-soft:#FFF8E1;
+  --wmt-white:#FFFFFF;
+  --wmt-bg:#F8F8F8;
+  --wmt-panel:#FFFFFF;
+  --wmt-border:#E3E4E5;
+  --wmt-text:#000000;
+  --wmt-muted:#515357;
+  --wmt-soft-blue:#E6F1FC;
+  --wmt-hover:#F1F1F2;
+  --wmt-success:#2A8703;
+  --wmt-error:#DE1C24;
+}
+body{background:var(--wmt-bg)!important;color:var(--wmt-text)!important;}
+.top{background:var(--wmt-blue)!important;color:var(--wmt-white)!important;border-bottom:4px solid var(--wmt-yellow)!important;}
+.nav a,.top a{color:var(--wmt-white)!important;}
+.card{background:var(--wmt-panel)!important;border-color:var(--wmt-border)!important;box-shadow:0 1px 2px rgba(0,0,0,.05)!important;}
+.kpi{background:var(--wmt-soft-blue)!important;border-color:#B9D7F5!important;}
+.kpi b{color:var(--wmt-blue-deep)!important;}
+button,.btn{background:var(--wmt-blue)!important;color:var(--wmt-white)!important;border-color:var(--wmt-blue)!important;}
+button:hover,.btn:hover{background:var(--wmt-blue-dark)!important;border-color:var(--wmt-blue-dark)!important;}
+th{background:var(--wmt-blue)!important;color:var(--wmt-white)!important;border-color:var(--wmt-blue-deep)!important;}
+td{border-color:var(--wmt-border)!important;}
+tr:nth-child(even) td{background:#FAFBFC!important;}
+.muted{color:var(--wmt-muted)!important;}
+.ok{color:var(--wmt-success)!important;}
+.bad{color:var(--wmt-error)!important;}
+.warn{background:var(--wmt-yellow-soft)!important;border-left-color:var(--wmt-yellow)!important;}
+input,select,textarea{border-color:#BABBBD!important;background:var(--wmt-white)!important;color:var(--wmt-text)!important;}
+input:focus,select:focus,textarea:focus{outline:3px solid #B9D7F5!important;border-color:var(--wmt-blue)!important;}
+a{color:var(--wmt-blue-deep);}
+@media print{
+  body{background:var(--wmt-white)!important;color:var(--wmt-text)!important;}
+  th{background:var(--wmt-blue)!important;color:var(--wmt-white)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .kpi,.warn{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
